@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=DevPanel
+Comment=Local development environment manager
+Exec=/usr/bin/devpanel
+Icon=devpanel
+Terminal=false
+Type=Application
+Categories=Development;System;
+Keywords=apache;mysql;php;ssh;
+StartupWMClass=devpanel

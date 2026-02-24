@@ -1,0 +1,34 @@
+[package]
+name = "devpanel"
+version = "0.1.0"
+edition = "2021"
+description = "Local development environment manager for Debian/Ubuntu"
+authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
+
+[[bin]]
+name = "devpanel"
+path = "src/main.rs"
+
+[package.metadata.deb]
+maintainer = "Giannis Smyrnis <smyrnisgiannis@gmail.com>"
+copyright = "2025 Giannis Smyrnis"
+license-file = ["LICENSE"]
+extended-description = """
+DevPanel is a desktop GUI for managing your local development environment.
+Control Apache, MySQL and PHP services, create Apache VirtualHosts,
+and manage SSH keys — all from a single polished interface.
+"""
+depends = "$auto"
+section = "devel"
+priority = "optional"
+assets = [
+  ["target/release/devpanel", "usr/bin/",                       "755"],
+  ["icon.png",                "usr/share/pixmaps/devpanel.png", "644"],
+  ["devpanel.desktop",        "usr/share/applications/",        "644"],
+]
+
+[dependencies]
+iced = { version = "0.13", features = ["tokio", "image"] }
+tokio = { version = "1", features = ["full"] }
+rfd = "0.15"
+image = "0.25"
