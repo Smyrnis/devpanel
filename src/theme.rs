@@ -1,41 +1,134 @@
-// src/theme.rs — centralized design tokens
-// Brand: #33BCAC (teal) on #000000 (black)
+// src/theme.rs — Apple-inspired design tokens
 
 use iced::Color;
 
-// ── Brand colors (from logo) ──────────────────────────────────────────────
-pub const TEAL: Color       = Color { r: 0.200, g: 0.737, b: 0.675, a: 1.0 }; // #33BCAC
-pub const TEAL_DIM: Color   = Color { r: 0.110, g: 0.420, b: 0.380, a: 1.0 }; // #1C6B61 darker
+// ── Brand ─────────────────────────────────────────────────────────────────
+pub const TEAL: Color = Color {
+    r: 0.196,
+    g: 0.780,
+    b: 0.706,
+    a: 1.0,
+};
+pub const TEAL_DIM: Color = Color {
+    r: 0.118,
+    g: 0.447,
+    b: 0.404,
+    a: 1.0,
+};
 
-// ── Background layers (near-black, teal-tinted) ───────────────────────────
-pub const BG_BASE: Color    = Color { r: 0.035, g: 0.047, b: 0.047, a: 1.0 }; // #091212
-pub const BG_SURFACE: Color = Color { r: 0.060, g: 0.082, b: 0.082, a: 1.0 }; // #0F1515
-pub const BG_CARD: Color    = Color { r: 0.086, g: 0.114, b: 0.114, a: 1.0 }; // #161D1D
-pub const BG_HOVER: Color   = Color { r: 0.110, g: 0.149, b: 0.149, a: 1.0 }; // #1C2626
+// ── Backgrounds ───────────────────────────────────────────────────────────
+pub const BG_BASE: Color = Color {
+    r: 0.067,
+    g: 0.067,
+    b: 0.071,
+    a: 1.0,
+};
+pub const BG_SURFACE: Color = Color {
+    r: 0.106,
+    g: 0.106,
+    b: 0.114,
+    a: 1.0,
+};
+pub const BG_CARD: Color = Color {
+    r: 0.141,
+    g: 0.141,
+    b: 0.149,
+    a: 1.0,
+};
+pub const BG_HOVER: Color = Color {
+    r: 0.196,
+    g: 0.196,
+    b: 0.208,
+    a: 1.0,
+};
+pub const BG_ELEVATED: Color = Color {
+    r: 0.212,
+    g: 0.212,
+    b: 0.224,
+    a: 1.0,
+};
 
-// ── Borders ───────────────────────────────────────────────────────────────
-pub const BORDER_SUBTLE: Color = Color { r: 0.110, g: 0.200, b: 0.196, a: 1.0 }; // #1C3332
-pub const BORDER_MED: Color    = Color { r: 0.160, g: 0.310, b: 0.302, a: 1.0 }; // #294F4D
+// ── Borders — solid opaque colors, no alpha hacks ────────────────────────
+pub const BORDER_SUBTLE: Color = Color {
+    r: 0.220,
+    g: 0.220,
+    b: 0.235,
+    a: 1.0,
+};
+pub const BORDER_MED: Color = Color {
+    r: 0.290,
+    g: 0.290,
+    b: 0.310,
+    a: 1.0,
+};
+
+//pub const BORDER_FOCUS: Color  = TEAL;
 
 // ── Text ──────────────────────────────────────────────────────────────────
-// High contrast on dark bg — slightly warm white with teal hint
-pub const TEXT_PRIMARY: Color   = Color { r: 0.918, g: 0.965, b: 0.957, a: 1.0 }; // #EAF6F4
-pub const TEXT_SECONDARY: Color = Color { r: 0.620, g: 0.737, b: 0.718, a: 1.0 }; // #9EBBB7
-pub const TEXT_MUTED: Color     = Color { r: 0.380, g: 0.490, b: 0.475, a: 1.0 }; // #617D79
+pub const TEXT_PRIMARY: Color = Color {
+    r: 0.980,
+    g: 0.980,
+    b: 0.980,
+    a: 1.0,
+};
+pub const TEXT_SECONDARY: Color = Color {
+    r: 0.620,
+    g: 0.620,
+    b: 0.640,
+    a: 1.0,
+};
+pub const TEXT_MUTED: Color = Color {
+    r: 0.420,
+    g: 0.420,
+    b: 0.440,
+    a: 1.0,
+};
 
-// ── Accent (brand teal used for highlights) ───────────────────────────────
-pub const ACCENT: Color     = TEAL;
+//pub const TEXT_TEAL: Color      = TEAL;
+
+// ── Accent ────────────────────────────────────────────────────────────────
+pub const ACCENT: Color = TEAL;
 pub const ACCENT_DIM: Color = TEAL_DIM;
 
-// ── Status ────────────────────────────────────────────────────────────────
-// Green stays close to teal; yellow/red are high-contrast for readability
-pub const GREEN: Color  = Color { r: 0.200, g: 0.870, b: 0.600, a: 1.0 }; // #33DE99
-pub const YELLOW: Color = Color { r: 1.000, g: 0.847, b: 0.200, a: 1.0 }; // #FFD833
-pub const RED: Color    = Color { r: 1.000, g: 0.380, b: 0.340, a: 1.0 }; // #FF6157
-pub const BLUE: Color   = Color { r: 0.380, g: 0.780, b: 0.870, a: 1.0 }; // #61C7DE
-pub const PURPLE: Color = Color { r: 0.620, g: 0.490, b: 0.980, a: 1.0 }; // #9E7DFA
+// ── Status colors ─────────────────────────────────────────────────────────
+pub const GREEN: Color = Color {
+    r: 0.188,
+    g: 0.820,
+    b: 0.498,
+    a: 1.0,
+};
+pub const YELLOW: Color = Color {
+    r: 1.000,
+    g: 0.800,
+    b: 0.000,
+    a: 1.0,
+};
+pub const RED: Color = Color {
+    r: 1.000,
+    g: 0.271,
+    b: 0.227,
+    a: 1.0,
+};
+pub const BLUE: Color = Color {
+    r: 0.039,
+    g: 0.518,
+    b: 1.000,
+    a: 1.0,
+};
+pub const PURPLE: Color = Color {
+    r: 0.749,
+    g: 0.353,
+    b: 0.949,
+    a: 1.0,
+};
+pub const ORANGE: Color = Color {
+    r: 1.000,
+    g: 0.620,
+    b: 0.039,
+    a: 1.0,
+};
 
-// ── Button colours ────────────────────────────────────────────────────────
+// ── Button colors ─────────────────────────────────────────────────────────
 pub const BTN_SUCCESS: Color = GREEN;
-pub const BTN_DANGER: Color  = RED;
-pub const BTN_WARN: Color    = YELLOW;
+pub const BTN_DANGER: Color = RED;
+pub const BTN_WARN: Color = ORANGE;

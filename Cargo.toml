@@ -25,7 +25,9 @@ assets = [
   ["target/release/devpanel", "usr/bin/",                       "755"],
   ["icon.png",                "usr/share/pixmaps/devpanel.png", "644"],
   ["devpanel.desktop",        "usr/share/applications/",        "644"],
+  ["share/index.php",         "usr/share/devpanel/",            "644"],
 ]
+maintainer-scripts = "scripts/"
 
 [dependencies]
 iced = { version = "0.13", features = ["tokio", "image"] }

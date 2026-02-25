@@ -5,12 +5,13 @@ mod tabs;
 mod theme;
 
 use sudo_prompt::{
-    clear_saved_password, save_password, sudo_cmd_with_password,
-    sudo_tee_append_with_password, validate_sudo_password, ModalState, PendingAction, SudoModal,
+    clear_saved_password, save_password, sudo_cmd_with_password, sudo_tee_append_with_password,
+    validate_sudo_password, ModalState, PendingAction, SudoModal,
 };
 use tabs::apache_touch::{ApacheTouchTab, LogEntry};
 use tabs::dashboard::DashboardTab;
 use tabs::ssh_keys::{KeyEntry, KeyType, SshKeysTab, StatusKind};
+use tabs::tools::ToolsTab;
 use theme::*;
 
 use iced::widget::{button, column, container, row, stack, text, Space};
@@ -25,6 +26,7 @@ pub enum Tab {
     Dashboard,
     ApacheTouch,
     SshKeys,
+    Tools,
 }
 
 // ── Top-level messages ────────────────────────────────────────────────────
@@ -42,7 +44,12 @@ pub enum Message {
     StartMySQL,
     StopMySQL,
     RestartMySQL,
-    ServiceResult { service: String, action: String, success: bool, output: String },
+    ServiceResult {
+        service: String,
+        action: String,
+        success: bool,
+        output: String,
+    },
 
     // Dashboard -- PHP
     SwitchPHPVersion(String),
@@ -56,13 +63,19 @@ pub enum Message {
     OpenApacheConfig,
     OpenMySQLConfig,
     OpenPHPConfig,
+    OpenPhpIni,
     EditHosts,
     RestartAll,
     ClearCache,
 
     // Dashboard -- status refresh
     RefreshStatus,
-    StatusRefreshed { apache: bool, mysql: bool, php: Option<String>, php_versions: Vec<String> },
+    StatusRefreshed {
+        apache: bool,
+        mysql: bool,
+        php: Option<String>,
+        php_versions: Vec<String>,
+    },
 
     // ApacheTouch
     AT_ProjectNameChanged(String),
@@ -88,6 +101,20 @@ pub enum Message {
     SSH_ListKeys,
     SSH_KeysListed(Vec<KeyEntry>),
 
+    // Tools
+    TOOLS_ScanPhp,
+    TOOLS_ScanDone(Vec<(String, tabs::tools::PhpStatus, bool)>),
+    TOOLS_InstallPhp(String),
+    TOOLS_RemovePhp(String),
+    TOOLS_PhpOpDone(bool, String),
+    TOOLS_OpenMysqlCli,
+    TOOLS_OpenMariadbCli,
+    TOOLS_OpenMysqlSocket,
+    TOOLS_ClearLog,
+    TOOLS_ClearToast,
+    TOOLS_CopyFixCommands(String),
+    TOOLS_CopyDone,
+
     // Sudo modal
     Sudo_PasswordChanged(String),
     Sudo_ToggleShow(bool),
@@ -105,6 +132,7 @@ struct App {
     dashboard: DashboardTab,
     apache_touch: ApacheTouchTab,
     ssh_keys: SshKeysTab,
+    tools: ToolsTab,
     toast: Option<Toast>,
     sudo: SudoModal,
     /// Stash the pending action before transitioning to Validating state
@@ -124,6 +152,7 @@ impl App {
             dashboard: DashboardTab::new(),
             apache_touch: ApacheTouchTab::new(),
             ssh_keys: SshKeysTab::new(),
+            tools: ToolsTab::new(),
             toast: None,
             sudo: SudoModal::new(),
             sudo_pending_action: None,
@@ -140,7 +169,9 @@ impl App {
         } else {
             // Stash the action and show the modal
             self.sudo_pending_action = Some(action.clone());
-            self.sudo.state = ModalState::Asking { pending_action: action };
+            self.sudo.state = ModalState::Asking {
+                pending_action: action,
+            };
             self.sudo.password_input.clear();
             Task::none()
         }
@@ -150,22 +181,23 @@ impl App {
 
     fn dispatch_sudo_action(&mut self, action: PendingAction, password: String) -> Task<Message> {
         match action {
-            PendingAction::ServiceControl { service, action: svc_action } => {
+            PendingAction::ServiceControl {
+                service,
+                action: svc_action,
+            } => {
                 let svc = Box::leak(service.into_boxed_str()) as &'static str;
                 let act = Box::leak(svc_action.into_boxed_str()) as &'static str;
-                Task::perform(
-                    run_service_cmd_with_pass(svc, act, password),
-                    |r| r,
-                )
+                Task::perform(run_service_cmd_with_pass(svc, act, password), |r| r)
             }
-            PendingAction::PhpSwitch(version) => Task::perform(
-                switch_php_with_pass(version, password),
-                |(ok, msg)| Message::PhpSwitchResult(ok, msg),
-            ),
+            PendingAction::PhpSwitch(version) => {
+                Task::perform(switch_php_with_pass(version, password), |(ok, msg)| {
+                    Message::PhpSwitchResult(ok, msg)
+                })
+            }
             PendingAction::ApacheTouchSetup => {
-                let pn   = self.apache_touch.project_name.trim().to_string();
-                let aj   = self.apache_touch.auth_json_path.trim().to_string();
-                let bd   = self.apache_touch.base_dir.trim().to_string();
+                let pn = self.apache_touch.project_name.trim().to_string();
+                let aj = self.apache_touch.auth_json_path.trim().to_string();
+                let bd = self.apache_touch.base_dir.trim().to_string();
                 let conf = self.apache_touch.apache_conf.trim().to_string();
                 self.apache_touch.running = true;
                 self.apache_touch.log.clear();
@@ -184,6 +216,16 @@ impl App {
                     |r| r,
                 ),
             ]),
+            PendingAction::PhpInstall(version) => {
+                Task::perform(apt_php_op(version, true, password), |(ok, msg)| {
+                    Message::TOOLS_PhpOpDone(ok, msg)
+                })
+            }
+            PendingAction::PhpRemove(version) => {
+                Task::perform(apt_php_op(version, false, password), |(ok, msg)| {
+                    Message::TOOLS_PhpOpDone(ok, msg)
+                })
+            }
         }
     }
 
@@ -199,6 +241,13 @@ impl App {
                 }
                 if tab == Tab::SshKeys {
                     return Task::perform(list_ssh_keys(), Message::SSH_KeysListed);
+                }
+                if tab == Tab::Tools {
+                    self.tools.scanning = true;
+                    return Task::perform(
+                        scan_php_versions(self.dashboard.active_php_version.clone()),
+                        Message::TOOLS_ScanDone,
+                    );
                 }
                 Task::none()
             }
@@ -233,10 +282,7 @@ impl App {
                 }
                 // Transition to Validating (keep pending_action_stash intact)
                 self.sudo.state = ModalState::Validating;
-                Task::perform(
-                    validate_sudo_password(pass),
-                    Message::Sudo_ValidationResult,
-                )
+                Task::perform(validate_sudo_password(pass), Message::Sudo_ValidationResult)
             }
             Message::Sudo_ValidationResult(valid) => {
                 if !valid {
@@ -283,39 +329,49 @@ impl App {
 
             // ── Dashboard: status refresh ──────────────────────────────────
             Message::RefreshStatus => Task::perform(probe_services(), |r| r),
-            Message::StatusRefreshed { apache, mysql, php, php_versions } => {
+            Message::StatusRefreshed {
+                apache,
+                mysql,
+                php,
+                php_versions,
+            } => {
                 self.dashboard.update_status(apache, mysql, php);
                 self.dashboard.set_php_versions(php_versions);
                 Task::none()
             }
 
             // ── Dashboard: service control ────────────────────────────────
-            Message::StartApache =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "apache2".into(), action: "start".into(),
-                }),
-            Message::StopApache =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "apache2".into(), action: "stop".into(),
-                }),
-            Message::RestartApache =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "apache2".into(), action: "restart".into(),
-                }),
-            Message::StartMySQL =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "mysql".into(), action: "start".into(),
-                }),
-            Message::StopMySQL =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "mysql".into(), action: "stop".into(),
-                }),
-            Message::RestartMySQL =>
-                self.trigger_sudo(PendingAction::ServiceControl {
-                    service: "mysql".into(), action: "restart".into(),
-                }),
+            Message::StartApache => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "apache2".into(),
+                action: "start".into(),
+            }),
+            Message::StopApache => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "apache2".into(),
+                action: "stop".into(),
+            }),
+            Message::RestartApache => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "apache2".into(),
+                action: "restart".into(),
+            }),
+            Message::StartMySQL => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "mysql".into(),
+                action: "start".into(),
+            }),
+            Message::StopMySQL => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "mysql".into(),
+                action: "stop".into(),
+            }),
+            Message::RestartMySQL => self.trigger_sudo(PendingAction::ServiceControl {
+                service: "mysql".into(),
+                action: "restart".into(),
+            }),
 
-            Message::ServiceResult { service, action, success, output } => {
+            Message::ServiceResult {
+                service,
+                action,
+                success,
+                output,
+            } => {
                 self.toast = Some(Toast {
                     message: if success {
                         format!("{} {}ed", service, action)
@@ -328,8 +384,7 @@ impl App {
             }
 
             // ── Dashboard: PHP ────────────────────────────────────────────
-            Message::SwitchPHPVersion(v) =>
-                self.trigger_sudo(PendingAction::PhpSwitch(v)),
+            Message::SwitchPHPVersion(v) => self.trigger_sudo(PendingAction::PhpSwitch(v)),
             Message::PhpSwitchResult(ok, msg) => {
                 self.toast = Some(Toast { message: msg, ok });
                 Task::perform(probe_services(), |r| r)
@@ -340,21 +395,58 @@ impl App {
             }
 
             // ── Dashboard: quick actions ──────────────────────────────────
-            Message::OpenLocalhost    => { let _ = open_url("http://localhost");            Task::none() }
-            Message::OpenPhpMyAdmin   => { let _ = open_url("http://localhost/phpmyadmin"); Task::none() }
-            Message::OpenWebRoot      => { let _ = xdg_open(&self.dashboard.web_root);      Task::none() }
-            Message::OpenApacheConfig => { let _ = xdg_open(&self.dashboard.apache_conf_dir); Task::none() }
-            Message::OpenMySQLConfig  => { let _ = xdg_open("/etc/mysql");                  Task::none() }
-            Message::OpenPHPConfig    => { let _ = xdg_open("/etc/php");                    Task::none() }
-            Message::EditHosts        => { let _ = xdg_open("/etc/hosts");                  Task::none() }
-            Message::ClearCache       => Task::none(),
-            Message::RestartAll       => self.trigger_sudo(PendingAction::RestartAll),
+            Message::OpenLocalhost => {
+                let _ = open_url("http://localhost");
+                Task::none()
+            }
+            Message::OpenPhpMyAdmin => {
+                let _ = open_url("http://localhost/phpmyadmin");
+                Task::none()
+            }
+            Message::OpenWebRoot => {
+                let _ = xdg_open(&self.dashboard.web_root);
+                Task::none()
+            }
+            Message::OpenApacheConfig => {
+                let _ = xdg_open(&self.dashboard.apache_conf_dir);
+                Task::none()
+            }
+            Message::OpenMySQLConfig => {
+                let _ = xdg_open("/etc/mysql");
+                Task::none()
+            }
+            Message::OpenPHPConfig => {
+                let _ = xdg_open("/etc/php");
+                Task::none()
+            }
+            Message::OpenPhpIni => {
+                let _ = open_php_ini(&self.dashboard.active_php_version);
+                Task::none()
+            }
+            Message::EditHosts => {
+                let _ = xdg_open("/etc/hosts");
+                Task::none()
+            }
+            Message::ClearCache => Task::none(),
+            Message::RestartAll => self.trigger_sudo(PendingAction::RestartAll),
 
             // ── ApacheTouch ───────────────────────────────────────────────
-            Message::AT_ProjectNameChanged(v) => { self.apache_touch.project_name = v;    Task::none() }
-            Message::AT_BaseDirChanged(v)     => { self.apache_touch.base_dir = v;        Task::none() }
-            Message::AT_ApacheConfChanged(v)  => { self.apache_touch.apache_conf = v;     Task::none() }
-            Message::AT_AuthJsonChanged(v)    => { self.apache_touch.auth_json_path = v;  Task::none() }
+            Message::AT_ProjectNameChanged(v) => {
+                self.apache_touch.project_name = v;
+                Task::none()
+            }
+            Message::AT_BaseDirChanged(v) => {
+                self.apache_touch.base_dir = v;
+                Task::none()
+            }
+            Message::AT_ApacheConfChanged(v) => {
+                self.apache_touch.apache_conf = v;
+                Task::none()
+            }
+            Message::AT_AuthJsonChanged(v) => {
+                self.apache_touch.auth_json_path = v;
+                Task::none()
+            }
             Message::AT_BrowseAuthJson => {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.apache_touch.auth_json_path = path.to_string_lossy().to_string();
@@ -375,7 +467,9 @@ impl App {
                 self.trigger_sudo(PendingAction::ApacheTouchSetup)
             }
             Message::AT_SetupDone(entries) => {
-                let ok = !entries.iter().any(|e| matches!(e.kind, tabs::apache_touch::LogKind::Error));
+                let ok = !entries
+                    .iter()
+                    .any(|e| matches!(e.kind, tabs::apache_touch::LogKind::Error));
                 self.apache_touch.finished_ok = Some(ok);
                 self.apache_touch.log = entries;
                 self.apache_touch.running = false;
@@ -383,29 +477,47 @@ impl App {
             }
 
             // ── SSH Keys ──────────────────────────────────────────────────
-            Message::SSH_EmailChanged(v)      => { self.ssh_keys.email = v;      Task::none() }
-            Message::SSH_KeyNameChanged(v)    => { self.ssh_keys.key_name = v;   Task::none() }
-            Message::SSH_KeyTypeChanged(t)    => { self.ssh_keys.key_type = t;   Task::none() }
-            Message::SSH_PassphraseChanged(v) => { self.ssh_keys.passphrase = v; Task::none() }
-            Message::SSH_TogglePassphrase(b)  => { self.ssh_keys.show_passphrase = b; Task::none() }
+            Message::SSH_EmailChanged(v) => {
+                self.ssh_keys.email = v;
+                Task::none()
+            }
+            Message::SSH_KeyNameChanged(v) => {
+                self.ssh_keys.key_name = v;
+                Task::none()
+            }
+            Message::SSH_KeyTypeChanged(t) => {
+                self.ssh_keys.key_type = t;
+                Task::none()
+            }
+            Message::SSH_PassphraseChanged(v) => {
+                self.ssh_keys.passphrase = v;
+                Task::none()
+            }
+            Message::SSH_TogglePassphrase(b) => {
+                self.ssh_keys.show_passphrase = b;
+                Task::none()
+            }
             Message::SSH_GenerateKey => {
                 let email = self.ssh_keys.email.clone();
-                let name  = self.ssh_keys.key_name.clone();
+                let name = self.ssh_keys.key_name.clone();
                 let ktype = self.ssh_keys.key_type;
-                let pass  = self.ssh_keys.passphrase.clone();
+                let pass = self.ssh_keys.passphrase.clone();
                 if email.trim().is_empty() || name.trim().is_empty() {
                     self.ssh_keys.status_message = "Email and key name are required.".into();
-                    self.ssh_keys.status_kind    = StatusKind::Error;
+                    self.ssh_keys.status_kind = StatusKind::Error;
                     return Task::none();
                 }
-                Task::perform(
-                    generate_ssh_key(email, name, ktype, pass),
-                    |(ok, msg)| Message::SSH_GenerateDone(ok, msg),
-                )
+                Task::perform(generate_ssh_key(email, name, ktype, pass), |(ok, msg)| {
+                    Message::SSH_GenerateDone(ok, msg)
+                })
             }
             Message::SSH_GenerateDone(ok, msg) => {
                 self.ssh_keys.status_message = msg;
-                self.ssh_keys.status_kind    = if ok { StatusKind::Success } else { StatusKind::Error };
+                self.ssh_keys.status_kind = if ok {
+                    StatusKind::Success
+                } else {
+                    StatusKind::Error
+                };
                 Task::perform(list_ssh_keys(), Message::SSH_KeysListed)
             }
             Message::SSH_AddExisting => {
@@ -420,7 +532,11 @@ impl App {
             }
             Message::SSH_AddExistingDone(ok, msg) => {
                 self.ssh_keys.status_message = msg;
-                self.ssh_keys.status_kind    = if ok { StatusKind::Success } else { StatusKind::Error };
+                self.ssh_keys.status_kind = if ok {
+                    StatusKind::Success
+                } else {
+                    StatusKind::Error
+                };
                 Task::none()
             }
             Message::SSH_OpenDir => {
@@ -433,6 +549,98 @@ impl App {
                 self.ssh_keys.keys_list = keys;
                 Task::none()
             }
+
+            // ── Tools ─────────────────────────────────────────────────────
+            Message::TOOLS_ScanPhp => {
+                self.tools.scanning = true;
+                Task::perform(
+                    scan_php_versions(self.dashboard.active_php_version.clone()),
+                    Message::TOOLS_ScanDone,
+                )
+            }
+            Message::TOOLS_ScanDone(results) => {
+                self.tools.apply_scan(results);
+                Task::none()
+            }
+            Message::TOOLS_InstallPhp(ver) => {
+                self.tools
+                    .push_log(true, format!("Queued install: PHP {}", ver));
+                self.trigger_sudo(PendingAction::PhpInstall(ver))
+            }
+            Message::TOOLS_RemovePhp(ver) => {
+                self.tools
+                    .push_log(true, format!("Queued removal: PHP {}", ver));
+                self.trigger_sudo(PendingAction::PhpRemove(ver))
+            }
+            Message::TOOLS_PhpOpDone(ok, msg) => {
+                self.tools.push_log(ok, msg.clone());
+                self.toast = Some(Toast { message: msg, ok });
+                // Re-scan after install/remove
+                self.tools.scanning = true;
+                Task::batch([
+                    Task::perform(probe_services(), |r| r),
+                    Task::perform(
+                        scan_php_versions(self.dashboard.active_php_version.clone()),
+                        Message::TOOLS_ScanDone,
+                    ),
+                    Task::perform(
+                        async {
+                            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        },
+                        |_| Message::TOOLS_ClearToast,
+                    ),
+                ])
+            }
+            Message::TOOLS_OpenMysqlCli => {
+                let result = open_db_terminal("mysql", false);
+                self.tools.db_status = match result {
+                    Ok(cmd) => format!("Launched: {}", cmd),
+                    Err(e) => format!("Error: {}", e),
+                };
+                Task::none()
+            }
+            Message::TOOLS_OpenMariadbCli => {
+                let result = open_db_terminal("mariadb", false);
+                self.tools.db_status = match result {
+                    Ok(cmd) => format!("Launched: {}", cmd),
+                    Err(e) => format!("Error: {}", e),
+                };
+                Task::none()
+            }
+            Message::TOOLS_OpenMysqlSocket => {
+                let result = open_db_terminal("mysql", true);
+                self.tools.db_status = match result {
+                    Ok(cmd) => format!("Launched: {}", cmd),
+                    Err(e) => format!("Error: {}", e),
+                };
+                Task::none()
+            }
+            Message::TOOLS_ClearLog => {
+                self.tools.install_log.clear();
+                self.tools.db_status.clear();
+                Task::none()
+            }
+            Message::TOOLS_ClearToast => {
+                self.toast = None;
+                Task::none()
+            }
+            Message::TOOLS_CopyFixCommands(commands) => {
+                Task::perform(copy_to_clipboard_async(commands), |_| {
+                    Message::TOOLS_CopyDone
+                })
+            }
+            Message::TOOLS_CopyDone => {
+                self.toast = Some(Toast {
+                    message: "Commands copied to clipboard!".to_string(),
+                    ok: true,
+                });
+                Task::perform(
+                    async {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                    },
+                    |_| Message::TOOLS_ClearToast,
+                )
+            }
         }
     }
 
@@ -442,27 +650,64 @@ impl App {
         let sidebar = self.sidebar();
 
         let tab_content: Element<Message> = match &self.active_tab {
-            Tab::Dashboard   => self.dashboard.view(),
+            Tab::Dashboard => self.dashboard.view(),
             Tab::ApacheTouch => self.apache_touch.view(),
-            Tab::SshKeys     => self.ssh_keys.view(),
+            Tab::SshKeys => self.ssh_keys.view(),
+            Tab::Tools => self.tools.view(),
         };
 
-        // Toast banner
+        // Toast notification — Apple-style pill
         let main_body: Element<Message> = if let Some(toast) = &self.toast {
-            let color = if toast.ok { GREEN } else { RED };
-            let icon  = if toast.ok { "[+]" } else { "[-]" };
+            let (color, border_color) = if toast.ok {
+                (
+                    GREEN,
+                    Color {
+                        r: 0.070,
+                        g: 0.210,
+                        b: 0.110,
+                        a: 1.0,
+                    },
+                )
+            } else {
+                (
+                    RED,
+                    Color {
+                        r: 0.300,
+                        g: 0.090,
+                        b: 0.080,
+                        a: 1.0,
+                    },
+                )
+            };
+            let icon = if toast.ok { "+" } else { "x" };
             let banner = container(
                 row![
-                    text(icon).size(13).color(color),
-                    text(format!("  {}", toast.message)).size(13).color(color),
+                    container(text(icon).size(11).color(Color::WHITE))
+                        .padding(Padding::from([3, 7]))
+                        .style(move |_: &iced::Theme| container::Style {
+                            background: Some(color.into()),
+                            border: Border {
+                                radius: 20.0.into(),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }),
+                    Space::with_width(10),
+                    text(format!("{}", toast.message))
+                        .size(13)
+                        .color(TEXT_PRIMARY),
                 ]
                 .align_y(Alignment::Center),
             )
-            .padding(Padding::from([8, 16]))
+            .padding(Padding::from([10, 18]))
             .width(Length::Fill)
             .style(move |_: &iced::Theme| container::Style {
-                background: Some(Color { a: 0.1, ..color }.into()),
-                border: Border { color: Color { a: 0.4, ..color }, width: 1.0, ..Default::default() },
+                background: Some(BG_SURFACE.into()),
+                border: Border {
+                    color: border_color,
+                    width: 1.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             });
             column![banner, tab_content].into()
@@ -484,9 +729,7 @@ impl App {
         // Overlay the sudo modal on top if visible
         if self.sudo.is_visible() {
             stack![
-                container(app_area)
-                    .width(Length::Fill)
-                    .height(Length::Fill),
+                container(app_area).width(Length::Fill).height(Length::Fill),
                 self.sudo.view(),
             ]
             .into()
@@ -501,57 +744,79 @@ impl App {
     // ── Sidebar ───────────────────────────────────────────────────────────
 
     fn sidebar(&self) -> Element<'_, Message> {
+        // Logo area
         let logo = container(
-            column![
-                text("dev").size(22).color(TEAL),
-                text("panel").size(22).color(TEXT_PRIMARY),
-                Space::with_height(2),
-                container(Space::with_width(40))
-                    .width(40)
-                    .height(2)
+            column![row![
+                container(Space::with_width(3))
+                    .width(3)
+                    .height(26)
                     .style(|_: &iced::Theme| container::Style {
                         background: Some(TEAL.into()),
-                        border: Border { radius: 1.0.into(), ..Default::default() },
+                        border: Border {
+                            radius: 2.0.into(),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     }),
+                Space::with_width(10),
+                column![
+                    text("dev").size(19).color(TEAL),
+                    text("panel").size(19).color(TEXT_PRIMARY),
+                ]
+                .spacing(0),
             ]
+            .align_y(Alignment::Center),]
             .spacing(0),
         )
-        .padding(Padding::from([20, 18]));
+        .padding(Padding::from([22, 16]));
 
         let nav = column![
-            self.nav_item("*", "Dashboard",   Tab::Dashboard),
-            self.nav_item("+", "VirtualHost", Tab::ApacheTouch),
-            self.nav_item("#", "SSH Keys",    Tab::SshKeys),
+            self.nav_item("Dashboard", Tab::Dashboard),
+            self.nav_item("VirtualHost", Tab::ApacheTouch),
+            self.nav_item("SSH Keys", Tab::SshKeys),
+            self.nav_item("Tools", Tab::Tools),
         ]
-        .spacing(4)
-        .padding(Padding::from([0, 10]));
+        .spacing(2)
+        .padding(Padding::from([0, 8]));
 
         // Sudo status indicator
         let sudo_indicator: Element<Message> = if self.sudo.cached_password.is_some() {
             column![
                 container(
                     row![
-                        container(Space::with_width(6))
-                            .width(6)
-                            .height(6)
-                            .style(|_: &iced::Theme| container::Style {
+                        container(Space::with_width(6)).width(6).height(6).style(
+                            |_: &iced::Theme| container::Style {
                                 background: Some(GREEN.into()),
-                                border: Border { radius: 3.0.into(), ..Default::default() },
+                                border: Border {
+                                    radius: 3.0.into(),
+                                    ..Default::default()
+                                },
                                 ..Default::default()
-                            }),
-                        Space::with_width(6),
+                            }
+                        ),
+                        Space::with_width(7),
                         text("sudo active").size(11).color(GREEN),
                     ]
                     .align_y(Alignment::Center),
                 )
-                .padding(Padding::from([5, 10]))
+                .padding(Padding::from([6, 10]))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(Color { a: 0.08, ..GREEN }.into()),
-                    border: Border { color: Color { a: 0.25, ..GREEN }, width: 1.0, radius: 5.0.into() },
+                    background: Some(
+                        Color {
+                            r: 0.050,
+                            g: 0.160,
+                            b: 0.090,
+                            a: 1.0
+                        }
+                        .into()
+                    ),
+                    border: Border {
+                        radius: 8.0.into(),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 }),
-                Space::with_height(4),
+                Space::with_height(5),
                 button(text("Clear sudo").size(11).color(TEXT_MUTED))
                     .on_press(Message::Sudo_ClearSaved)
                     .padding(Padding::from([4, 10]))
@@ -559,7 +824,10 @@ impl App {
                         iced::widget::button::Status::Hovered => iced::widget::button::Style {
                             background: Some(BG_HOVER.into()),
                             text_color: RED,
-                            border: Border { radius: 4.0.into(), ..Default::default() },
+                            border: Border {
+                                radius: 6.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
                         _ => iced::widget::button::Style {
@@ -579,51 +847,77 @@ impl App {
                         .height(6)
                         .style(|_: &iced::Theme| container::Style {
                             background: Some(YELLOW.into()),
-                            border: Border { radius: 3.0.into(), ..Default::default() },
+                            border: Border {
+                                radius: 3.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         }),
-                    Space::with_width(6),
-                    text("sudo: locked").size(11).color(TEXT_MUTED),
+                    Space::with_width(7),
+                    text("sudo locked").size(11).color(TEXT_MUTED),
                 ]
                 .align_y(Alignment::Center),
             )
-            .padding(Padding::from([5, 10]))
+            .padding(Padding::from([6, 10]))
             .style(|_: &iced::Theme| container::Style {
-                background: Some(Color { a: 0.06, ..YELLOW }.into()),
-                border: Border { color: Color { a: 0.2, ..YELLOW }, width: 1.0, radius: 5.0.into() },
+                background: Some(
+                    Color {
+                        r: 0.190,
+                        g: 0.160,
+                        b: 0.040,
+                        a: 1.0,
+                    }
+                    .into(),
+                ),
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             })
             .into()
         };
 
+        let refresh_btn = button(
+            row![
+                text("R").size(11).color(TEXT_MUTED),
+                Space::with_width(6),
+                text("Refresh").size(12).color(TEXT_MUTED),
+            ]
+            .align_y(Alignment::Center),
+        )
+        .on_press(Message::RefreshStatus)
+        .padding(Padding::from([8, 12]))
+        .width(Length::Fill)
+        .style(|_, status| match status {
+            iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                background: Some(BG_HOVER.into()),
+                text_color: TEXT_PRIMARY,
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            _ => iced::widget::button::Style {
+                background: None,
+                text_color: TEXT_MUTED,
+                ..Default::default()
+            },
+        });
+
         let bottom = container(
             column![
                 sudo_indicator,
                 Space::with_height(10),
-                button(text("~ Refresh").size(12))
-                    .on_press(Message::RefreshStatus)
-                    .padding(Padding::from([8, 14]))
-                    .width(Length::Fill)
-                    .style(|_, status| match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                            background: Some(BG_HOVER.into()),
-                            text_color: TEXT_PRIMARY,
-                            border: Border { radius: 6.0.into(), ..Default::default() },
-                            ..Default::default()
-                        },
-                        _ => iced::widget::button::Style {
-                            background: None,
-                            text_color: TEXT_MUTED,
-                            ..Default::default()
-                        },
-                    }),
-                Space::with_height(6),
+                refresh_btn,
+                Space::with_height(8),
                 text(format!("v{}", env!("CARGO_PKG_VERSION")))
                     .size(11)
                     .color(TEXT_MUTED),
             ]
             .spacing(0)
-            .align_x(Alignment::Center),
+            .align_x(Alignment::Start),
         )
         .padding(Padding::from([10, 14]));
 
@@ -631,7 +925,7 @@ impl App {
             column![
                 logo,
                 divider(),
-                Space::with_height(8),
+                Space::with_height(10),
                 nav,
                 Space::with_height(Length::Fill),
                 divider(),
@@ -639,7 +933,7 @@ impl App {
             ]
             .height(Length::Fill),
         )
-        .width(180)
+        .width(192)
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
             background: Some(BG_SURFACE.into()),
@@ -648,43 +942,56 @@ impl App {
         .into()
     }
 
-    fn nav_item<'a>(&self, icon: &'a str, label: &'a str, tab: Tab) -> Element<'a, Message> {
+    fn nav_item<'a>(&self, label: &'a str, tab: Tab) -> Element<'a, Message> {
         let active = self.active_tab == tab;
-        let bg = if active { BG_CARD } else { Color::TRANSPARENT };
+        // Solid pre-computed teal tint — no alpha struct
+        let bg = if active {
+            Color {
+                r: 0.060,
+                g: 0.185,
+                b: 0.175,
+                a: 1.0,
+            }
+        } else {
+            Color::TRANSPARENT
+        };
         let text_color = if active { TEXT_PRIMARY } else { TEXT_SECONDARY };
-        let bar_color = if active { TEAL } else { Color::TRANSPARENT };
+
+        let (icon_char, icon_color): (&str, Color) = match &tab {
+            Tab::Dashboard => ("*", if active { TEAL } else { TEXT_MUTED }),
+            Tab::ApacheTouch => ("+", if active { TEAL } else { TEXT_MUTED }),
+            Tab::SshKeys => ("#", if active { TEAL } else { TEXT_MUTED }),
+            Tab::Tools => ("~", if active { TEAL } else { TEXT_MUTED }),
+        };
 
         button(
             row![
-                container(Space::with_width(3))
-                    .width(3)
-                    .height(20)
-                    .style(move |_: &iced::Theme| container::Style {
-                        background: Some(bar_color.into()),
-                        border: Border { radius: 2.0.into(), ..Default::default() },
-                        ..Default::default()
-                    }),
-                Space::with_width(8),
-                text(icon).size(15),
-                Space::with_width(8),
-                text(label).size(14).color(text_color),
+                text(icon_char).size(12).color(icon_color),
+                Space::with_width(10),
+                text(label).size(13).color(text_color),
             ]
             .align_y(Alignment::Center),
         )
         .on_press(Message::SelectTab(tab))
-        .padding(Padding::from([9, 6]))
+        .padding(Padding::from([10, 12]))
         .width(Length::Fill)
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered => iced::widget::button::Style {
                 background: Some(BG_HOVER.into()),
                 text_color: TEXT_PRIMARY,
-                border: Border { radius: 6.0.into(), ..Default::default() },
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             _ => iced::widget::button::Style {
                 background: Some(bg.into()),
-                text_color: TEXT_SECONDARY,
-                border: Border { radius: 6.0.into(), ..Default::default() },
+                text_color,
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         })
@@ -722,7 +1029,7 @@ fn make_fallback_icon() -> Option<iced::window::Icon> {
     let mut rgba = vec![0u8; (size * size * 4) as usize];
     let cx = 15.5f32;
     let cy = 15.5f32;
-    let r  = 13.0f32;
+    let r = 13.0f32;
     for y in 0..size {
         for x in 0..size {
             let dx = x as f32 - cx;
@@ -730,7 +1037,7 @@ fn make_fallback_icon() -> Option<iced::window::Icon> {
             let idx = ((y * size + x) * 4) as usize;
             rgba[idx + 3] = 0xFF;
             if dx * dx + dy * dy <= r * r {
-                rgba[idx]     = 0x33;
+                rgba[idx] = 0x33;
                 rgba[idx + 1] = 0xBC;
                 rgba[idx + 2] = 0xAC;
             }
@@ -744,7 +1051,8 @@ fn main() -> iced::Result {
     iced::application("DevPanel", App::update, App::view)
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
-            size: iced::Size::new(1040.0, 700.0),
+            size: iced::Size::new(1040.0, 600.0),
+            min_size: Some(iced::Size::new(820.0, 560.0)),
             icon,
             ..Default::default()
         })
@@ -757,9 +1065,14 @@ fn main() -> iced::Result {
 
 async fn probe_services() -> Message {
     let apache = service_active("apache2").await;
-    let mysql  = service_active("mysql").await || service_active("mariadb").await;
+    let mysql = service_active("mysql").await || service_active("mariadb").await;
     let (php, php_versions) = detect_php().await;
-    Message::StatusRefreshed { apache, mysql, php, php_versions }
+    Message::StatusRefreshed {
+        apache,
+        mysql,
+        php,
+        php_versions,
+    }
 }
 
 async fn service_active(name: &str) -> bool {
@@ -800,16 +1113,8 @@ async fn detect_php() -> (Option<String>, Vec<String>) {
     (active, versions)
 }
 
-async fn run_service_cmd_with_pass(
-    service: &str,
-    action: &str,
-    password: String,
-) -> Message {
-    let result = sudo_cmd_with_password(
-        &password,
-        &["systemctl", action, service],
-    )
-    .await;
+async fn run_service_cmd_with_pass(service: &str, action: &str, password: String) -> Message {
+    let result = sudo_cmd_with_password(&password, &["systemctl", action, service]).await;
     Message::ServiceResult {
         service: service.to_string(),
         action: action.to_string(),
@@ -821,13 +1126,8 @@ async fn run_service_cmd_with_pass(
 async fn switch_php_with_pass(version: String, password: String) -> (bool, String) {
     let ver = version.trim_start_matches("php").to_string();
     let bin = format!("/usr/bin/php{}", ver);
-    match sudo_cmd_with_password(
-        &password,
-        &["update-alternatives", "--set", "php", &bin],
-    )
-    .await
-    {
-        Ok(_)  => (true,  format!("Switched to PHP {}", ver)),
+    match sudo_cmd_with_password(&password, &["update-alternatives", "--set", "php", &bin]).await {
+        Ok(_) => (true, format!("Switched to PHP {}", ver)),
         Err(e) => (false, e),
     }
 }
@@ -843,20 +1143,29 @@ async fn run_apache_touch(
     let project_path = PathBuf::from(&base_dir).join(&project_name);
     let domain = format!("{}.local", project_name);
 
-    log.push(LogEntry::info(format!("Setting up project: {}", project_name)));
+    log.push(LogEntry::info(format!(
+        "Setting up project: {}",
+        project_name
+    )));
 
     if !project_path.exists() {
-        log.push(LogEntry::err(format!("Directory {} does not exist.", project_path.display())));
+        log.push(LogEntry::err(format!(
+            "Directory {} does not exist.",
+            project_path.display()
+        )));
         return log;
     }
-    log.push(LogEntry::ok(format!("Directory found: {}", project_path.display())));
+    log.push(LogEntry::ok(format!(
+        "Directory found: {}",
+        project_path.display()
+    )));
 
     // .env
-    let env_ex  = project_path.join(".env.example");
+    let env_ex = project_path.join(".env.example");
     let env_dst = project_path.join(".env");
     if env_ex.exists() {
         match tokio::fs::copy(&env_ex, &env_dst).await {
-            Ok(_)  => log.push(LogEntry::ok(".env created from .env.example")),
+            Ok(_) => log.push(LogEntry::ok(".env created from .env.example")),
             Err(e) => log.push(LogEntry::err(format!("Copy .env failed: {}", e))),
         }
     } else {
@@ -869,30 +1178,40 @@ async fn run_apache_touch(
         if src.exists() {
             let dst = project_path.join("auth.json");
             match tokio::fs::copy(&src, &dst).await {
-                Ok(_)  => log.push(LogEntry::ok("auth.json copied")),
+                Ok(_) => log.push(LogEntry::ok("auth.json copied")),
                 Err(e) => log.push(LogEntry::err(format!("Copy auth.json failed: {}", e))),
             }
         } else {
-            log.push(LogEntry::warn(format!("auth.json not found at {}", auth_json)));
+            log.push(LogEntry::warn(format!(
+                "auth.json not found at {}",
+                auth_json
+            )));
         }
     }
 
     // /etc/hosts
     log.push(LogEntry::cmd(format!("Checking /etc/hosts for {}", domain)));
-    let hosts = tokio::fs::read_to_string("/etc/hosts").await.unwrap_or_default();
+    let hosts = tokio::fs::read_to_string("/etc/hosts")
+        .await
+        .unwrap_or_default();
     if hosts.contains(&domain) {
         log.push(LogEntry::info(format!("{} already in /etc/hosts", domain)));
     } else {
         let line = format!("127.0.0.1    {}\n", domain);
         match sudo_tee_append_with_password(&password, "/etc/hosts", &line).await {
-            Ok(_)  => log.push(LogEntry::ok(format!("Added {} to /etc/hosts", domain))),
+            Ok(_) => log.push(LogEntry::ok(format!("Added {} to /etc/hosts", domain))),
             Err(e) => log.push(LogEntry::err(format!("hosts write failed: {}", e))),
         }
     }
 
     // VirtualHost block
-    log.push(LogEntry::cmd(format!("Checking Apache config: {}", apache_conf)));
-    let existing = tokio::fs::read_to_string(&apache_conf).await.unwrap_or_default();
+    log.push(LogEntry::cmd(format!(
+        "Checking Apache config: {}",
+        apache_conf
+    )));
+    let existing = tokio::fs::read_to_string(&apache_conf)
+        .await
+        .unwrap_or_default();
     if existing.contains(&format!("ServerName {}", domain)) {
         log.push(LogEntry::info("VirtualHost already present in config"));
     } else {
@@ -911,11 +1230,14 @@ async fn run_apache_touch(
              \x20   CustomLog ${{APACHE_LOG_DIR}}/{name}_access.log combined\n\
              </VirtualHost>\n\n",
             domain = domain,
-            proj   = project_path.display(),
-            name   = project_name,
+            proj = project_path.display(),
+            name = project_name,
         );
         match sudo_tee_append_with_password(&password, &apache_conf, &block).await {
-            Ok(_)  => log.push(LogEntry::ok(format!("VirtualHost block added to {}", apache_conf))),
+            Ok(_) => log.push(LogEntry::ok(format!(
+                "VirtualHost block added to {}",
+                apache_conf
+            ))),
             Err(e) => log.push(LogEntry::err(format!("Apache config write failed: {}", e))),
         }
     }
@@ -923,17 +1245,21 @@ async fn run_apache_touch(
     // a2ensite
     log.push(LogEntry::cmd("Running a2ensite..."));
     let conf_base = PathBuf::from(&apache_conf)
-        .file_name().unwrap_or_default()
-        .to_string_lossy().to_string();
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
     match sudo_cmd_with_password(&password, &["a2ensite", &conf_base]).await {
-        Ok(_)  => log.push(LogEntry::ok(format!("a2ensite {} - OK", conf_base))),
-        Err(_) => log.push(LogEntry::warn("a2ensite returned non-zero (may already be enabled)")),
+        Ok(_) => log.push(LogEntry::ok(format!("a2ensite {} - OK", conf_base))),
+        Err(_) => log.push(LogEntry::warn(
+            "a2ensite returned non-zero (may already be enabled)",
+        )),
     }
 
     // Reload Apache
     log.push(LogEntry::cmd("Reloading Apache..."));
     match sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await {
-        Ok(_)  => log.push(LogEntry::ok("Apache reloaded successfully")),
+        Ok(_) => log.push(LogEntry::ok("Apache reloaded successfully")),
         Err(e) => log.push(LogEntry::err(format!("Apache reload failed: {}", e))),
     }
 
@@ -948,12 +1274,15 @@ async fn generate_ssh_key(
     ktype: KeyType,
     passphrase: String,
 ) -> (bool, String) {
-    let ssh_dir  = get_home().join(".ssh");
+    let ssh_dir = get_home().join(".ssh");
     if !ssh_dir.exists() {
         if let Err(e) = tokio::fs::create_dir_all(&ssh_dir).await {
             return (false, format!("Could not create ~/.ssh: {}", e));
         }
-        let _ = Command::new("chmod").args(["700", &ssh_dir.to_string_lossy()]).status().await;
+        let _ = Command::new("chmod")
+            .args(["700", &ssh_dir.to_string_lossy()])
+            .status()
+            .await;
     }
     let key_path = ssh_dir.join(&name);
     if key_path.exists() {
@@ -961,20 +1290,35 @@ async fn generate_ssh_key(
     }
     let mut cmd = Command::new("ssh-keygen");
     match ktype {
-        KeyType::Ed25519 => { cmd.arg("-t").arg("ed25519"); }
-        KeyType::Rsa4096 => { cmd.arg("-t").arg("rsa").arg("-b").arg("4096"); }
-        KeyType::Ecdsa   => { cmd.arg("-t").arg("ecdsa").arg("-b").arg("521"); }
+        KeyType::Ed25519 => {
+            cmd.arg("-t").arg("ed25519");
+        }
+        KeyType::Rsa4096 => {
+            cmd.arg("-t").arg("rsa").arg("-b").arg("4096");
+        }
+        KeyType::Ecdsa => {
+            cmd.arg("-t").arg("ecdsa").arg("-b").arg("521");
+        }
     }
-    cmd.arg("-f").arg(&key_path)
-       .arg("-C").arg(&email)
-       .arg("-N").arg(&passphrase);
+    cmd.arg("-f")
+        .arg(&key_path)
+        .arg("-C")
+        .arg(&email)
+        .arg("-N")
+        .arg(&passphrase);
     match cmd.output().await {
         Ok(o) if o.status.success() => {
-            let _ = Command::new("chmod").args(["600", &key_path.to_string_lossy()]).status().await;
+            let _ = Command::new("chmod")
+                .args(["600", &key_path.to_string_lossy()])
+                .status()
+                .await;
             let _ = Command::new("ssh-add").arg(&key_path).output().await;
             (true, format!("Key generated: {}", key_path.display()))
         }
-        Ok(o)  => (false, format!("ssh-keygen failed: {}", String::from_utf8_lossy(&o.stderr))),
+        Ok(o) => (
+            false,
+            format!("ssh-keygen failed: {}", String::from_utf8_lossy(&o.stderr)),
+        ),
         Err(e) => (false, format!("ssh-keygen not found: {}", e)),
     }
 }
@@ -982,7 +1326,7 @@ async fn generate_ssh_key(
 async fn ssh_add(path: String) -> (bool, String) {
     match Command::new("ssh-add").arg(&path).output().await {
         Ok(o) if o.status.success() => (true, format!("Key added: {}", path)),
-        Ok(o)  => (false, String::from_utf8_lossy(&o.stderr).to_string()),
+        Ok(o) => (false, String::from_utf8_lossy(&o.stderr).to_string()),
         Err(e) => (false, e.to_string()),
     }
 }
@@ -990,18 +1334,26 @@ async fn ssh_add(path: String) -> (bool, String) {
 async fn list_ssh_keys() -> Vec<KeyEntry> {
     let ssh_dir = get_home().join(".ssh");
     let mut keys = Vec::new();
-    let Ok(mut dir) = tokio::fs::read_dir(&ssh_dir).await else { return keys; };
+    let Ok(mut dir) = tokio::fs::read_dir(&ssh_dir).await else {
+        return keys;
+    };
     let mut files = Vec::new();
     while let Ok(Some(entry)) = dir.next_entry().await {
         files.push(entry.file_name().to_string_lossy().to_string());
     }
     for name in &files {
-        if name.ends_with(".pub") || matches!(name.as_str(), "config" | "known_hosts" | "authorized_keys") {
+        if name.ends_with(".pub")
+            || matches!(name.as_str(), "config" | "known_hosts" | "authorized_keys")
+        {
             continue;
         }
         let path_str = ssh_dir.join(name).to_string_lossy().to_string();
-        let has_pub  = files.contains(&format!("{}.pub", name));
-        keys.push(KeyEntry { name: name.clone(), path: path_str, has_pub });
+        let has_pub = files.contains(&format!("{}.pub", name));
+        keys.push(KeyEntry {
+            name: name.clone(),
+            path: path_str,
+            has_pub,
+        });
     }
     keys.sort_by(|a, b| a.name.cmp(&b.name));
     keys
@@ -1019,4 +1371,285 @@ fn xdg_open(path: &str) -> std::io::Result<()> {
 fn open_url(url: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
+}
+
+fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
+    // Try to find the active php.ini via `php --ini`, fallback to common paths
+    if let Some(version) = active_php {
+        // Strip full version to major.minor (e.g. "8.2.10" -> "8.2")
+        let short = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
+        let candidate = format!("/etc/php/{}/cli/php.ini", short);
+        if std::path::Path::new(&candidate).exists() {
+            return xdg_open(&candidate);
+        }
+        // Try apache2 variant too
+        let candidate2 = format!("/etc/php/{}/apache2/php.ini", short);
+        if std::path::Path::new(&candidate2).exists() {
+            return xdg_open(&candidate2);
+        }
+    }
+    // Fallback: open /etc/php directory
+    xdg_open("/etc/php")
+}
+
+// ── Tools: PHP scanner ────────────────────────────────────────────────────
+
+async fn scan_php_versions(
+    active_php: Option<String>,
+) -> Vec<(String, tabs::tools::PhpStatus, bool)> {
+    use tabs::tools::PhpStatus;
+
+    // Active version short form e.g. "8.2"
+    let active_short = active_php
+        .as_deref()
+        .map(|v| v.splitn(3, '.').take(2).collect::<Vec<_>>().join("."));
+
+    let candidates = ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"];
+    let mut results = Vec::new();
+
+    for ver in &candidates {
+        // Check if /usr/bin/php{ver} exists → installed
+        let bin = format!("/usr/bin/php{}", ver);
+        let installed = tokio::fs::metadata(&bin).await.is_ok();
+
+        let status = if installed {
+            PhpStatus::Installed
+        } else {
+            // Quick apt-cache check (non-blocking, best-effort)
+            let avail = Command::new("apt-cache")
+                .args(["show", &format!("php{}", ver)])
+                .output()
+                .await
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            if avail {
+                PhpStatus::Available
+            } else {
+                PhpStatus::Unknown
+            }
+        };
+
+        let is_active = active_short.as_deref() == Some(ver);
+        results.push((ver.to_string(), status, is_active));
+    }
+
+    results
+}
+
+// ── Tools: apt install/remove PHP ────────────────────────────────────────
+
+async fn apt_php_op(version: String, install: bool, password: String) -> (bool, String) {
+    let op = if install { "install" } else { "remove" };
+
+    // First update package lists to ensure we have the latest info
+    match sudo_cmd_with_password(&password, &["apt-get", "update"]).await {
+        Err(e) => {
+            return (false, format!("Failed to update package lists: {}", e));
+        }
+        _ => {}
+    }
+
+    // Install the meta-package + common extensions
+    let pkg = if install {
+        format!(
+            "php{} php{}-cli php{}-common php{}-mysql php{}-xml php{}-mbstring",
+            version, version, version, version, version, version
+        )
+    } else {
+        format!("php{} php{}-*", version, version)
+    };
+
+    let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
+
+    match sudo_cmd_with_password(&password, &["sh", "-c", &full_cmd]).await {
+        Ok(output) => {
+            // Check if the operation was actually successful by checking output
+            if output.contains("not found") || output.contains("Unable to locate") {
+                (
+                    false,
+                    format!(
+                        "PHP {} not found in repositories. Make sure the ondrej/php PPA is added.",
+                        version
+                    ),
+                )
+            } else {
+                (true, format!("PHP {} {}ed successfully", version, op))
+            }
+        }
+        Err(e) => (false, format!("PHP {} {} failed: {}", version, op, e)),
+    }
+}
+
+// ── Tools: open DB terminal ───────────────────────────────────────────────
+
+/// Opens a terminal emulator with mysql/mariadb as root.
+/// Returns Ok(description) or Err(reason).
+fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, String> {
+    // Build the mysql command
+    let mysql_cmd = if socket_auth {
+        format!("sudo {} -u root", binary)
+    } else {
+        format!("sudo {} -u root -p", binary)
+    };
+
+    // Wrap it so the terminal stays open on exit
+    let shell_cmd = format!(
+        "{}; echo '--- session ended, press Enter ---'; read _",
+        mysql_cmd
+    );
+
+    // Try terminal emulators in order of preference
+    let terminals: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e"]),
+        ("gnome-terminal", &["--", "bash", "-c"]),
+        ("xfce4-terminal", &["-e"]),
+        ("konsole", &["-e"]),
+        ("xterm", &["-e"]),
+        ("lxterminal", &["-e"]),
+        ("mate-terminal", &["-e"]),
+        ("tilix", &["-e"]),
+    ];
+
+    for (term, args) in terminals {
+        // Check if the terminal exists
+        if std::process::Command::new("which")
+            .arg(term)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
+            let mut cmd = std::process::Command::new(term);
+            cmd.args(*args);
+            if *term == "gnome-terminal" {
+                // gnome-terminal passes args differently
+                cmd.arg(&shell_cmd);
+            } else {
+                cmd.arg(format!("bash -c '{}'", shell_cmd.replace('\'', "'\\''")));
+            }
+            return match cmd.spawn() {
+                Ok(_) => Ok(format!("{} ({})", term, mysql_cmd)),
+                Err(e) => Err(format!("Failed to spawn {}: {}", term, e)),
+            };
+        }
+    }
+
+    Err("No supported terminal emulator found. Install xterm or gnome-terminal.".into())
+}
+
+// ── Tools: copy to clipboard (async) ───────────────────────────────────────
+
+async fn copy_to_clipboard_async(text: String) {
+    // Method 1: Try xclip (X11) - most reliable
+    if try_copy_with_xclip(&text).await {
+        return;
+    }
+
+    // Method 2: Try wl-copy (Wayland)
+    if try_copy_with_wl_copy(&text).await {
+        return;
+    }
+
+    // Method 3: Try xsel (alternative X11)
+    if try_copy_with_xsel(&text).await {
+        return;
+    }
+
+    // Fallback: Create a temporary shell script file
+    create_temp_script_file(&text).await;
+}
+
+async fn create_temp_script_file(commands: &str) {
+    let home = get_home();
+    let script_path = home.join(".devpanel_php_install.sh");
+
+    // Create script with shebang and the commands
+    let script_content = format!("#!/bin/bash\n{}\n", commands);
+
+    if let Ok(_) = tokio::fs::write(&script_path, &script_content).await {
+        // Make it executable
+        let _ = std::process::Command::new("chmod")
+            .args(["+x", &script_path.to_string_lossy().to_string()])
+            .output();
+
+        // Open it with default editor/text viewer so user can see and copy
+        let _ = std::process::Command::new("xdg-open")
+            .arg(&script_path)
+            .spawn();
+    }
+}
+
+async fn try_copy_with_xclip(text: &str) -> bool {
+    use tokio::io::AsyncWriteExt;
+
+    match tokio::process::Command::new("xclip")
+        .arg("-selection")
+        .arg("clipboard")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                let write_result = stdin.write_all(text.as_bytes()).await;
+                let flush_result = stdin.flush().await;
+                drop(stdin);
+                let _ = child.wait().await;
+                write_result.is_ok() && flush_result.is_ok()
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
+}
+
+async fn try_copy_with_wl_copy(text: &str) -> bool {
+    use tokio::io::AsyncWriteExt;
+
+    match tokio::process::Command::new("wl-copy")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                let write_result = stdin.write_all(text.as_bytes()).await;
+                let flush_result = stdin.flush().await;
+                drop(stdin);
+                let _ = child.wait().await;
+                write_result.is_ok() && flush_result.is_ok()
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
+}
+
+async fn try_copy_with_xsel(text: &str) -> bool {
+    use tokio::io::AsyncWriteExt;
+
+    match tokio::process::Command::new("xsel")
+        .arg("-b")
+        .arg("-i")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                let write_result = stdin.write_all(text.as_bytes()).await;
+                let flush_result = stdin.flush().await;
+                drop(stdin);
+                let _ = child.wait().await;
+                write_result.is_ok() && flush_result.is_ok()
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
 }

@@ -196,6 +196,8 @@ pub enum PendingAction {
     PhpSwitch(String),
     ApacheTouchSetup,
     RestartAll,
+    PhpInstall(String),
+    PhpRemove(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -231,8 +233,8 @@ impl SudoModal {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        // Full-screen semi-transparent overlay
-        let overlay_bg = Color { a: 0.75, ..Color::BLACK };
+        // Full-screen backdrop — deeper for Apple-style modal feel
+        let overlay_bg = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.72 };
 
         let modal_content = match &self.state {
             ModalState::Hidden => return Space::with_width(0).into(),
@@ -240,17 +242,28 @@ impl SudoModal {
             ModalState::Asking { .. } | ModalState::Failed => {
                 let error_msg: Element<Message> = if self.state == ModalState::Failed {
                     container(
-                        text("Incorrect password. Please try again.")
-                            .size(12)
-                            .color(RED),
+                        row![
+                            container(text("x").size(10).color(Color::WHITE))
+                                .padding(Padding::from([3, 6]))
+                                .style(|_: &iced::Theme| container::Style {
+                                    background: Some(RED.into()),
+                                    border: Border { radius: 20.0.into(), ..Default::default() },
+                                    ..Default::default()
+                                }),
+                            Space::with_width(10),
+                            text("Incorrect password. Please try again.")
+                                .size(13)
+                                .color(TEXT_PRIMARY),
+                        ]
+                        .align_y(Alignment::Center),
                     )
-                    .padding(Padding::from([6, 10]))
+                    .padding(Padding::from([10, 12]))
                     .style(|_: &iced::Theme| container::Style {
-                        background: Some(Color { a: 0.12, ..RED }.into()),
+                        background: Some(Color { r: 0.200, g: 0.060, b: 0.055, a: 1.0 }.into()),
                         border: Border {
-                            color: Color { a: 0.4, ..RED },
+                            color: Color { r: 0.300, g: 0.090, b: 0.080, a: 1.0 },
                             width: 1.0,
-                            radius: 4.0.into(),
+                            radius: 8.0.into(),
                         },
                         ..Default::default()
                     })
@@ -267,7 +280,7 @@ impl SudoModal {
                 .on_submit(Message::Sudo_Submit)
                 .secure(!self.show_password)
                 .padding(11)
-                .size(14);
+                .size(13);
 
                 let show_btn = button(
                     text(if self.show_password { "Hide" } else { "Show" }).size(12),
@@ -277,18 +290,18 @@ impl SudoModal {
                 .style(ghost_btn_style());
 
                 let input_row = row![pass_input.width(Length::Fill), show_btn]
-                    .spacing(6)
+                    .spacing(8)
                     .align_y(Alignment::Center);
 
                 let save_check = checkbox(
-                    "Remember password for this session and save to disk",
+                    "Save password for this session",
                     self.save_password,
                 )
                 .on_toggle(Message::Sudo_ToggleSave)
                 .size(14)
                 .text_size(13);
 
-                let submit_btn = button(text("Unlock").size(14))
+                let submit_btn = button(text("Unlock").size(13))
                     .on_press(Message::Sudo_Submit)
                     .padding(Padding::from([10, 28]))
                     .style(teal_btn_style());
@@ -298,39 +311,47 @@ impl SudoModal {
                     .padding(Padding::from([10, 18]))
                     .style(ghost_btn_style());
 
+                let divider = container(Space::with_height(1))
+                    .width(Length::Fill)
+                    .height(1)
+                    .style(|_: &iced::Theme| container::Style {
+                        background: Some(BORDER_SUBTLE.into()),
+                        ..Default::default()
+                    });
+
                 column![
-                    // Header
-                    row![
-                        container(
-                            text("sudo").size(11).color(TEAL),
-                        )
-                        .padding(Padding::from([3, 8]))
-                        .style(|_: &iced::Theme| container::Style {
-                            background: Some(Color { a: 0.12, ..TEAL }.into()),
-                            border: Border {
-                                color: Color { a: 0.4, ..TEAL },
-                                width: 1.0,
-                                radius: 4.0.into(),
-                            },
-                            ..Default::default()
-                        }),
-                        Space::with_width(10),
-                        text("Authentication Required").size(17).color(TEXT_PRIMARY),
-                    ]
-                    .align_y(Alignment::Center),
+                    // Lock icon pill
+                    container(
+                        row![
+                            container(text("sudo").size(10).color(TEAL))
+                                .padding(Padding::from([3, 8]))
+                                .style(|_: &iced::Theme| container::Style {
+                                    background: Some(
+                                        Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 }.into()
+                                    ),
+                                    border: Border { radius: 6.0.into(), ..Default::default() },
+                                    ..Default::default()
+                                }),
+                            Space::with_width(10),
+                            text("Authentication Required").size(16).color(TEXT_PRIMARY),
+                        ]
+                        .align_y(Alignment::Center),
+                    ),
                     Space::with_height(6),
                     text("Enter your sudo password to continue.")
                         .size(13)
                         .color(TEXT_SECONDARY),
+                    Space::with_height(20),
+                    divider,
                     Space::with_height(16),
                     error_msg,
-                    Space::with_height(if self.state == ModalState::Failed { 8 } else { 0 }),
-                    text("Password").size(12).color(TEXT_MUTED),
-                    Space::with_height(4),
+                    Space::with_height(if self.state == ModalState::Failed { 12 } else { 0 }),
+                    text("Password").size(11).color(TEXT_MUTED),
+                    Space::with_height(6),
                     input_row,
-                    Space::with_height(12),
+                    Space::with_height(14),
                     save_check,
-                    Space::with_height(20),
+                    Space::with_height(24),
                     row![submit_btn, Space::with_width(10), cancel_btn]
                         .align_y(Alignment::Center),
                 ]
@@ -339,28 +360,28 @@ impl SudoModal {
 
             ModalState::Validating => {
                 column![
-                    text("Authentication Required").size(17).color(TEXT_PRIMARY),
+                    text("Authentication Required").size(16).color(TEXT_PRIMARY),
                     Space::with_height(16),
-                    text("Verifying password...").size(14).color(TEXT_SECONDARY),
+                    text("Verifying...").size(13).color(TEXT_SECONDARY),
                 ]
                 .spacing(0)
             }
         };
 
-        // Modal card
-        let card = container(modal_content.padding(28))
+        // Modal card — Apple-style elevated sheet
+        let card = container(modal_content.padding(30))
             .width(420)
             .style(|_: &iced::Theme| container::Style {
-                background: Some(BG_CARD.into()),
+                background: Some(BG_ELEVATED.into()),
                 border: Border {
-                    color: TEAL_DIM,
+                    color: BORDER_MED,
                     width: 1.0,
-                    radius: 10.0.into(),
+                    radius: 16.0.into(),
                 },
                 shadow: iced::Shadow {
-                    color: Color { a: 0.6, ..Color::BLACK },
-                    offset: iced::Vector::new(0.0, 8.0),
-                    blur_radius: 32.0,
+                    color: Color { a: 0.7, ..Color::BLACK },
+                    offset: iced::Vector::new(0.0, 12.0),
+                    blur_radius: 48.0,
                 },
                 ..Default::default()
             });
@@ -391,14 +412,14 @@ fn teal_btn_style() -> impl Fn(&iced::Theme, iced::widget::button::Status) -> ic
             iced::widget::button::Style {
                 background: Some(TEAL_DIM.into()),
                 text_color: Color::WHITE,
-                border: Border { radius: 6.0.into(), ..Default::default() },
+                border: Border { radius: 8.0.into(), ..Default::default() },
                 ..Default::default()
             }
         }
         _ => iced::widget::button::Style {
             background: Some(TEAL.into()),
-            text_color: Color::BLACK,
-            border: Border { radius: 6.0.into(), ..Default::default() },
+            text_color: Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
+            border: Border { radius: 8.0.into(), ..Default::default() },
             ..Default::default()
         },
     }
@@ -413,18 +434,18 @@ fn ghost_btn_style() -> impl Fn(&iced::Theme, iced::widget::button::Status) -> i
                 border: Border {
                     color: BORDER_MED,
                     width: 1.0,
-                    radius: 6.0.into(),
+                    radius: 8.0.into(),
                 },
                 ..Default::default()
             }
         }
         _ => iced::widget::button::Style {
-            background: Some(BG_SURFACE.into()),
+            background: Some(BG_CARD.into()),
             text_color: TEXT_SECONDARY,
             border: Border {
                 color: BORDER_SUBTLE,
                 width: 1.0,
-                radius: 6.0.into(),
+                radius: 8.0.into(),
             },
             ..Default::default()
         },
