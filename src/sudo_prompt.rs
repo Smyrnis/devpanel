@@ -194,10 +194,18 @@ impl Default for ModalState {
 pub enum PendingAction {
     ServiceControl { service: String, action: String },
     PhpSwitch(String),
-    ApacheTouchSetup,
     RestartAll,
     PhpInstall(String),
     PhpRemove(String),
+    // VHosts — all in devpanel.conf
+    VHostAdd  { server_name: String, document_root: String },
+    VHostEdit { index: usize, server_name: String, document_root: String },
+    VHostDelete { index: usize },
+    // Apache modules
+    ApacheModToggle { name: String, enable: bool },
+    // Apt package operations (PHP extensions etc)
+    AptInstall { package: String },
+    AptRemove  { package: String },
 }
 
 #[derive(Debug, Clone, Default)]

@@ -1,17 +1,19 @@
-// src/main.rs -- DevPanel: Apache + SSH + VirtualHost manager for Debian/Ubuntu
+// src/main.rs -- DevPanel: Apache + SSH + VirtualHost + Repos manager
 
 mod sudo_prompt;
 mod tabs;
 mod theme;
 
 use sudo_prompt::{
-    clear_saved_password, save_password, sudo_cmd_with_password, sudo_tee_append_with_password,
-    validate_sudo_password, ModalState, PendingAction, SudoModal,
+    clear_saved_password, save_password, sudo_cmd_with_password, validate_sudo_password,
+    ModalState, PendingAction, SudoModal,
 };
-use tabs::apache_touch::{ApacheTouchTab, LogEntry};
 use tabs::dashboard::DashboardTab;
-use tabs::ssh_keys::{KeyEntry, KeyType, SshKeysTab, StatusKind};
+use tabs::repos::{ReposTab, SshStatus};
+use tabs::ssh_keys::{KeyEntry, KeyType, SshKeysTab};
+use tabs::tools::ToolSection;
 use tabs::tools::ToolsTab;
+use tabs::vhosts::{VHostEntry, VHostsTab};
 use theme::*;
 
 use iced::widget::{button, column, container, row, stack, text, Space};
@@ -19,25 +21,97 @@ use iced::{Alignment, Border, Color, Element, Length, Padding, Task, Theme};
 use std::path::PathBuf;
 use tokio::process::Command;
 
+// ── Config ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct DevPanelConfig {
+    pub repos_root: String,
+    pub devpanel_conf: String,
+    pub hosts_file: String,
+}
+
+impl DevPanelConfig {
+    pub fn load() -> Self {
+        let config_path = get_home().join(".config/devpanel/config.toml");
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            DevPanelConfig {
+                repos_root: parse_toml_str(&content, "repos_root")
+                    .unwrap_or_else(default_repos_root),
+                devpanel_conf: parse_toml_str(&content, "devpanel_conf")
+                    .unwrap_or_else(default_devpanel_conf),
+                hosts_file: parse_toml_str(&content, "hosts_file")
+                    .unwrap_or_else(|| "/etc/hosts".to_string()),
+            }
+        } else {
+            DevPanelConfig {
+                repos_root: default_repos_root(),
+                devpanel_conf: default_devpanel_conf(),
+                hosts_file: "/etc/hosts".to_string(),
+            }
+        }
+    }
+
+    pub fn save(&self) {
+        let dir = get_home().join(".config/devpanel");
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(
+            dir.join("config.toml"),
+            format!(
+                "repos_root    = \"{}\"
+devpanel_conf = \"{}\"
+hosts_file    = \"{}\"
+",
+                self.repos_root, self.devpanel_conf, self.hosts_file
+            ),
+        );
+    }
+}
+
+fn parse_toml_str(content: &str, key: &str) -> Option<String> {
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with(&format!("{} =", key)) || t.starts_with(&format!("{}=", key)) {
+            if let Some(eq) = t.find('=') {
+                let val = t[eq + 1..].trim();
+                if val.starts_with('"') && val.ends_with('"') {
+                    return Some(val[1..val.len() - 1].to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn default_repos_root() -> String {
+    let c = get_home().join("projects");
+    if c.exists() {
+        c.to_string_lossy().to_string()
+    } else {
+        "/var/www/html".to_string()
+    }
+}
+fn default_devpanel_conf() -> String {
+    "/etc/apache2/sites-available/devpanel.conf".to_string()
+}
+
 // ── Active tab ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tab {
     Dashboard,
-    ApacheTouch,
+    Repos,
+    VHosts,
     SshKeys,
     Tools,
 }
 
-// ── Top-level messages ────────────────────────────────────────────────────
+// ── Messages ──────────────────────────────────────────────────────────────
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub enum Message {
-    // Navigation
     SelectTab(Tab),
-
-    // Dashboard -- service control
+    // Dashboard
     StartApache,
     StopApache,
     RestartApache,
@@ -50,25 +124,20 @@ pub enum Message {
         success: bool,
         output: String,
     },
-
-    // Dashboard -- PHP
     SwitchPHPVersion(String),
     PhpSwitchResult(bool, String),
     ShowPHPInfo,
-
-    // Dashboard -- quick actions
     OpenLocalhost,
     OpenPhpMyAdmin,
     OpenWebRoot,
-    OpenApacheConfig,
-    OpenMySQLConfig,
-    OpenPHPConfig,
     OpenPhpIni,
-    EditHosts,
     RestartAll,
-    ClearCache,
-
-    // Dashboard -- status refresh
+    OpenProjectsFolder,
+    NavigateApache2Conf,
+    NavigateApache2Sites,
+    NavigatePhpDir,
+    NavigateMysqlDir,
+    NavigateHostsFile,
     RefreshStatus,
     StatusRefreshed {
         apache: bool,
@@ -76,17 +145,6 @@ pub enum Message {
         php: Option<String>,
         php_versions: Vec<String>,
     },
-
-    // ApacheTouch
-    AT_ProjectNameChanged(String),
-    AT_BaseDirChanged(String),
-    AT_ApacheConfChanged(String),
-    AT_AuthJsonChanged(String),
-    AT_BrowseAuthJson,
-    AT_RunSetup,
-    AT_SetupDone(Vec<LogEntry>),
-    AT_ClearLog,
-
     // SSH Keys
     SSH_EmailChanged(String),
     SSH_KeyNameChanged(String),
@@ -100,10 +158,9 @@ pub enum Message {
     SSH_OpenDir,
     SSH_ListKeys,
     SSH_KeysListed(Vec<KeyEntry>),
-
     // Tools
     TOOLS_ScanPhp,
-    TOOLS_ScanDone(Vec<(String, tabs::tools::PhpStatus, bool)>),
+    TOOLS_ScanDone(Vec<(String, tabs::tools::PhpStatus, bool, bool, bool)>),
     TOOLS_InstallPhp(String),
     TOOLS_RemovePhp(String),
     TOOLS_PhpOpDone(bool, String),
@@ -114,8 +171,51 @@ pub enum Message {
     TOOLS_ClearToast,
     TOOLS_CopyFixCommands(String),
     TOOLS_CopyDone,
-
-    // Sudo modal
+    TOOLS_SetSection(ToolSection),
+    TOOLS_ScanApacheMods,
+    TOOLS_ScanApacheModsDone(Vec<tabs::tools::ApacheModule>),
+    TOOLS_EnableApacheMod(String),
+    TOOLS_DisableApacheMod(String),
+    TOOLS_ApacheModDone(bool, String, String, bool),
+    TOOLS_ModFilterChanged(String),
+    TOOLS_ScanPhpExts,
+    TOOLS_ScanPhpExtsDone(Vec<(String, bool)>),
+    TOOLS_InstallPhpExt(String),
+    TOOLS_RemovePhpExt(String),
+    TOOLS_PhpExtDone(bool, String),
+    // Repos
+    REPOS_CheckSsh,
+    REPOS_SshChecked(bool, String, bool, String),
+    REPOS_Fetch,
+    REPOS_FetchDone(Vec<tabs::repos::RemoteRepo>),
+    REPOS_Clone {
+        ssh_url: String,
+        name: String,
+    },
+    REPOS_CloneDone(bool, String, String),
+    REPOS_OpenCloned(String),
+    REPOS_SearchChanged(String),
+    REPOS_SetFilter(tabs::repos::ProviderFilter),
+    REPOS_OpenRoot,
+    // VHosts
+    VH_Scan,
+    VH_ScanDone(Vec<VHostEntry>),
+    VH_ShowAddForm,
+    VH_HideForm,
+    VH_FormServerNameChanged(String),
+    VH_FormDocRootChanged(String),
+    VH_Create,
+    VH_CreateDone(bool, String),
+    VH_EditRequest(usize),
+    VH_SaveEdit,
+    VH_SaveEditDone(bool, String),
+    VH_OpenBrowser(String),
+    VH_OpenDevpanelConf,
+    VH_DeleteRequest(usize),
+    VH_DeleteConfirm(usize),
+    VH_DeleteCancel,
+    VH_DeleteDone(bool, String),
+    // Sudo
     Sudo_PasswordChanged(String),
     Sudo_ToggleShow(bool),
     Sudo_ToggleSave(bool),
@@ -129,13 +229,14 @@ pub enum Message {
 
 struct App {
     active_tab: Tab,
+    config: DevPanelConfig,
     dashboard: DashboardTab,
-    apache_touch: ApacheTouchTab,
     ssh_keys: SshKeysTab,
     tools: ToolsTab,
+    repos: ReposTab,
+    vhosts: VHostsTab,
     toast: Option<Toast>,
     sudo: SudoModal,
-    /// Stash the pending action before transitioning to Validating state
     sudo_pending_action: Option<PendingAction>,
 }
 
@@ -147,12 +248,15 @@ struct Toast {
 
 impl App {
     fn new() -> (Self, Task<Message>) {
+        let config = DevPanelConfig::load();
         let app = Self {
+            repos: ReposTab::new(config.repos_root.clone(), config.repos_root.clone()),
+            vhosts: VHostsTab::new(config.devpanel_conf.clone()),
             active_tab: Tab::Dashboard,
             dashboard: DashboardTab::new(),
-            apache_touch: ApacheTouchTab::new(),
             ssh_keys: SshKeysTab::new(),
             tools: ToolsTab::new(),
+            config,
             toast: None,
             sudo: SudoModal::new(),
             sudo_pending_action: None,
@@ -160,14 +264,10 @@ impl App {
         (app, Task::perform(probe_services(), |r| r))
     }
 
-    // ── Trigger a sudo action -- shows modal if no cached password ─────────
-
     fn trigger_sudo(&mut self, action: PendingAction) -> Task<Message> {
         if let Some(password) = self.sudo.get_password() {
-            // Already have password -- execute immediately
             self.dispatch_sudo_action(action, password)
         } else {
-            // Stash the action and show the modal
             self.sudo_pending_action = Some(action.clone());
             self.sudo.state = ModalState::Asking {
                 pending_action: action,
@@ -176,8 +276,6 @@ impl App {
             Task::none()
         }
     }
-
-    // ── Execute the pending action with a verified password ────────────────
 
     fn dispatch_sudo_action(&mut self, action: PendingAction, password: String) -> Task<Message> {
         match action {
@@ -193,18 +291,6 @@ impl App {
                 Task::perform(switch_php_with_pass(version, password), |(ok, msg)| {
                     Message::PhpSwitchResult(ok, msg)
                 })
-            }
-            PendingAction::ApacheTouchSetup => {
-                let pn = self.apache_touch.project_name.trim().to_string();
-                let aj = self.apache_touch.auth_json_path.trim().to_string();
-                let bd = self.apache_touch.base_dir.trim().to_string();
-                let conf = self.apache_touch.apache_conf.trim().to_string();
-                self.apache_touch.running = true;
-                self.apache_touch.log.clear();
-                Task::perform(
-                    run_apache_touch(pn, aj, bd, conf, password),
-                    Message::AT_SetupDone,
-                )
             }
             PendingAction::RestartAll => Task::batch([
                 Task::perform(
@@ -226,33 +312,73 @@ impl App {
                     Message::TOOLS_PhpOpDone(ok, msg)
                 })
             }
+            PendingAction::VHostAdd {
+                server_name,
+                document_root,
+            } => {
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(
+                    tabs::vhosts::add_vhost(conf, server_name, document_root, password),
+                    |(ok, msg)| Message::VH_CreateDone(ok, msg),
+                )
+            }
+            PendingAction::VHostEdit {
+                index,
+                server_name,
+                document_root,
+            } => {
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(
+                    tabs::vhosts::edit_vhost(conf, index, server_name, document_root, password),
+                    |(ok, msg)| Message::VH_SaveEditDone(ok, msg),
+                )
+            }
+            PendingAction::VHostDelete { index } => {
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(
+                    tabs::vhosts::delete_vhost(conf, index, password),
+                    |(ok, msg)| Message::VH_DeleteDone(ok, msg),
+                )
+            }
+            PendingAction::ApacheModToggle { name, enable } => Task::perform(
+                toggle_apache_module(name, enable, password),
+                |(ok, msg, n, en)| Message::TOOLS_ApacheModDone(ok, msg, n, en),
+            ),
+            PendingAction::AptInstall { package } => {
+                Task::perform(apt_package_op(package, true, password), |(ok, msg)| {
+                    Message::TOOLS_PhpExtDone(ok, msg)
+                })
+            }
+            PendingAction::AptRemove { package } => {
+                Task::perform(apt_package_op(package, false, password), |(ok, msg)| {
+                    Message::TOOLS_PhpExtDone(ok, msg)
+                })
+            }
         }
     }
 
-    // ── Update ────────────────────────────────────────────────────────────
-
     fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
-            // ── Navigation ────────────────────────────────────────────────
             Message::SelectTab(tab) => {
                 self.active_tab = tab.clone();
-                if tab == Tab::Dashboard {
-                    return Task::perform(probe_services(), |r| r);
+                match tab {
+                    Tab::Dashboard => Task::perform(probe_services(), |r| r),
+                    Tab::SshKeys => Task::perform(list_ssh_keys(), Message::SSH_KeysListed),
+                    Tab::Tools => {
+                        self.tools.scanning = true;
+                        Task::perform(
+                            scan_php_versions(self.dashboard.active_php_version.clone()),
+                            Message::TOOLS_ScanDone,
+                        )
+                    }
+                    Tab::Repos => Task::none(),
+                    Tab::VHosts => {
+                        self.vhosts.scanning = true;
+                        let conf = self.vhosts.devpanel_conf.clone();
+                        Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                    }
                 }
-                if tab == Tab::SshKeys {
-                    return Task::perform(list_ssh_keys(), Message::SSH_KeysListed);
-                }
-                if tab == Tab::Tools {
-                    self.tools.scanning = true;
-                    return Task::perform(
-                        scan_php_versions(self.dashboard.active_php_version.clone()),
-                        Message::TOOLS_ScanDone,
-                    );
-                }
-                Task::none()
             }
-
-            // ── Sudo modal ────────────────────────────────────────────────
             Message::Sudo_PasswordChanged(v) => {
                 self.sudo.password_input = v;
                 Task::none()
@@ -271,8 +397,6 @@ impl App {
             Message::Sudo_Cancel => {
                 self.sudo.state = ModalState::Hidden;
                 self.sudo.password_input.clear();
-                // If setup was pending, mark it as not running
-                self.apache_touch.running = false;
                 Task::none()
             }
             Message::Sudo_Submit => {
@@ -280,36 +404,22 @@ impl App {
                 if pass.is_empty() {
                     return Task::none();
                 }
-                // Transition to Validating (keep pending_action_stash intact)
                 self.sudo.state = ModalState::Validating;
                 Task::perform(validate_sudo_password(pass), Message::Sudo_ValidationResult)
             }
             Message::Sudo_ValidationResult(valid) => {
                 if !valid {
-                    // Restore Asking state with the stashed action
-                    if let Some(action) = self.sudo_pending_action.clone() {
-                        self.sudo.state = ModalState::Failed;
-                        // Put the action back in the Asking variant for display
-                        self.sudo.state = ModalState::Failed;
-                        let _ = action; // keep stash intact for retry
-                    } else {
-                        self.sudo.state = ModalState::Failed;
-                    }
+                    self.sudo.state = ModalState::Failed;
                     self.sudo.password_input.clear();
                     return Task::none();
                 }
-
-                // Password correct -- cache it
                 let password = self.sudo.password_input.clone();
                 self.sudo.cached_password = Some(password.clone());
                 self.sudo.password_input.clear();
                 self.sudo.state = ModalState::Hidden;
-
                 if self.sudo.save_password {
                     save_password(&password);
                 }
-
-                // Dispatch the stashed action
                 if let Some(action) = self.sudo_pending_action.take() {
                     self.dispatch_sudo_action(action, password)
                 } else {
@@ -326,8 +436,6 @@ impl App {
                 });
                 Task::none()
             }
-
-            // ── Dashboard: status refresh ──────────────────────────────────
             Message::RefreshStatus => Task::perform(probe_services(), |r| r),
             Message::StatusRefreshed {
                 apache,
@@ -339,8 +447,6 @@ impl App {
                 self.dashboard.set_php_versions(php_versions);
                 Task::none()
             }
-
-            // ── Dashboard: service control ────────────────────────────────
             Message::StartApache => self.trigger_sudo(PendingAction::ServiceControl {
                 service: "apache2".into(),
                 action: "start".into(),
@@ -365,7 +471,6 @@ impl App {
                 service: "mysql".into(),
                 action: "restart".into(),
             }),
-
             Message::ServiceResult {
                 service,
                 action,
@@ -382,8 +487,6 @@ impl App {
                 });
                 Task::perform(probe_services(), |r| r)
             }
-
-            // ── Dashboard: PHP ────────────────────────────────────────────
             Message::SwitchPHPVersion(v) => self.trigger_sudo(PendingAction::PhpSwitch(v)),
             Message::PhpSwitchResult(ok, msg) => {
                 self.toast = Some(Toast { message: msg, ok });
@@ -393,8 +496,6 @@ impl App {
                 let _ = open_url("http://localhost/phpinfo.php");
                 Task::none()
             }
-
-            // ── Dashboard: quick actions ──────────────────────────────────
             Message::OpenLocalhost => {
                 let _ = open_url("http://localhost");
                 Task::none()
@@ -407,150 +508,35 @@ impl App {
                 let _ = xdg_open(&self.dashboard.web_root);
                 Task::none()
             }
-            Message::OpenApacheConfig => {
-                let _ = xdg_open(&self.dashboard.apache_conf_dir);
+            Message::OpenProjectsFolder => {
+                let _ = xdg_open(&self.config.repos_root);
                 Task::none()
             }
-            Message::OpenMySQLConfig => {
+            Message::NavigateApache2Conf => {
+                let _ = xdg_open("/etc/apache2/apache2.conf");
+                Task::none()
+            }
+            Message::NavigateApache2Sites => {
+                let _ = xdg_open("/etc/apache2/sites-available");
+                Task::none()
+            }
+            Message::NavigatePhpDir => {
+                let _ = xdg_open("/etc/php");
+                Task::none()
+            }
+            Message::NavigateMysqlDir => {
                 let _ = xdg_open("/etc/mysql");
                 Task::none()
             }
-            Message::OpenPHPConfig => {
-                let _ = xdg_open("/etc/php");
+            Message::NavigateHostsFile => {
+                let _ = xdg_open("/etc/hosts");
                 Task::none()
             }
             Message::OpenPhpIni => {
                 let _ = open_php_ini(&self.dashboard.active_php_version);
                 Task::none()
             }
-            Message::EditHosts => {
-                let _ = xdg_open("/etc/hosts");
-                Task::none()
-            }
-            Message::ClearCache => Task::none(),
             Message::RestartAll => self.trigger_sudo(PendingAction::RestartAll),
-
-            // ── ApacheTouch ───────────────────────────────────────────────
-            Message::AT_ProjectNameChanged(v) => {
-                self.apache_touch.project_name = v;
-                Task::none()
-            }
-            Message::AT_BaseDirChanged(v) => {
-                self.apache_touch.base_dir = v;
-                Task::none()
-            }
-            Message::AT_ApacheConfChanged(v) => {
-                self.apache_touch.apache_conf = v;
-                Task::none()
-            }
-            Message::AT_AuthJsonChanged(v) => {
-                self.apache_touch.auth_json_path = v;
-                Task::none()
-            }
-            Message::AT_BrowseAuthJson => {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    self.apache_touch.auth_json_path = path.to_string_lossy().to_string();
-                }
-                Task::none()
-            }
-            Message::AT_ClearLog => {
-                self.apache_touch.log.clear();
-                self.apache_touch.finished_ok = None;
-                Task::none()
-            }
-            Message::AT_RunSetup => {
-                if self.apache_touch.project_name.trim().is_empty() {
-                    self.apache_touch.log = vec![LogEntry::err("Project name cannot be empty.")];
-                    self.apache_touch.finished_ok = Some(false);
-                    return Task::none();
-                }
-                self.trigger_sudo(PendingAction::ApacheTouchSetup)
-            }
-            Message::AT_SetupDone(entries) => {
-                let ok = !entries
-                    .iter()
-                    .any(|e| matches!(e.kind, tabs::apache_touch::LogKind::Error));
-                self.apache_touch.finished_ok = Some(ok);
-                self.apache_touch.log = entries;
-                self.apache_touch.running = false;
-                Task::none()
-            }
-
-            // ── SSH Keys ──────────────────────────────────────────────────
-            Message::SSH_EmailChanged(v) => {
-                self.ssh_keys.email = v;
-                Task::none()
-            }
-            Message::SSH_KeyNameChanged(v) => {
-                self.ssh_keys.key_name = v;
-                Task::none()
-            }
-            Message::SSH_KeyTypeChanged(t) => {
-                self.ssh_keys.key_type = t;
-                Task::none()
-            }
-            Message::SSH_PassphraseChanged(v) => {
-                self.ssh_keys.passphrase = v;
-                Task::none()
-            }
-            Message::SSH_TogglePassphrase(b) => {
-                self.ssh_keys.show_passphrase = b;
-                Task::none()
-            }
-            Message::SSH_GenerateKey => {
-                let email = self.ssh_keys.email.clone();
-                let name = self.ssh_keys.key_name.clone();
-                let ktype = self.ssh_keys.key_type;
-                let pass = self.ssh_keys.passphrase.clone();
-                if email.trim().is_empty() || name.trim().is_empty() {
-                    self.ssh_keys.status_message = "Email and key name are required.".into();
-                    self.ssh_keys.status_kind = StatusKind::Error;
-                    return Task::none();
-                }
-                Task::perform(generate_ssh_key(email, name, ktype, pass), |(ok, msg)| {
-                    Message::SSH_GenerateDone(ok, msg)
-                })
-            }
-            Message::SSH_GenerateDone(ok, msg) => {
-                self.ssh_keys.status_message = msg;
-                self.ssh_keys.status_kind = if ok {
-                    StatusKind::Success
-                } else {
-                    StatusKind::Error
-                };
-                Task::perform(list_ssh_keys(), Message::SSH_KeysListed)
-            }
-            Message::SSH_AddExisting => {
-                let ssh_dir = get_home().join(".ssh");
-                if let Some(path) = rfd::FileDialog::new().set_directory(&ssh_dir).pick_file() {
-                    return Task::perform(
-                        ssh_add(path.to_string_lossy().to_string()),
-                        |(ok, msg)| Message::SSH_AddExistingDone(ok, msg),
-                    );
-                }
-                Task::none()
-            }
-            Message::SSH_AddExistingDone(ok, msg) => {
-                self.ssh_keys.status_message = msg;
-                self.ssh_keys.status_kind = if ok {
-                    StatusKind::Success
-                } else {
-                    StatusKind::Error
-                };
-                Task::none()
-            }
-            Message::SSH_OpenDir => {
-                let p = get_home().join(".ssh");
-                let _ = xdg_open(&p.to_string_lossy());
-                Task::none()
-            }
-            Message::SSH_ListKeys => Task::perform(list_ssh_keys(), Message::SSH_KeysListed),
-            Message::SSH_KeysListed(keys) => {
-                self.ssh_keys.keys_list = keys;
-                Task::none()
-            }
-
-            // ── Tools ─────────────────────────────────────────────────────
             Message::TOOLS_ScanPhp => {
                 self.tools.scanning = true;
                 Task::perform(
@@ -575,7 +561,6 @@ impl App {
             Message::TOOLS_PhpOpDone(ok, msg) => {
                 self.tools.push_log(ok, msg.clone());
                 self.toast = Some(Toast { message: msg, ok });
-                // Re-scan after install/remove
                 self.tools.scanning = true;
                 Task::batch([
                     Task::perform(probe_services(), |r| r),
@@ -592,24 +577,21 @@ impl App {
                 ])
             }
             Message::TOOLS_OpenMysqlCli => {
-                let result = open_db_terminal("mysql", false);
-                self.tools.db_status = match result {
+                self.tools.db_status = match open_db_terminal("mysql", false) {
                     Ok(cmd) => format!("Launched: {}", cmd),
                     Err(e) => format!("Error: {}", e),
                 };
                 Task::none()
             }
             Message::TOOLS_OpenMariadbCli => {
-                let result = open_db_terminal("mariadb", false);
-                self.tools.db_status = match result {
+                self.tools.db_status = match open_db_terminal("mariadb", false) {
                     Ok(cmd) => format!("Launched: {}", cmd),
                     Err(e) => format!("Error: {}", e),
                 };
                 Task::none()
             }
             Message::TOOLS_OpenMysqlSocket => {
-                let result = open_db_terminal("mysql", true);
-                self.tools.db_status = match result {
+                self.tools.db_status = match open_db_terminal("mysql", true) {
                     Ok(cmd) => format!("Launched: {}", cmd),
                     Err(e) => format!("Error: {}", e),
                 };
@@ -631,7 +613,7 @@ impl App {
             }
             Message::TOOLS_CopyDone => {
                 self.toast = Some(Toast {
-                    message: "Commands copied to clipboard!".to_string(),
+                    message: "Commands copied to clipboard!".into(),
                     ok: true,
                 });
                 Task::perform(
@@ -641,22 +623,324 @@ impl App {
                     |_| Message::TOOLS_ClearToast,
                 )
             }
-        }
-    }
-
-    // ── View ──────────────────────────────────────────────────────────────
+            Message::TOOLS_SetSection(section) => {
+                self.tools.active_section = section;
+                Task::none()
+            }
+            Message::TOOLS_ScanApacheMods => {
+                Task::perform(scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
+            }
+            Message::TOOLS_ScanApacheModsDone(results) => {
+                self.tools.apply_mod_scan(results);
+                Task::none()
+            }
+            Message::TOOLS_ModFilterChanged(v) => {
+                self.tools.mod_filter = v;
+                Task::none()
+            }
+            Message::TOOLS_EnableApacheMod(name) => {
+                self.tools
+                    .install_log
+                    .push((true, format!("Enabling mod_{}...", name)));
+                self.trigger_sudo(PendingAction::ApacheModToggle { name, enable: true })
+            }
+            Message::TOOLS_DisableApacheMod(name) => {
+                self.tools
+                    .install_log
+                    .push((true, format!("Disabling mod_{}...", name)));
+                self.trigger_sudo(PendingAction::ApacheModToggle {
+                    name,
+                    enable: false,
+                })
+            }
+            Message::TOOLS_ApacheModDone(ok, msg, name, enabled) => {
+                self.tools.push_log(ok, msg.clone());
+                self.toast = Some(Toast { message: msg, ok });
+                if ok {
+                    self.tools.set_mod_enabled(&name, enabled);
+                }
+                Task::perform(scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
+            }
+            Message::TOOLS_ScanPhpExts => {
+                let active = self
+                    .tools
+                    .php_releases
+                    .iter()
+                    .find(|r| r.is_active)
+                    .map(|r| r.version.clone());
+                Task::perform(scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+            }
+            Message::TOOLS_ScanPhpExtsDone(results) => {
+                self.tools.apply_ext_scan(results);
+                Task::none()
+            }
+            Message::TOOLS_InstallPhpExt(pkg) => {
+                self.tools
+                    .install_log
+                    .push((true, format!("Installing {}...", pkg)));
+                self.trigger_sudo(PendingAction::AptInstall { package: pkg })
+            }
+            Message::TOOLS_RemovePhpExt(pkg) => {
+                self.tools
+                    .install_log
+                    .push((true, format!("Removing {}...", pkg)));
+                self.trigger_sudo(PendingAction::AptRemove { package: pkg })
+            }
+            Message::TOOLS_PhpExtDone(ok, msg) => {
+                self.tools.push_log(ok, msg.clone());
+                self.toast = Some(Toast { message: msg, ok });
+                let active = self
+                    .tools
+                    .php_releases
+                    .iter()
+                    .find(|r| r.is_active)
+                    .map(|r| r.version.clone());
+                Task::perform(scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+            }
+            // ── Repos ──────────────────────────────────────────────────────
+            // ── SSH Keys ──────────────────────────────────────────────────
+            Message::SSH_EmailChanged(v) => {
+                self.ssh_keys.email = v;
+                Task::none()
+            }
+            Message::SSH_KeyNameChanged(v) => {
+                self.ssh_keys.key_name = v;
+                Task::none()
+            }
+            Message::SSH_KeyTypeChanged(t) => {
+                self.ssh_keys.key_type = t;
+                Task::none()
+            }
+            Message::SSH_PassphraseChanged(v) => {
+                self.ssh_keys.passphrase = v;
+                Task::none()
+            }
+            Message::SSH_TogglePassphrase(v) => {
+                self.ssh_keys.show_passphrase = v;
+                Task::none()
+            }
+            Message::SSH_GenerateKey => {
+                let email = self.ssh_keys.email.clone();
+                let name = self.ssh_keys.key_name.clone();
+                let ktype = self.ssh_keys.key_type.clone();
+                let passphrase = self.ssh_keys.passphrase.clone();
+                Task::perform(
+                    generate_ssh_key(email, name, ktype, passphrase),
+                    |(ok, msg)| Message::SSH_GenerateDone(ok, msg),
+                )
+            }
+            Message::SSH_GenerateDone(ok, msg) => {
+                use tabs::ssh_keys::StatusKind;
+                self.ssh_keys.status_kind = if ok {
+                    StatusKind::Success
+                } else {
+                    StatusKind::Error
+                };
+                self.ssh_keys.status_message = msg.clone();
+                self.toast = Some(Toast { message: msg, ok });
+                if ok {
+                    Task::perform(list_ssh_keys(), Message::SSH_KeysListed)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::SSH_AddExisting => {
+                let path = format!("{}/.ssh/{}", get_home().display(), self.ssh_keys.key_name);
+                Task::perform(ssh_add(path), |(ok, msg)| {
+                    Message::SSH_AddExistingDone(ok, msg)
+                })
+            }
+            Message::SSH_AddExistingDone(ok, msg) => {
+                use tabs::ssh_keys::StatusKind;
+                self.ssh_keys.status_kind = if ok {
+                    StatusKind::Success
+                } else {
+                    StatusKind::Error
+                };
+                self.ssh_keys.status_message = msg.clone();
+                self.toast = Some(Toast { message: msg, ok });
+                Task::none()
+            }
+            Message::SSH_OpenDir => {
+                let _ = xdg_open(&format!("{}/.ssh", get_home().display()));
+                Task::none()
+            }
+            Message::SSH_ListKeys => Task::perform(list_ssh_keys(), Message::SSH_KeysListed),
+            Message::SSH_KeysListed(keys) => {
+                self.ssh_keys.keys_list = keys;
+                Task::none()
+            }
+            // ── Repos (remote browser) ────────────────────────────────────
+            Message::REPOS_CheckSsh => Task::perform(tabs::repos::check_ssh(), |r| {
+                Message::REPOS_SshChecked(r.github_ok, r.github_msg, r.bb_ok, r.bb_msg)
+            }),
+            Message::REPOS_SshChecked(gok, gmsg, bok, bmsg) => {
+                self.repos.github_status = if gok {
+                    SshStatus::Connected
+                } else {
+                    SshStatus::Failed(gmsg)
+                };
+                self.repos.bitbucket_status = if bok {
+                    SshStatus::Connected
+                } else {
+                    SshStatus::Failed(bmsg)
+                };
+                Task::none()
+            }
+            Message::REPOS_Fetch => {
+                self.repos.fetching = true;
+                let root = self.repos.repos_root.clone();
+                Task::perform(
+                    tabs::repos::fetch_remote_repos(root),
+                    Message::REPOS_FetchDone,
+                )
+            }
+            Message::REPOS_FetchDone(repos) => {
+                self.repos.set_repos(repos);
+                Task::none()
+            }
+            Message::REPOS_Clone { ssh_url, name } => {
+                self.repos.mark_cloning(&ssh_url, true);
+                let root = self.repos.repos_root.clone();
+                Task::perform(
+                    tabs::repos::clone_repo(ssh_url, name, root),
+                    |(ok, msg, url)| Message::REPOS_CloneDone(ok, msg, url),
+                )
+            }
+            Message::REPOS_CloneDone(ok, msg, ssh_url) => {
+                if ok {
+                    self.repos.mark_cloned(&ssh_url);
+                } else {
+                    self.repos.mark_cloning(&ssh_url, false);
+                }
+                self.repos.status_msg = Some((ok, msg.clone()));
+                self.toast = Some(Toast { message: msg, ok });
+                Task::none()
+            }
+            Message::REPOS_OpenCloned(name) => {
+                let path = format!("{}/{}", self.repos.repos_root, name);
+                open_terminal_at(&path);
+                Task::none()
+            }
+            Message::REPOS_SearchChanged(v) => {
+                self.repos.search_query = v;
+                Task::none()
+            }
+            Message::REPOS_SetFilter(f) => {
+                self.repos.active_filter = f;
+                Task::none()
+            }
+            Message::REPOS_OpenRoot => {
+                let _ = xdg_open(&self.repos.repos_root);
+                Task::none()
+            }
+            // ── VHosts ────────────────────────────────────────────────────
+            Message::VH_Scan => {
+                self.vhosts.scanning = true;
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+            }
+            Message::VH_ScanDone(vhosts) => {
+                self.vhosts.set_vhosts(vhosts);
+                Task::none()
+            }
+            Message::VH_ShowAddForm => {
+                self.vhosts.form.open_add();
+                Task::none()
+            }
+            Message::VH_HideForm => {
+                self.vhosts.form.hide();
+                Task::none()
+            }
+            Message::VH_FormServerNameChanged(v) => {
+                self.vhosts.form.server_name = v;
+                Task::none()
+            }
+            Message::VH_FormDocRootChanged(v) => {
+                self.vhosts.form.document_root = v;
+                Task::none()
+            }
+            Message::VH_Create => {
+                let sn = self.vhosts.form.server_name.trim().to_string();
+                let dr = self.vhosts.form.document_root.trim().to_string();
+                self.trigger_sudo(PendingAction::VHostAdd {
+                    server_name: sn,
+                    document_root: dr,
+                })
+            }
+            Message::VH_CreateDone(ok, msg) => {
+                self.vhosts.form.hide();
+                self.vhosts.status_msg = Some((ok, msg.clone()));
+                self.toast = Some(Toast { message: msg, ok });
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+            }
+            Message::VH_EditRequest(idx) => {
+                if let Some(entry) = self.vhosts.vhosts.iter().find(|e| e.index == idx) {
+                    let entry = entry.clone();
+                    self.vhosts.form.open_edit(&entry);
+                }
+                Task::none()
+            }
+            Message::VH_SaveEdit => {
+                let sn = self.vhosts.form.server_name.trim().to_string();
+                let dr = self.vhosts.form.document_root.trim().to_string();
+                let idx = if let tabs::vhosts::FormMode::Edit(i) = self.vhosts.form.mode {
+                    i
+                } else {
+                    return Task::none();
+                };
+                self.trigger_sudo(PendingAction::VHostEdit {
+                    index: idx,
+                    server_name: sn,
+                    document_root: dr,
+                })
+            }
+            Message::VH_SaveEditDone(ok, msg) => {
+                self.vhosts.form.hide();
+                self.vhosts.status_msg = Some((ok, msg.clone()));
+                self.toast = Some(Toast { message: msg, ok });
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+            }
+            Message::VH_OpenBrowser(sn) => {
+                let _ = open_url(&format!("http://{}", sn));
+                Task::none()
+            }
+            Message::VH_OpenDevpanelConf => {
+                let _ = xdg_open(&self.vhosts.devpanel_conf);
+                Task::none()
+            }
+            Message::VH_DeleteRequest(idx) => {
+                self.vhosts.confirm_delete = Some(idx);
+                Task::none()
+            }
+            Message::VH_DeleteConfirm(idx) => {
+                self.vhosts.confirm_delete = None;
+                self.trigger_sudo(PendingAction::VHostDelete { index: idx })
+            }
+            Message::VH_DeleteCancel => {
+                self.vhosts.confirm_delete = None;
+                Task::none()
+            }
+            Message::VH_DeleteDone(ok, msg) => {
+                self.vhosts.status_msg = Some((ok, msg.clone()));
+                self.toast = Some(Toast { message: msg, ok });
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+            }
+        } // end match msg
+    } // end fn update
 
     fn view(&self) -> Element<'_, Message> {
-        let sidebar = self.sidebar();
-
         let tab_content: Element<Message> = match &self.active_tab {
             Tab::Dashboard => self.dashboard.view(),
-            Tab::ApacheTouch => self.apache_touch.view(),
             Tab::SshKeys => self.ssh_keys.view(),
             Tab::Tools => self.tools.view(),
+            Tab::Repos => self.repos.view(),
+            Tab::VHosts => self.vhosts.view(),
         };
 
-        // Toast notification — Apple-style pill
         let main_body: Element<Message> = if let Some(toast) = &self.toast {
             let (color, border_color) = if toast.ok {
                 (
@@ -679,23 +963,24 @@ impl App {
                     },
                 )
             };
-            let icon = if toast.ok { "+" } else { "x" };
             let banner = container(
                 row![
-                    container(text(icon).size(11).color(Color::WHITE))
-                        .padding(Padding::from([3, 7]))
-                        .style(move |_: &iced::Theme| container::Style {
-                            background: Some(color.into()),
-                            border: Border {
-                                radius: 20.0.into(),
-                                ..Default::default()
-                            },
+                    container(
+                        text(if toast.ok { "+" } else { "x" })
+                            .size(11)
+                            .color(Color::WHITE)
+                    )
+                    .padding(Padding::from([3, 7]))
+                    .style(move |_: &iced::Theme| container::Style {
+                        background: Some(color.into()),
+                        border: Border {
+                            radius: 20.0.into(),
                             ..Default::default()
-                        }),
+                        },
+                        ..Default::default()
+                    }),
                     Space::with_width(10),
-                    text(format!("{}", toast.message))
-                        .size(13)
-                        .color(TEXT_PRIMARY),
+                    text(toast.message.as_str()).size(13).color(TEXT_PRIMARY),
                 ]
                 .align_y(Alignment::Center),
             )
@@ -716,7 +1001,7 @@ impl App {
         };
 
         let app_area = row![
-            sidebar,
+            self.sidebar(),
             container(main_body)
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -726,11 +1011,10 @@ impl App {
                 }),
         ];
 
-        // Overlay the sudo modal on top if visible
         if self.sudo.is_visible() {
             stack![
                 container(app_area).width(Length::Fill).height(Length::Fill),
-                self.sudo.view(),
+                self.sudo.view()
             ]
             .into()
         } else {
@@ -741,10 +1025,7 @@ impl App {
         }
     }
 
-    // ── Sidebar ───────────────────────────────────────────────────────────
-
     fn sidebar(&self) -> Element<'_, Message> {
-        // Logo area
         let logo = container(
             column![row![
                 container(Space::with_width(3))
@@ -761,25 +1042,25 @@ impl App {
                 Space::with_width(10),
                 column![
                     text("dev").size(19).color(TEAL),
-                    text("panel").size(19).color(TEXT_PRIMARY),
+                    text("panel").size(19).color(TEXT_PRIMARY)
                 ]
                 .spacing(0),
             ]
-            .align_y(Alignment::Center),]
+            .align_y(Alignment::Center)]
             .spacing(0),
         )
         .padding(Padding::from([22, 16]));
 
         let nav = column![
             self.nav_item("Dashboard", Tab::Dashboard),
-            self.nav_item("VirtualHost", Tab::ApacheTouch),
+            self.nav_item("Repos", Tab::Repos),
+            self.nav_item("VirtualHosts", Tab::VHosts),
             self.nav_item("SSH Keys", Tab::SshKeys),
             self.nav_item("Tools", Tab::Tools),
         ]
         .spacing(2)
         .padding(Padding::from([0, 8]));
 
-        // Sudo status indicator
         let sudo_indicator: Element<Message> = if self.sudo.cached_password.is_some() {
             column![
                 container(
@@ -797,7 +1078,7 @@ impl App {
                         Space::with_width(7),
                         text("sudo active").size(11).color(GREEN),
                     ]
-                    .align_y(Alignment::Center),
+                    .align_y(Alignment::Center)
                 )
                 .padding(Padding::from([6, 10]))
                 .style(|_: &iced::Theme| container::Style {
@@ -878,39 +1159,37 @@ impl App {
             .into()
         };
 
-        let refresh_btn = button(
-            row![
-                text("R").size(11).color(TEXT_MUTED),
-                Space::with_width(6),
-                text("Refresh").size(12).color(TEXT_MUTED),
-            ]
-            .align_y(Alignment::Center),
-        )
-        .on_press(Message::RefreshStatus)
-        .padding(Padding::from([8, 12]))
-        .width(Length::Fill)
-        .style(|_, status| match status {
-            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(BG_HOVER.into()),
-                text_color: TEXT_PRIMARY,
-                border: Border {
-                    radius: 8.0.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            _ => iced::widget::button::Style {
-                background: None,
-                text_color: TEXT_MUTED,
-                ..Default::default()
-            },
-        });
-
         let bottom = container(
             column![
                 sudo_indicator,
                 Space::with_height(10),
-                refresh_btn,
+                button(
+                    row![
+                        text("R").size(11).color(TEXT_MUTED),
+                        Space::with_width(6),
+                        text("Refresh").size(12).color(TEXT_MUTED)
+                    ]
+                    .align_y(Alignment::Center)
+                )
+                .on_press(Message::RefreshStatus)
+                .padding(Padding::from([8, 12]))
+                .width(Length::Fill)
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(BG_HOVER.into()),
+                        text_color: TEXT_PRIMARY,
+                        border: Border {
+                            radius: 8.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: None,
+                        text_color: TEXT_MUTED,
+                        ..Default::default()
+                    },
+                }),
                 Space::with_height(8),
                 text(format!("v{}", env!("CARGO_PKG_VERSION")))
                     .size(11)
@@ -929,7 +1208,7 @@ impl App {
                 nav,
                 Space::with_height(Length::Fill),
                 divider(),
-                bottom,
+                bottom
             ]
             .height(Length::Fill),
         )
@@ -944,7 +1223,6 @@ impl App {
 
     fn nav_item<'a>(&self, label: &'a str, tab: Tab) -> Element<'a, Message> {
         let active = self.active_tab == tab;
-        // Solid pre-computed teal tint — no alpha struct
         let bg = if active {
             Color {
                 r: 0.060,
@@ -956,19 +1234,18 @@ impl App {
             Color::TRANSPARENT
         };
         let text_color = if active { TEXT_PRIMARY } else { TEXT_SECONDARY };
-
-        let (icon_char, icon_color): (&str, Color) = match &tab {
-            Tab::Dashboard => ("*", if active { TEAL } else { TEXT_MUTED }),
-            Tab::ApacheTouch => ("+", if active { TEAL } else { TEXT_MUTED }),
-            Tab::SshKeys => ("#", if active { TEAL } else { TEXT_MUTED }),
-            Tab::Tools => ("~", if active { TEAL } else { TEXT_MUTED }),
+        let (icon, icon_color): (&str, Color) = match &tab {
+            Tab::Dashboard => ("", if active { TEAL } else { TEXT_MUTED }),
+            Tab::Repos => ("", if active { TEAL } else { TEXT_MUTED }),
+            Tab::VHosts => ("", if active { TEAL } else { TEXT_MUTED }),
+            Tab::SshKeys => ("", if active { TEAL } else { TEXT_MUTED }),
+            Tab::Tools => ("", if active { TEAL } else { TEXT_MUTED }),
         };
-
         button(
             row![
-                text(icon_char).size(12).color(icon_color),
+                text(icon).size(12).color(icon_color),
                 Space::with_width(10),
-                text(label).size(13).color(text_color),
+                text(label).size(13).color(text_color)
             ]
             .align_y(Alignment::Center),
         )
@@ -999,8 +1276,6 @@ impl App {
     }
 }
 
-// ── Divider helper ────────────────────────────────────────────────────────
-
 fn divider<'a>() -> Element<'a, Message> {
     container(Space::with_height(1))
         .width(Length::Fill)
@@ -1027,16 +1302,13 @@ fn load_window_icon() -> Option<iced::window::Icon> {
 fn make_fallback_icon() -> Option<iced::window::Icon> {
     let size: u32 = 32;
     let mut rgba = vec![0u8; (size * size * 4) as usize];
-    let cx = 15.5f32;
-    let cy = 15.5f32;
-    let r = 13.0f32;
     for y in 0..size {
         for x in 0..size {
-            let dx = x as f32 - cx;
-            let dy = y as f32 - cy;
             let idx = ((y * size + x) * 4) as usize;
             rgba[idx + 3] = 0xFF;
-            if dx * dx + dy * dy <= r * r {
+            let dx = x as f32 - 15.5;
+            let dy = y as f32 - 15.5;
+            if dx * dx + dy * dy <= 13.0 * 13.0 {
                 rgba[idx] = 0x33;
                 rgba[idx + 1] = 0xBC;
                 rgba[idx + 2] = 0xAC;
@@ -1051,8 +1323,8 @@ fn main() -> iced::Result {
     iced::application("DevPanel", App::update, App::view)
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
-            size: iced::Size::new(1040.0, 600.0),
-            min_size: Some(iced::Size::new(820.0, 560.0)),
+            size: iced::Size::new(1040.0, 660.0),
+            min_size: Some(iced::Size::new(860.0, 560.0)),
             icon,
             ..Default::default()
         })
@@ -1060,7 +1332,7 @@ fn main() -> iced::Result {
 }
 
 // =============================================================================
-// Async tasks
+// Async helpers
 // =============================================================================
 
 async fn probe_services() -> Message {
@@ -1132,142 +1404,6 @@ async fn switch_php_with_pass(version: String, password: String) -> (bool, Strin
     }
 }
 
-async fn run_apache_touch(
-    project_name: String,
-    auth_json: String,
-    base_dir: String,
-    apache_conf: String,
-    password: String,
-) -> Vec<LogEntry> {
-    let mut log = Vec::new();
-    let project_path = PathBuf::from(&base_dir).join(&project_name);
-    let domain = format!("{}.local", project_name);
-
-    log.push(LogEntry::info(format!(
-        "Setting up project: {}",
-        project_name
-    )));
-
-    if !project_path.exists() {
-        log.push(LogEntry::err(format!(
-            "Directory {} does not exist.",
-            project_path.display()
-        )));
-        return log;
-    }
-    log.push(LogEntry::ok(format!(
-        "Directory found: {}",
-        project_path.display()
-    )));
-
-    // .env
-    let env_ex = project_path.join(".env.example");
-    let env_dst = project_path.join(".env");
-    if env_ex.exists() {
-        match tokio::fs::copy(&env_ex, &env_dst).await {
-            Ok(_) => log.push(LogEntry::ok(".env created from .env.example")),
-            Err(e) => log.push(LogEntry::err(format!("Copy .env failed: {}", e))),
-        }
-    } else {
-        log.push(LogEntry::warn(".env.example not found - skipping"));
-    }
-
-    // auth.json
-    if !auth_json.is_empty() {
-        let src = PathBuf::from(&auth_json);
-        if src.exists() {
-            let dst = project_path.join("auth.json");
-            match tokio::fs::copy(&src, &dst).await {
-                Ok(_) => log.push(LogEntry::ok("auth.json copied")),
-                Err(e) => log.push(LogEntry::err(format!("Copy auth.json failed: {}", e))),
-            }
-        } else {
-            log.push(LogEntry::warn(format!(
-                "auth.json not found at {}",
-                auth_json
-            )));
-        }
-    }
-
-    // /etc/hosts
-    log.push(LogEntry::cmd(format!("Checking /etc/hosts for {}", domain)));
-    let hosts = tokio::fs::read_to_string("/etc/hosts")
-        .await
-        .unwrap_or_default();
-    if hosts.contains(&domain) {
-        log.push(LogEntry::info(format!("{} already in /etc/hosts", domain)));
-    } else {
-        let line = format!("127.0.0.1    {}\n", domain);
-        match sudo_tee_append_with_password(&password, "/etc/hosts", &line).await {
-            Ok(_) => log.push(LogEntry::ok(format!("Added {} to /etc/hosts", domain))),
-            Err(e) => log.push(LogEntry::err(format!("hosts write failed: {}", e))),
-        }
-    }
-
-    // VirtualHost block
-    log.push(LogEntry::cmd(format!(
-        "Checking Apache config: {}",
-        apache_conf
-    )));
-    let existing = tokio::fs::read_to_string(&apache_conf)
-        .await
-        .unwrap_or_default();
-    if existing.contains(&format!("ServerName {}", domain)) {
-        log.push(LogEntry::info("VirtualHost already present in config"));
-    } else {
-        let block = format!(
-            "\n<VirtualHost *:80>\n\
-             \x20   ServerName {domain}\n\
-             \x20   ServerAlias www.{domain}\n\
-             \x20   DocumentRoot {proj}/public\n\
-             \n\
-             \x20   <Directory {proj}/public>\n\
-             \x20       AllowOverride All\n\
-             \x20       Require all granted\n\
-             \x20   </Directory>\n\
-             \n\
-             \x20   ErrorLog ${{APACHE_LOG_DIR}}/{name}_error.log\n\
-             \x20   CustomLog ${{APACHE_LOG_DIR}}/{name}_access.log combined\n\
-             </VirtualHost>\n\n",
-            domain = domain,
-            proj = project_path.display(),
-            name = project_name,
-        );
-        match sudo_tee_append_with_password(&password, &apache_conf, &block).await {
-            Ok(_) => log.push(LogEntry::ok(format!(
-                "VirtualHost block added to {}",
-                apache_conf
-            ))),
-            Err(e) => log.push(LogEntry::err(format!("Apache config write failed: {}", e))),
-        }
-    }
-
-    // a2ensite
-    log.push(LogEntry::cmd("Running a2ensite..."));
-    let conf_base = PathBuf::from(&apache_conf)
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-    match sudo_cmd_with_password(&password, &["a2ensite", &conf_base]).await {
-        Ok(_) => log.push(LogEntry::ok(format!("a2ensite {} - OK", conf_base))),
-        Err(_) => log.push(LogEntry::warn(
-            "a2ensite returned non-zero (may already be enabled)",
-        )),
-    }
-
-    // Reload Apache
-    log.push(LogEntry::cmd("Reloading Apache..."));
-    match sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await {
-        Ok(_) => log.push(LogEntry::ok("Apache reloaded successfully")),
-        Err(e) => log.push(LogEntry::err(format!("Apache reload failed: {}", e))),
-    }
-
-    log.push(LogEntry::ok(format!("Done! Visit: http://{}", domain)));
-    log
-}
-
-// SSH key generation (no sudo needed)
 async fn generate_ssh_key(
     email: String,
     name: String,
@@ -1362,60 +1498,84 @@ async fn list_ssh_keys() -> Vec<KeyEntry> {
 fn get_home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
 }
-
 fn xdg_open(path: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(path).spawn()?;
     Ok(())
 }
-
 fn open_url(url: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
 }
 
 fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
-    // Try to find the active php.ini via `php --ini`, fallback to common paths
     if let Some(version) = active_php {
-        // Strip full version to major.minor (e.g. "8.2.10" -> "8.2")
         let short = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
-        let candidate = format!("/etc/php/{}/cli/php.ini", short);
-        if std::path::Path::new(&candidate).exists() {
-            return xdg_open(&candidate);
+        let c1 = format!("/etc/php/{}/cli/php.ini", short);
+        if std::path::Path::new(&c1).exists() {
+            return xdg_open(&c1);
         }
-        // Try apache2 variant too
-        let candidate2 = format!("/etc/php/{}/apache2/php.ini", short);
-        if std::path::Path::new(&candidate2).exists() {
-            return xdg_open(&candidate2);
+        let c2 = format!("/etc/php/{}/apache2/php.ini", short);
+        if std::path::Path::new(&c2).exists() {
+            return xdg_open(&c2);
         }
     }
-    // Fallback: open /etc/php directory
     xdg_open("/etc/php")
 }
 
-// ── Tools: PHP scanner ────────────────────────────────────────────────────
+fn open_terminal_at(path: &str) {
+    let Some(term) = find_terminal() else {
+        return;
+    };
+    let cd_cmd = format!("cd {} && exec bash", shell_quote(path));
+    let result = match term.as_str() {
+        "gnome-terminal" => std::process::Command::new("gnome-terminal")
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
+        "xfce4-terminal" => std::process::Command::new("xfce4-terminal")
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
+        "konsole" => std::process::Command::new("konsole")
+            .arg("--workdir")
+            .arg(path)
+            .spawn(),
+        "mate-terminal" => std::process::Command::new("mate-terminal")
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
+        // xterm and friends: use -e bash -c "cd X && exec bash" as split args
+        "xterm" => std::process::Command::new("xterm")
+            .args(["-e", "bash", "-c", &cd_cmd])
+            .spawn(),
+        // lxterminal / tilix: -e takes a single shell string
+        "lxterminal" | "tilix" => std::process::Command::new(&term)
+            .arg("-e")
+            .arg(format!("bash -c {}", shell_quote(&cd_cmd)))
+            .spawn(),
+        _ => std::process::Command::new(&term)
+            .args(["-e", "bash", "-c", &cd_cmd])
+            .spawn(),
+    };
+    let _ = result;
+}
 
 async fn scan_php_versions(
     active_php: Option<String>,
-) -> Vec<(String, tabs::tools::PhpStatus, bool)> {
+) -> Vec<(String, tabs::tools::PhpStatus, bool, bool, bool)> {
     use tabs::tools::PhpStatus;
-
-    // Active version short form e.g. "8.2"
     let active_short = active_php
         .as_deref()
         .map(|v| v.splitn(3, '.').take(2).collect::<Vec<_>>().join("."));
-
-    let candidates = ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"];
     let mut results = Vec::new();
-
-    for ver in &candidates {
-        // Check if /usr/bin/php{ver} exists → installed
-        let bin = format!("/usr/bin/php{}", ver);
-        let installed = tokio::fs::metadata(&bin).await.is_ok();
-
+    for ver in &["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"] {
+        // apt / binary status
+        let installed = tokio::fs::metadata(format!("/usr/bin/php{}", ver))
+            .await
+            .is_ok();
         let status = if installed {
             PhpStatus::Installed
         } else {
-            // Quick apt-cache check (non-blocking, best-effort)
             let avail = Command::new("apt-cache")
                 .args(["show", &format!("php{}", ver)])
                 .output()
@@ -1428,50 +1588,46 @@ async fn scan_php_versions(
                 PhpStatus::Unknown
             }
         };
-
         let is_active = active_short.as_deref() == Some(ver);
-        results.push((ver.to_string(), status, is_active));
-    }
 
+        // Apache mod: libapache2-mod-phpX.Y
+        // Available  = the .load file exists in mods-available
+        // Enabled    = the .load symlink exists in mods-enabled
+        let mod_name = format!("php{}", ver);
+        let mod_avail_path = format!("/etc/apache2/mods-available/{}.load", mod_name);
+        let mod_en_path = format!("/etc/apache2/mods-enabled/{}.load", mod_name);
+        let mod_available = tokio::fs::metadata(&mod_avail_path).await.is_ok();
+        let mod_enabled = tokio::fs::metadata(&mod_en_path).await.is_ok();
+
+        results.push((
+            ver.to_string(),
+            status,
+            is_active,
+            mod_available,
+            mod_enabled,
+        ));
+    }
     results
 }
 
-// ── Tools: apt install/remove PHP ────────────────────────────────────────
-
 async fn apt_php_op(version: String, install: bool, password: String) -> (bool, String) {
     let op = if install { "install" } else { "remove" };
-
-    // First update package lists to ensure we have the latest info
-    match sudo_cmd_with_password(&password, &["apt-get", "update"]).await {
-        Err(e) => {
-            return (false, format!("Failed to update package lists: {}", e));
-        }
-        _ => {}
+    if let Err(e) = sudo_cmd_with_password(&password, &["apt-get", "update"]).await {
+        return (false, format!("Failed to update package lists: {}", e));
     }
-
-    // Install the meta-package + common extensions
     let pkg = if install {
         format!(
-            "php{} php{}-cli php{}-common php{}-mysql php{}-xml php{}-mbstring",
-            version, version, version, version, version, version
+            "php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring",
+            version
         )
     } else {
-        format!("php{} php{}-*", version, version)
+        format!("php{0} php{0}-*", version)
     };
-
     let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
-
     match sudo_cmd_with_password(&password, &["sh", "-c", &full_cmd]).await {
         Ok(output) => {
-            // Check if the operation was actually successful by checking output
             if output.contains("not found") || output.contains("Unable to locate") {
-                (
-                    false,
-                    format!(
-                        "PHP {} not found in repositories. Make sure the ondrej/php PPA is added.",
-                        version
-                    ),
-                )
+                (false, format!("PHP {} not found in repositories.", version))
             } else {
                 (true, format!("PHP {} {}ed successfully", version, op))
             }
@@ -1480,107 +1636,136 @@ async fn apt_php_op(version: String, install: bool, password: String) -> (bool, 
     }
 }
 
-// ── Tools: open DB terminal ───────────────────────────────────────────────
-
-/// Opens a terminal emulator with mysql/mariadb as root.
-/// Returns Ok(description) or Err(reason).
 fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, String> {
-    // Build the mysql command
+    // Build mysql command (runs as root via sudo)
     let mysql_cmd = if socket_auth {
         format!("sudo {} -u root", binary)
     } else {
         format!("sudo {} -u root -p", binary)
     };
 
-    // Wrap it so the terminal stays open on exit
-    let shell_cmd = format!(
-        "{}; echo '--- session ended, press Enter ---'; read _",
-        mysql_cmd
+    // Shell script that runs mysql then waits before closing
+    // Use only POSIX-safe escapes — no \033 (not POSIX sh), use printf octal instead
+    let inner = format!(
+        "{cmd}; printf '\\n\\033[0;33m--- session ended, press Enter to close ---\\033[0m\\n'; read _",
+        cmd = mysql_cmd
     );
 
-    // Try terminal emulators in order of preference
-    let terminals: &[(&str, &[&str])] = &[
-        ("x-terminal-emulator", &["-e"]),
-        ("gnome-terminal", &["--", "bash", "-c"]),
-        ("xfce4-terminal", &["-e"]),
-        ("konsole", &["-e"]),
-        ("xterm", &["-e"]),
-        ("lxterminal", &["-e"]),
-        ("mate-terminal", &["-e"]),
-        ("tilix", &["-e"]),
-    ];
+    let term = match find_terminal() {
+        Some(t) => t,
+        None => return Err(
+            "No terminal emulator found. Install gnome-terminal, xterm, konsole, or xfce4-terminal.".into()
+        ),
+    };
 
-    for (term, args) in terminals {
-        // Check if the terminal exists
-        if std::process::Command::new("which")
-            .arg(term)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
-            let mut cmd = std::process::Command::new(term);
-            cmd.args(*args);
-            if *term == "gnome-terminal" {
-                // gnome-terminal passes args differently
-                cmd.arg(&shell_cmd);
-            } else {
-                cmd.arg(format!("bash -c '{}'", shell_cmd.replace('\'', "'\\''")));
-            }
-            return match cmd.spawn() {
-                Ok(_) => Ok(format!("{} ({})", term, mysql_cmd)),
-                Err(e) => Err(format!("Failed to spawn {}: {}", term, e)),
-            };
-        }
+    // Every terminal gets bash -c "<inner>" with args passed individually
+    // (never concatenated into a single shell-escaped string) so the shell
+    // does not double-interpret the command.
+    let result = match term.as_str() {
+        // These support `-- bash -c "cmd"` (recommended, cleanest)
+        "gnome-terminal" | "mate-terminal" => std::process::Command::new(&term)
+            .args(["--", "bash", "-c", &inner])
+            .spawn(),
+        // These support `-e bash -c "cmd"` with args split
+        "xterm" | "konsole" => std::process::Command::new(&term)
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
+        // xfce4-terminal: --command takes a single string, but it runs it
+        // through the shell, so pass `bash -c 'cmd'` properly quoted
+        "xfce4-terminal" => std::process::Command::new("xfce4-terminal")
+            .arg("--command")
+            .arg(format!("bash -c {}", shell_quote(&inner)))
+            .spawn(),
+        // tilix: same as xfce4 — -e takes a shell string
+        "tilix" => std::process::Command::new("tilix")
+            .arg("-e")
+            .arg(format!("bash -c {}", shell_quote(&inner)))
+            .spawn(),
+        // lxterminal: -e takes a single string run via sh -c
+        "lxterminal" => std::process::Command::new("lxterminal")
+            .arg("-e")
+            .arg(format!("bash -c {}", shell_quote(&inner)))
+            .spawn(),
+        // x-terminal-emulator: Debian alternative, usually points to xterm/gnome-terminal
+        // Try -- first (works for gnome), fall back to -e
+        "x-terminal-emulator" => std::process::Command::new("x-terminal-emulator")
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
+        // Unknown terminal: best-effort -e
+        _ => std::process::Command::new(&term)
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
+    };
+
+    match result {
+        Ok(_) => Ok(format!("Launched '{}' in {}", mysql_cmd, term)),
+        Err(e) => Err(format!("Failed to open {}: {}", term, e)),
     }
-
-    Err("No supported terminal emulator found. Install xterm or gnome-terminal.".into())
 }
 
-// ── Tools: copy to clipboard (async) ───────────────────────────────────────
+fn find_terminal() -> Option<String> {
+    let candidates = [
+        "gnome-terminal",
+        "xfce4-terminal",
+        "konsole",
+        "tilix",
+        "mate-terminal",
+        "lxterminal",
+        "xterm",
+        "x-terminal-emulator",
+    ];
+    for t in &candidates {
+        let ok = std::process::Command::new("which")
+            .arg(t)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if ok {
+            return Some(t.to_string());
+        }
+    }
+    // Last resort: check if /usr/bin/xterm exists without `which`
+    if std::path::Path::new("/usr/bin/xterm").exists() {
+        return Some("xterm".to_string());
+    }
+    None
+}
+
+/// Wrap a string in single quotes for shell, escaping any embedded single quotes.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
 
 async fn copy_to_clipboard_async(text: String) {
-    // Method 1: Try xclip (X11) - most reliable
     if try_copy_with_xclip(&text).await {
         return;
     }
-
-    // Method 2: Try wl-copy (Wayland)
     if try_copy_with_wl_copy(&text).await {
         return;
     }
-
-    // Method 3: Try xsel (alternative X11)
     if try_copy_with_xsel(&text).await {
         return;
     }
-
-    // Fallback: Create a temporary shell script file
     create_temp_script_file(&text).await;
 }
 
 async fn create_temp_script_file(commands: &str) {
-    let home = get_home();
-    let script_path = home.join(".devpanel_php_install.sh");
-
-    // Create script with shebang and the commands
-    let script_content = format!("#!/bin/bash\n{}\n", commands);
-
-    if let Ok(_) = tokio::fs::write(&script_path, &script_content).await {
-        // Make it executable
+    let path = get_home().join(".devpanel_php_install.sh");
+    if tokio::fs::write(&path, format!("#!/bin/bash\n{}\n", commands))
+        .await
+        .is_ok()
+    {
         let _ = std::process::Command::new("chmod")
-            .args(["+x", &script_path.to_string_lossy().to_string()])
+            .args(["+x", &path.to_string_lossy().to_string()])
             .output();
-
-        // Open it with default editor/text viewer so user can see and copy
-        let _ = std::process::Command::new("xdg-open")
-            .arg(&script_path)
-            .spawn();
+        let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
     }
 }
 
 async fn try_copy_with_xclip(text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
-
     match tokio::process::Command::new("xclip")
         .arg("-selection")
         .arg("clipboard")
@@ -1589,13 +1774,12 @@ async fn try_copy_with_xclip(text: &str) -> bool {
         .stderr(std::process::Stdio::null())
         .spawn()
     {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let write_result = stdin.write_all(text.as_bytes()).await;
-                let flush_result = stdin.flush().await;
-                drop(stdin);
-                let _ = child.wait().await;
-                write_result.is_ok() && flush_result.is_ok()
+        Ok(mut c) => {
+            if let Some(mut s) = c.stdin.take() {
+                let ok = s.write_all(text.as_bytes()).await.is_ok() && s.flush().await.is_ok();
+                drop(s);
+                let _ = c.wait().await;
+                ok
             } else {
                 false
             }
@@ -1603,23 +1787,20 @@ async fn try_copy_with_xclip(text: &str) -> bool {
         Err(_) => false,
     }
 }
-
 async fn try_copy_with_wl_copy(text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
-
     match tokio::process::Command::new("wl-copy")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
     {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let write_result = stdin.write_all(text.as_bytes()).await;
-                let flush_result = stdin.flush().await;
-                drop(stdin);
-                let _ = child.wait().await;
-                write_result.is_ok() && flush_result.is_ok()
+        Ok(mut c) => {
+            if let Some(mut s) = c.stdin.take() {
+                let ok = s.write_all(text.as_bytes()).await.is_ok() && s.flush().await.is_ok();
+                drop(s);
+                let _ = c.wait().await;
+                ok
             } else {
                 false
             }
@@ -1627,10 +1808,8 @@ async fn try_copy_with_wl_copy(text: &str) -> bool {
         Err(_) => false,
     }
 }
-
 async fn try_copy_with_xsel(text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
-
     match tokio::process::Command::new("xsel")
         .arg("-b")
         .arg("-i")
@@ -1639,17 +1818,123 @@ async fn try_copy_with_xsel(text: &str) -> bool {
         .stderr(std::process::Stdio::null())
         .spawn()
     {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let write_result = stdin.write_all(text.as_bytes()).await;
-                let flush_result = stdin.flush().await;
-                drop(stdin);
-                let _ = child.wait().await;
-                write_result.is_ok() && flush_result.is_ok()
+        Ok(mut c) => {
+            if let Some(mut s) = c.stdin.take() {
+                let ok = s.write_all(text.as_bytes()).await.is_ok() && s.flush().await.is_ok();
+                drop(s);
+                let _ = c.wait().await;
+                ok
             } else {
                 false
             }
         }
         Err(_) => false,
+    }
+}
+
+// ── Apache module toggle ──────────────────────────────────────────────────
+
+async fn toggle_apache_module(
+    name: String,
+    enable: bool,
+    password: String,
+) -> (bool, String, String, bool) {
+    use crate::sudo_prompt::sudo_cmd_with_password;
+    let cmd = if enable { "a2enmod" } else { "a2dismod" };
+    match sudo_cmd_with_password(&password, &[cmd, &name]).await {
+        Ok(_) => {
+            let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
+            (
+                true,
+                format!(
+                    "mod_{} {} — Apache reloaded",
+                    name,
+                    if enable { "enabled" } else { "disabled" }
+                ),
+                name,
+                enable,
+            )
+        }
+        Err(e) => (false, format!("Failed: {}", e), name, enable),
+    }
+}
+
+// ── Scan apache modules from mods-available ──────────────────────────────
+
+async fn scan_apache_modules() -> Vec<tabs::tools::ApacheModule> {
+    use tabs::tools::ApacheModule;
+    let avail_dir = "/etc/apache2/mods-available";
+    let enabled_dir = "/etc/apache2/mods-enabled";
+
+    // Collect unique module names from *.load files in mods-available
+    let mut names: Vec<String> = Vec::new();
+    if let Ok(mut dir) = tokio::fs::read_dir(avail_dir).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if let Some(name) = fname.strip_suffix(".load") {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names.sort();
+
+    // For each module, check if it's enabled (symlink exists in mods-enabled)
+    let mut results = Vec::new();
+    for name in names {
+        let enabled_path = format!("{}/{}.load", enabled_dir, name);
+        let enabled = tokio::fs::metadata(&enabled_path).await.is_ok();
+        results.push(ApacheModule { name, enabled });
+    }
+    results
+}
+
+// ── Scan PHP extensions ────────────────────────────────────────────────────
+
+async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, bool)> {
+    let ext_names = [
+        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql", "redis", "intl", "bcmath",
+        "soap", "imagick", "xdebug", "sqlite3",
+    ];
+    let mut results = Vec::new();
+    for name in &ext_names {
+        let pkg = match &active_ver {
+            Some(ver) => format!("php{}-{}", ver, name),
+            None => format!("php-{}", name),
+        };
+        let output = tokio::process::Command::new("dpkg")
+            .args(["-l", &pkg])
+            .output()
+            .await;
+        let installed = match output {
+            Ok(out) => {
+                let s = String::from_utf8_lossy(&out.stdout);
+                s.lines().any(|l| l.starts_with("ii"))
+            }
+            Err(_) => false,
+        };
+        results.push((name.to_string(), installed));
+    }
+    results
+}
+
+// ── Generic apt package install/remove ───────────────────────────────────
+
+async fn apt_package_op(package: String, install: bool, password: String) -> (bool, String) {
+    use crate::sudo_prompt::sudo_cmd_with_password;
+    let args = if install {
+        vec!["apt-get", "install", "-y", &package]
+    } else {
+        vec!["apt-get", "remove", "-y", &package]
+    };
+    match sudo_cmd_with_password(&password, &args).await {
+        Ok(_) => (
+            true,
+            format!(
+                "{} {} successfully",
+                package,
+                if install { "installed" } else { "removed" }
+            ),
+        ),
+        Err(e) => (false, format!("Failed: {}", e)),
     }
 }

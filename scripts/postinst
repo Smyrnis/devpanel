@@ -1,45 +1,37 @@
 #!/bin/bash
 set -e
+# DevPanel post-install hook
+# Called by dpkg after package installation.
+# Runs devpanel-setup.sh as the real (non-root) user.
 
-# DevPanel post-install script
-# Deploys the welcome index.php to /var/www/html if it's the default Apache page
+SETUP_SCRIPT="/usr/share/devpanel/devpanel-setup.sh"
 
-# Source directory where index.php is installed
-SOURCE_FILE="/usr/share/devpanel/index.php"
-DEST_DIR="/var/www/html"
-DEST_FILE="$DEST_DIR/index.php"
-BACKUP_FILE="$DEST_DIR/index.php.backup"
-
-# Create destination directory if it doesn't exist
-if [ ! -d "$DEST_DIR" ]; then
-    mkdir -p "$DEST_DIR"
-    chown www-data:www-data "$DEST_DIR"
-    chmod 755 "$DEST_DIR"
+if [ ! -f "$SETUP_SCRIPT" ]; then
+    echo "DevPanel: setup script not found at $SETUP_SCRIPT — skipping."
+    echo "          Run manually: sudo bash $SETUP_SCRIPT"
+    exit 0
 fi
 
-# Check if source file exists
-if [ -f "$SOURCE_FILE" ]; then
-    # Backup existing index.php if it exists and is default Apache page
-    if [ -f "$DEST_FILE" ]; then
-        # Check if it's the default Apache index page
-        if grep -q "Apache" "$DEST_FILE" 2>/dev/null || grep -q "It works" "$DEST_FILE" 2>/dev/null || [ ! -s "$DEST_FILE" ]; then
-            cp "$DEST_FILE" "$BACKUP_FILE"
-            echo "Backed up existing index.php to $BACKUP_FILE"
-        else
-            # User has custom index.php, don't overwrite
-            echo "Custom index.php detected, skipping deployment"
-            exit 0
-        fi
-    fi
-
-    # Deploy the new index.php
-    cp "$SOURCE_FILE" "$DEST_FILE"
-    chown www-data:www-data "$DEST_FILE"
-    chmod 644 "$DEST_FILE"
-    echo "DevPanel index.php deployed to $DEST_FILE"
+# ── Determine the real target user ─────────────────────────────────────────
+# Priority: SUDO_USER → PKEXEC_UID → first human user with UID ≥ 1000
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    TARGET_USER="$SUDO_USER"
+elif [ -n "$PKEXEC_UID" ]; then
+    TARGET_USER=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
 else
-    echo "Warning: Source file $SOURCE_FILE not found"
-    exit 1
+    # dpkg may run as root directly (e.g. in a CI or non-sudo install)
+    TARGET_USER=$(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /nologin|false/ {print $1; exit}')
 fi
+
+if [ -z "$TARGET_USER" ]; then
+    echo "DevPanel: could not determine target user — skipping auto-setup."
+    echo "          Run manually: sudo bash $SETUP_SCRIPT"
+    exit 0
+fi
+
+echo "DevPanel: running setup for user: $TARGET_USER"
+
+# Pass SUDO_USER so devpanel-setup.sh can find the home directory
+SUDO_USER="$TARGET_USER" bash "$SETUP_SCRIPT"
 
 exit 0

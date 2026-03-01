@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.1.0"
+version = "0.5.3"
 edition = "2021"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -22,10 +22,11 @@ depends = "$auto"
 section = "devel"
 priority = "optional"
 assets = [
-  ["target/release/devpanel", "usr/bin/",                       "755"],
-  ["icon.png",                "usr/share/pixmaps/devpanel.png", "644"],
-  ["devpanel.desktop",        "usr/share/applications/",        "644"],
-  ["share/index.php",         "usr/share/devpanel/",            "644"],
+  ["target/release/devpanel",          "usr/bin/",                        "755"],
+  ["icon.png",                         "usr/share/pixmaps/devpanel.png",  "644"],
+  ["devpanel.desktop",                 "usr/share/applications/",         "644"],
+  ["share/index.php",                  "usr/share/devpanel/",             "644"],
+  ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
 ]
 maintainer-scripts = "scripts/"
 

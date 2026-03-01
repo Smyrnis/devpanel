@@ -88,7 +88,7 @@ pub const TEXT_MUTED: Color = Color {
 
 // ── Accent ────────────────────────────────────────────────────────────────
 pub const ACCENT: Color = TEAL;
-pub const ACCENT_DIM: Color = TEAL_DIM;
+//pub const ACCENT_DIM: Color = TEAL_DIM;
 
 // ── Status colors ─────────────────────────────────────────────────────────
 pub const GREEN: Color = Color {

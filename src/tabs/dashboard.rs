@@ -221,19 +221,24 @@ impl DashboardTab {
 
         let quick_grid = column![
             self.quick_row(&[
-                ("Localhost", Message::OpenLocalhost),
-                ("phpMyAdmin", Message::OpenPhpMyAdmin),
-                ("Web Root", Message::OpenWebRoot),
+                ("Localhost",    Message::OpenLocalhost),
+                ("phpMyAdmin",   Message::OpenPhpMyAdmin),
+                ("Projects",     Message::OpenProjectsFolder),
             ]),
             self.quick_row(&[
-                ("Apache Conf", Message::OpenApacheConfig),
-                ("MySQL Conf", Message::OpenMySQLConfig),
-                ("PHP Config", Message::OpenPHPConfig),
+                ("apache2.conf", Message::NavigateApache2Conf),
+                ("sites-avail",  Message::NavigateApache2Sites),
+                ("devpanel.conf",Message::VH_OpenDevpanelConf),
             ]),
             self.quick_row(&[
-                ("php.ini", Message::OpenPhpIni),
-                ("Hosts File", Message::EditHosts),
-                ("Restart All", Message::RestartAll),
+                ("/etc/php",     Message::NavigatePhpDir),
+                ("/etc/mysql",   Message::NavigateMysqlDir),
+                ("/etc/hosts",   Message::NavigateHostsFile),
+            ]),
+            self.quick_row(&[
+                ("Web Root",     Message::OpenWebRoot),
+                ("php.ini",      Message::OpenPhpIni),
+                ("Restart All",  Message::RestartAll),
             ]),
         ]
         .spacing(8);
