@@ -2,3 +2,6 @@
 
 target
 Cargo.lock
+
+# Ignore the .idea
+.idea

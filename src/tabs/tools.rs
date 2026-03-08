@@ -523,8 +523,8 @@ impl ToolsTab {
 
     fn db_panel(&self) -> Element<'_, Message> {
         let note = container(row![
-            text("!").size(10).color(YELLOW), Space::with_width(8),
-            text("Opens your system terminal as root. SQL dumps live in ~/projects/db/").size(11).color(TEXT_MUTED),
+            text("").size(10).color(YELLOW), Space::with_width(8),
+            text("Opens your system terminal as root.").size(11).color(TEXT_MUTED),
         ].align_y(Alignment::Center)).padding(Padding::from([10, 12])).width(Length::Fill)
         .style(|_: &iced::Theme| container::Style { background: Some(YELLOW_BG.into()), border: Border { color: YELLOW_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() });
         let status_row: Element<Message> = if !self.db_status.is_empty() {

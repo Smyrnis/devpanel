@@ -6,68 +6,27 @@ use iced::widget::{button, column, container, row, scrollable, text, text_input,
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 // ── Colors ────────────────────────────────────────────────────────────────
+// All tinted backgrounds derived from index.php *-dim variables.
 
-const GREEN_BG: Color = Color {
-    r: 0.050,
-    g: 0.160,
-    b: 0.090,
-    a: 1.0,
-};
-const GREEN_HOVER: Color = Color {
-    r: 0.060,
-    g: 0.185,
-    b: 0.100,
-    a: 1.0,
-};
-const BLUE_BG: Color = Color {
-    r: 0.050,
-    g: 0.090,
-    b: 0.180,
-    a: 1.0,
-};
-//const BLUE_HOVER:    Color = Color { r: 0.070, g: 0.120, b: 0.230, a: 1.0 };
-const BLUE_BORDER: Color = Color {
-    r: 0.080,
-    g: 0.140,
-    b: 0.260,
-    a: 1.0,
-};
-const TEAL_BG: Color = Color {
-    r: 0.040,
-    g: 0.160,
-    b: 0.150,
-    a: 1.0,
-};
-const TEAL_HOVER: Color = Color {
-    r: 0.050,
-    g: 0.185,
-    b: 0.175,
-    a: 1.0,
-};
-const TEAL_BORDER: Color = Color {
-    r: 0.060,
-    g: 0.210,
-    b: 0.200,
-    a: 1.0,
-};
-const RED_BG: Color = Color {
-    r: 0.200,
-    g: 0.060,
-    b: 0.055,
-    a: 1.0,
-};
-const YELLOW_BG: Color = Color {
-    r: 0.190,
-    g: 0.160,
-    b: 0.040,
-    a: 1.0,
-};
-const YELLOW_BORDER: Color = Color {
-    r: 0.240,
-    g: 0.200,
-    b: 0.050,
-    a: 1.0,
-};
+// GREEN  — rgba(48,209,88,.12) on #0a0a0a
+const GREEN_BG: Color    = Color { r: 0.071, g: 0.122, b: 0.082, a: 1.0 };
+const GREEN_HOVER: Color = Color { r: 0.090, g: 0.148, b: 0.100, a: 1.0 };
+
+// BLUE   — rgba(10,132,255,.10) on #0a0a0a
+const BLUE_BG: Color     = Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 };
+const BLUE_BORDER: Color = Color { r: 0.070, g: 0.130, b: 0.220, a: 1.0 };
+
+// TEAL is now GREEN (brand accent = index.php --green #30d158)
+const TEAL_BG: Color     = GREEN_BG;
+const TEAL_HOVER: Color  = GREEN_HOVER;
+const TEAL_BORDER: Color = Color { r: 0.100, g: 0.200, b: 0.118, a: 1.0 }; // rgba(48,209,88,.28)
+
+// RED    — rgba(255,69,58,.10) on #0a0a0a
+const RED_BG: Color      = Color { r: 0.137, g: 0.071, b: 0.067, a: 1.0 };
+
+// YELLOW — rgba(255,214,10,.10) on #0a0a0a
+const YELLOW_BG: Color     = Color { r: 0.137, g: 0.122, b: 0.043, a: 1.0 };
+const YELLOW_BORDER: Color = Color { r: 0.180, g: 0.160, b: 0.055, a: 1.0 };
 
 // ── Data types ────────────────────────────────────────────────────────────
 

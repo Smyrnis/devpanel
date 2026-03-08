@@ -5,49 +5,18 @@ use crate::Message;
 use iced::widget::{button, column, container, pick_list, row, scrollable, text, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Pre-computed tinted solids (no alpha struct tricks) ───────────────────
-const GREEN_BG: Color = Color {
-    r: 0.050,
-    g: 0.160,
-    b: 0.090,
-    a: 1.0,
-};
-const PURPLE_BG: Color = Color {
-    r: 0.140,
-    g: 0.060,
-    b: 0.180,
-    a: 1.0,
-};
-const PURPLE_BG2: Color = Color {
-    r: 0.180,
-    g: 0.080,
-    b: 0.230,
-    a: 1.0,
-}; // slightly lighter
-const PURPLE_BDR: Color = Color {
-    r: 0.200,
-    g: 0.090,
-    b: 0.260,
-    a: 1.0,
-};
-const BLUE_BG: Color = Color {
-    r: 0.050,
-    g: 0.090,
-    b: 0.180,
-    a: 1.0,
-};
-const STOPPED_BG: Color = Color {
-    r: 0.150,
-    g: 0.150,
-    b: 0.160,
-    a: 1.0,
-};
-const STATUS_STOP: Color = Color {
-    r: 0.500,
-    g: 0.500,
-    b: 0.520,
-    a: 1.0,
-};
+// ── Pre-computed tinted solids — aligned with index.php *-dim vars ────────
+// GREEN: rgba(48,209,88,.12) on #0a0a0a
+const GREEN_BG: Color    = Color { r: 0.071, g: 0.122, b: 0.082, a: 1.0 };
+// PURPLE (kept for non-standard badges)
+const PURPLE_BG: Color   = Color { r: 0.110, g: 0.055, b: 0.165, a: 1.0 };
+const PURPLE_BG2: Color  = Color { r: 0.140, g: 0.070, b: 0.200, a: 1.0 };
+const PURPLE_BDR: Color  = Color { r: 0.170, g: 0.085, b: 0.240, a: 1.0 };
+// BLUE: rgba(10,132,255,.10) on #0a0a0a
+const BLUE_BG: Color     = Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 };
+// Stopped service — neutral BG_HOVER tone
+const STOPPED_BG: Color  = Color { r: 0.110, g: 0.110, b: 0.110, a: 1.0 };
+const STATUS_STOP: Color = TEXT_MUTED;
 
 // ── Card / surface styles ─────────────────────────────────────────────────
 
