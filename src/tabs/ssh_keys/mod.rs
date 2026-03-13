@@ -3,6 +3,8 @@
 pub mod backend;
 pub mod view;
 
+pub use backend::{generate_key, list_keys};
+
 use iced::Element;
 use crate::Message;
 

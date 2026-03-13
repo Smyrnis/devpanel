@@ -1,4 +1,5 @@
 // src/tabs/apache_touch/mod.rs — state, data types, public API
+#![allow(dead_code, unused)]
 
 pub mod backend;
 pub mod view;

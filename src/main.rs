@@ -279,7 +279,7 @@ impl App {
             sudo: SudoModal::new(),
             sudo_pending_action: None,
         };
-        (app, Task::perform(probe_services(), |r| r))
+        (app, Task::perform(tabs::dashboard::probe_services(), |r| r))
     }
 
     fn trigger_sudo(&mut self, action: PendingAction) -> Task<Message> {
@@ -306,7 +306,7 @@ impl App {
                 Task::perform(run_service_cmd_with_pass(svc, act, password), |r| r)
             }
             PendingAction::PhpSwitch(version) => {
-                Task::perform(switch_php_with_pass(version, password), |(ok, msg)| {
+                Task::perform(tabs::tools::switch_php(version, password), |(ok, msg)| {
                     Message::PhpSwitchResult(ok, msg)
                 })
             }
@@ -321,12 +321,12 @@ impl App {
                 ),
             ]),
             PendingAction::PhpInstall(version) => {
-                Task::perform(apt_php_op(version, true, password), |(ok, msg)| {
+                Task::perform(tabs::tools::apt_php_op(version, true, password), |(ok, msg)| {
                     Message::TOOLS_PhpOpDone(ok, msg)
                 })
             }
             PendingAction::PhpRemove(version) => {
-                Task::perform(apt_php_op(version, false, password), |(ok, msg)| {
+                Task::perform(tabs::tools::apt_php_op(version, false, password), |(ok, msg)| {
                     Message::TOOLS_PhpOpDone(ok, msg)
                 })
             }
@@ -359,16 +359,16 @@ impl App {
                 )
             }
             PendingAction::ApacheModToggle { name, enable } => Task::perform(
-                toggle_apache_module(name, enable, password),
+                tabs::tools::toggle_apache_module(name, enable, password),
                 |(ok, msg, n, en)| Message::TOOLS_ApacheModDone(ok, msg, n, en),
             ),
             PendingAction::AptInstall { package } => {
-                Task::perform(apt_package_op(package, true, password), |(ok, msg)| {
+                Task::perform(tabs::tools::apt_package_op(package, true, password), |(ok, msg)| {
                     Message::TOOLS_PhpExtDone(ok, msg)
                 })
             }
             PendingAction::AptRemove { package } => {
-                Task::perform(apt_package_op(package, false, password), |(ok, msg)| {
+                Task::perform(tabs::tools::apt_package_op(package, false, password), |(ok, msg)| {
                     Message::TOOLS_PhpExtDone(ok, msg)
                 })
             }
@@ -390,12 +390,12 @@ impl App {
             Message::SelectTab(tab) => {
                 self.active_tab = tab.clone();
                 match tab {
-                    Tab::Dashboard => Task::perform(probe_services(), |r| r),
-                    Tab::SshKeys => Task::perform(list_ssh_keys(), Message::SSH_KeysListed),
+                    Tab::Dashboard => Task::perform(tabs::dashboard::probe_services(), |r| r),
+                    Tab::SshKeys => Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed),
                     Tab::Tools => {
                         self.tools.scanning = true;
                         Task::perform(
-                            scan_php_versions(self.dashboard.active_php_version.clone()),
+                            tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
                             Message::TOOLS_ScanDone,
                         )
                     }
@@ -464,7 +464,7 @@ impl App {
                 });
                 Task::none()
             }
-            Message::RefreshStatus => Task::perform(probe_services(), |r| r),
+            Message::RefreshStatus => Task::perform(tabs::dashboard::probe_services(), |r| r),
             Message::StatusRefreshed {
                 apache,
                 mysql,
@@ -513,12 +513,12 @@ impl App {
                     },
                     ok: success,
                 });
-                Task::perform(probe_services(), |r| r)
+                Task::perform(tabs::dashboard::probe_services(), |r| r)
             }
             Message::SwitchPHPVersion(v) => self.trigger_sudo(PendingAction::PhpSwitch(v)),
             Message::PhpSwitchResult(ok, msg) => {
                 self.toast = Some(Toast { message: msg, ok });
-                Task::perform(probe_services(), |r| r)
+                Task::perform(tabs::dashboard::probe_services(), |r| r)
             }
             Message::ShowPHPInfo => {
                 let _ = open_url("http://localhost/phpinfo.php");
@@ -568,7 +568,7 @@ impl App {
             Message::TOOLS_ScanPhp => {
                 self.tools.scanning = true;
                 Task::perform(
-                    scan_php_versions(self.dashboard.active_php_version.clone()),
+                    tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
                     Message::TOOLS_ScanDone,
                 )
             }
@@ -591,9 +591,9 @@ impl App {
                 self.toast = Some(Toast { message: msg, ok });
                 self.tools.scanning = true;
                 Task::batch([
-                    Task::perform(probe_services(), |r| r),
+                    Task::perform(tabs::dashboard::probe_services(), |r| r),
                     Task::perform(
-                        scan_php_versions(self.dashboard.active_php_version.clone()),
+                        tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
                         Message::TOOLS_ScanDone,
                     ),
                     Task::perform(
@@ -656,7 +656,7 @@ impl App {
                 Task::none()
             }
             Message::TOOLS_ScanApacheMods => {
-                Task::perform(scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
+                Task::perform(tabs::tools::scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
             }
             Message::TOOLS_ScanApacheModsDone(results) => {
                 self.tools.apply_mod_scan(results);
@@ -687,7 +687,7 @@ impl App {
                 if ok {
                     self.tools.set_mod_enabled(&name, enabled);
                 }
-                Task::perform(scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
+                Task::perform(tabs::tools::scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
             }
             Message::TOOLS_ScanPhpExts => {
                 let active = self
@@ -696,7 +696,7 @@ impl App {
                     .iter()
                     .find(|r| r.is_active)
                     .map(|r| r.version.clone());
-                Task::perform(scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+                Task::perform(tabs::tools::scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
             }
             Message::TOOLS_ScanPhpExtsDone(results) => {
                 self.tools.apply_ext_scan(results);
@@ -723,7 +723,7 @@ impl App {
                     .iter()
                     .find(|r| r.is_active)
                     .map(|r| r.version.clone());
-                Task::perform(scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+                Task::perform(tabs::tools::scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
             }
             // ── Repos ──────────────────────────────────────────────────────
             // ── SSH Keys ──────────────────────────────────────────────────
@@ -753,7 +753,7 @@ impl App {
                 let ktype = self.ssh_keys.key_type.clone();
                 let passphrase = self.ssh_keys.passphrase.clone();
                 Task::perform(
-                    generate_ssh_key(email, name, ktype, passphrase),
+                    tabs::ssh_keys::generate_key(email, name, ktype, passphrase),
                     |(ok, msg)| Message::SSH_GenerateDone(ok, msg),
                 )
             }
@@ -767,7 +767,7 @@ impl App {
                 self.ssh_keys.status_message = msg.clone();
                 self.toast = Some(Toast { message: msg, ok });
                 if ok {
-                    Task::perform(list_ssh_keys(), Message::SSH_KeysListed)
+                    Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed)
                 } else {
                     Task::none()
                 }
@@ -793,7 +793,7 @@ impl App {
                 let _ = xdg_open(&format!("{}/.ssh", get_home().display()));
                 Task::none()
             }
-            Message::SSH_ListKeys => Task::perform(list_ssh_keys(), Message::SSH_KeysListed),
+            Message::SSH_ListKeys => Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed),
             Message::SSH_KeysListed(keys) => {
                 self.ssh_keys.keys_list = keys;
                 Task::none()
@@ -999,7 +999,7 @@ impl App {
             // Auto-refresh
             Message::AutoRefreshTick => {
                 if self.active_tab == Tab::Dashboard {
-                    Task::perform(probe_services(), |r| r)
+                    Task::perform(tabs::dashboard::probe_services(), |r| r)
                 } else {
                     Task::none()
                 }
@@ -1416,60 +1416,6 @@ fn main() -> iced::Result {
         .run_with(App::new)
 }
 
-// =============================================================================
-// Async helpers
-// =============================================================================
-
-async fn probe_services() -> Message {
-    let apache = service_active("apache2").await;
-    let mysql = service_active("mysql").await || service_active("mariadb").await;
-    let (php, php_versions) = detect_php().await;
-    Message::StatusRefreshed {
-        apache,
-        mysql,
-        php,
-        php_versions,
-    }
-}
-
-async fn service_active(name: &str) -> bool {
-    Command::new("systemctl")
-        .args(["is-active", "--quiet", name])
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-async fn detect_php() -> (Option<String>, Vec<String>) {
-    let mut versions = Vec::new();
-    if let Ok(mut dir) = tokio::fs::read_dir("/usr/bin").await {
-        while let Ok(Some(entry)) = dir.next_entry().await {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if let Some(rest) = name.strip_prefix("php") {
-                let t = rest.trim_start_matches('-');
-                if t.contains('.') && t.len() <= 4 {
-                    versions.push(name);
-                }
-            }
-        }
-    }
-    versions.sort();
-    let active = Command::new("php")
-        .arg("--version")
-        .output()
-        .await
-        .ok()
-        .and_then(|o| {
-            let s = String::from_utf8_lossy(&o.stdout).to_string();
-            s.lines()
-                .next()
-                .and_then(|l| l.split_whitespace().nth(1))
-                .map(|v| v.to_string())
-        });
-    (active, versions)
-}
-
 async fn run_service_cmd_with_pass(service: &str, action: &str, password: String) -> Message {
     let result = sudo_cmd_with_password(&password, &["systemctl", action, service]).await;
     Message::ServiceResult {
@@ -1480,104 +1426,14 @@ async fn run_service_cmd_with_pass(service: &str, action: &str, password: String
     }
 }
 
-async fn switch_php_with_pass(version: String, password: String) -> (bool, String) {
-    let ver = version.trim_start_matches("php").to_string();
-    let bin = format!("/usr/bin/php{}", ver);
-    match sudo_cmd_with_password(&password, &["update-alternatives", "--set", "php", &bin]).await {
-        Ok(_) => (true, format!("Switched to PHP {}", ver)),
-        Err(e) => (false, e),
-    }
-}
 
-async fn generate_ssh_key(
-    email: String,
-    name: String,
-    ktype: KeyType,
-    passphrase: String,
-) -> (bool, String) {
-    let ssh_dir = get_home().join(".ssh");
-    if !ssh_dir.exists() {
-        if let Err(e) = tokio::fs::create_dir_all(&ssh_dir).await {
-            return (false, format!("Could not create ~/.ssh: {}", e));
-        }
-        let _ = Command::new("chmod")
-            .args(["700", &ssh_dir.to_string_lossy()])
-            .status()
-            .await;
-    }
-    let key_path = ssh_dir.join(&name);
-    if key_path.exists() {
-        return (false, format!("Key already exists: {}", key_path.display()));
-    }
-    let mut cmd = Command::new("ssh-keygen");
-    match ktype {
-        KeyType::Ed25519 => {
-            cmd.arg("-t").arg("ed25519");
-        }
-        KeyType::Rsa4096 => {
-            cmd.arg("-t").arg("rsa").arg("-b").arg("4096");
-        }
-        KeyType::Ecdsa => {
-            cmd.arg("-t").arg("ecdsa").arg("-b").arg("521");
-        }
-    }
-    cmd.arg("-f")
-        .arg(&key_path)
-        .arg("-C")
-        .arg(&email)
-        .arg("-N")
-        .arg(&passphrase);
-    match cmd.output().await {
-        Ok(o) if o.status.success() => {
-            let _ = Command::new("chmod")
-                .args(["600", &key_path.to_string_lossy()])
-                .status()
-                .await;
-            let _ = Command::new("ssh-add").arg(&key_path).output().await;
-            (true, format!("Key generated: {}", key_path.display()))
-        }
-        Ok(o) => (
-            false,
-            format!("ssh-keygen failed: {}", String::from_utf8_lossy(&o.stderr)),
-        ),
-        Err(e) => (false, format!("ssh-keygen not found: {}", e)),
-    }
-}
 
 async fn ssh_add(path: String) -> (bool, String) {
-    match Command::new("ssh-add").arg(&path).output().await {
+    match tokio::process::Command::new("ssh-add").arg(&path).output().await {
         Ok(o) if o.status.success() => (true, format!("Key added: {}", path)),
         Ok(o) => (false, String::from_utf8_lossy(&o.stderr).to_string()),
         Err(e) => (false, e.to_string()),
     }
-}
-
-async fn list_ssh_keys() -> Vec<KeyEntry> {
-    let ssh_dir = get_home().join(".ssh");
-    let mut keys = Vec::new();
-    let Ok(mut dir) = tokio::fs::read_dir(&ssh_dir).await else {
-        return keys;
-    };
-    let mut files = Vec::new();
-    while let Ok(Some(entry)) = dir.next_entry().await {
-        files.push(entry.file_name().to_string_lossy().to_string());
-    }
-    for name in &files {
-        if name.ends_with(".pub")
-            || matches!(name.as_str(), "config" | "known_hosts" | "authorized_keys")
-        {
-            continue;
-        }
-        let path_str = ssh_dir.join(name).to_string_lossy().to_string();
-        let has_pub = files.contains(&format!("{}.pub", name));
-        keys.push(KeyEntry {
-            name: name.clone(),
-            path: path_str,
-            has_pub,
-        });
-    }
-    keys.sort_by(|a, b| a.name.cmp(&b.name));
-    keys
 }
 
 fn get_home() -> PathBuf {
@@ -1643,82 +1499,6 @@ fn open_terminal_at(path: &str) {
             .spawn(),
     };
     let _ = result;
-}
-
-async fn scan_php_versions(
-    active_php: Option<String>,
-) -> Vec<(String, tabs::tools::PhpStatus, bool, bool, bool)> {
-    use tabs::tools::PhpStatus;
-    let active_short = active_php
-        .as_deref()
-        .map(|v| v.splitn(3, '.').take(2).collect::<Vec<_>>().join("."));
-    let mut results = Vec::new();
-    for ver in &["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"] {
-        // apt / binary status
-        let installed = tokio::fs::metadata(format!("/usr/bin/php{}", ver))
-            .await
-            .is_ok();
-        let status = if installed {
-            PhpStatus::Installed
-        } else {
-            let avail = Command::new("apt-cache")
-                .args(["show", &format!("php{}", ver)])
-                .output()
-                .await
-                .map(|o| o.status.success())
-                .unwrap_or(false);
-            if avail {
-                PhpStatus::Available
-            } else {
-                PhpStatus::Unknown
-            }
-        };
-        let is_active = active_short.as_deref() == Some(ver);
-
-        // Apache mod: libapache2-mod-phpX.Y
-        // Available  = the .load file exists in mods-available
-        // Enabled    = the .load symlink exists in mods-enabled
-        let mod_name = format!("php{}", ver);
-        let mod_avail_path = format!("/etc/apache2/mods-available/{}.load", mod_name);
-        let mod_en_path = format!("/etc/apache2/mods-enabled/{}.load", mod_name);
-        let mod_available = tokio::fs::metadata(&mod_avail_path).await.is_ok();
-        let mod_enabled = tokio::fs::metadata(&mod_en_path).await.is_ok();
-
-        results.push((
-            ver.to_string(),
-            status,
-            is_active,
-            mod_available,
-            mod_enabled,
-        ));
-    }
-    results
-}
-
-async fn apt_php_op(version: String, install: bool, password: String) -> (bool, String) {
-    let op = if install { "install" } else { "remove" };
-    if let Err(e) = sudo_cmd_with_password(&password, &["apt-get", "update"]).await {
-        return (false, format!("Failed to update package lists: {}", e));
-    }
-    let pkg = if install {
-        format!(
-            "php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring",
-            version
-        )
-    } else {
-        format!("php{0} php{0}-*", version)
-    };
-    let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
-    match sudo_cmd_with_password(&password, &["sh", "-c", &full_cmd]).await {
-        Ok(output) => {
-            if output.contains("not found") || output.contains("Unable to locate") {
-                (false, format!("PHP {} not found in repositories.", version))
-            } else {
-                (true, format!("PHP {} {}ed successfully", version, op))
-            }
-        }
-        Err(e) => (false, format!("PHP {} {} failed: {}", version, op, e)),
-    }
 }
 
 fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, String> {
@@ -1917,109 +1697,6 @@ async fn try_copy_with_xsel(text: &str) -> bool {
     }
 }
 
-// ── Apache module toggle ──────────────────────────────────────────────────
-
-async fn toggle_apache_module(
-    name: String,
-    enable: bool,
-    password: String,
-) -> (bool, String, String, bool) {
-    use crate::sudo_prompt::sudo_cmd_with_password;
-    let cmd = if enable { "a2enmod" } else { "a2dismod" };
-    match sudo_cmd_with_password(&password, &[cmd, &name]).await {
-        Ok(_) => {
-            let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
-            (
-                true,
-                format!(
-                    "mod_{} {} — Apache reloaded",
-                    name,
-                    if enable { "enabled" } else { "disabled" }
-                ),
-                name,
-                enable,
-            )
-        }
-        Err(e) => (false, format!("Failed: {}", e), name, enable),
-    }
-}
-
-// ── Scan apache modules from mods-available ──────────────────────────────
-
-async fn scan_apache_modules() -> Vec<tabs::tools::ApacheModule> {
-    use tabs::tools::ApacheModule;
-    let avail_dir = "/etc/apache2/mods-available";
-    let enabled_dir = "/etc/apache2/mods-enabled";
-
-    // Collect unique module names from *.load files in mods-available
-    let mut names: Vec<String> = Vec::new();
-    if let Ok(mut dir) = tokio::fs::read_dir(avail_dir).await {
-        while let Ok(Some(entry)) = dir.next_entry().await {
-            let fname = entry.file_name().to_string_lossy().to_string();
-            if let Some(name) = fname.strip_suffix(".load") {
-                names.push(name.to_string());
-            }
-        }
-    }
-    names.sort();
-
-    // For each module, check if it's enabled (symlink exists in mods-enabled)
-    let mut results = Vec::new();
-    for name in names {
-        let enabled_path = format!("{}/{}.load", enabled_dir, name);
-        let enabled = tokio::fs::metadata(&enabled_path).await.is_ok();
-        results.push(ApacheModule { name, enabled });
-    }
-    results
-}
 
 // ── Scan PHP extensions ────────────────────────────────────────────────────
 
-async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, bool)> {
-    let ext_names = [
-        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql", "redis", "intl", "bcmath",
-        "soap", "imagick", "xdebug", "sqlite3",
-    ];
-    let mut results = Vec::new();
-    for name in &ext_names {
-        let pkg = match &active_ver {
-            Some(ver) => format!("php{}-{}", ver, name),
-            None => format!("php-{}", name),
-        };
-        let output = tokio::process::Command::new("dpkg")
-            .args(["-l", &pkg])
-            .output()
-            .await;
-        let installed = match output {
-            Ok(out) => {
-                let s = String::from_utf8_lossy(&out.stdout);
-                s.lines().any(|l| l.starts_with("ii"))
-            }
-            Err(_) => false,
-        };
-        results.push((name.to_string(), installed));
-    }
-    results
-}
-
-// ── Generic apt package install/remove ───────────────────────────────────
-
-async fn apt_package_op(package: String, install: bool, password: String) -> (bool, String) {
-    use crate::sudo_prompt::sudo_cmd_with_password;
-    let args = if install {
-        vec!["apt-get", "install", "-y", &package]
-    } else {
-        vec!["apt-get", "remove", "-y", &package]
-    };
-    match sudo_cmd_with_password(&password, &args).await {
-        Ok(_) => (
-            true,
-            format!(
-                "{} {} successfully",
-                package,
-                if install { "installed" } else { "removed" }
-            ),
-        ),
-        Err(e) => (false, format!("Failed: {}", e)),
-    }
-}

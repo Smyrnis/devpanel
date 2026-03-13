@@ -1,18 +1,14 @@
-// src/tabs/tools/backend.rs — system queries: PHP versions, Apache modules, extensions, apt ops
+// src/tabs/tools/backend.rs — PHP/Apache/package operations
 
 use super::{ApacheModule, PhpStatus};
 use crate::sudo_prompt::sudo_cmd_with_password;
 use tokio::process::Command;
 
-// ── PHP version scanning ──────────────────────────────────────────────────
-
 pub async fn scan_php_versions(
     active_php: Option<String>,
 ) -> Vec<(String, PhpStatus, bool, bool, bool)> {
-    let active_short = active_php.as_deref().map(|v| {
-        v.splitn(3, '.').take(2).collect::<Vec<_>>().join(".")
-    });
-
+    let active_short = active_php.as_deref()
+        .map(|v| v.splitn(3, '.').take(2).collect::<Vec<_>>().join("."));
     let mut results = Vec::new();
     for ver in &["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"] {
         let installed = tokio::fs::metadata(format!("/usr/bin/php{}", ver)).await.is_ok();
@@ -26,25 +22,21 @@ pub async fn scan_php_versions(
                 .unwrap_or(false);
             if avail { PhpStatus::Available } else { PhpStatus::Unknown }
         };
-
-        let is_active       = active_short.as_deref() == Some(ver);
-        let mod_avail_path  = format!("/etc/apache2/mods-available/php{}.load", ver);
-        let mod_en_path     = format!("/etc/apache2/mods-enabled/php{}.load", ver);
-        let mod_available   = tokio::fs::metadata(&mod_avail_path).await.is_ok();
-        let mod_enabled     = tokio::fs::metadata(&mod_en_path).await.is_ok();
-
+        let is_active   = active_short.as_deref() == Some(ver);
+        let mod_name    = format!("php{}", ver);
+        let mod_available = tokio::fs::metadata(
+            format!("/etc/apache2/mods-available/{}.load", mod_name)).await.is_ok();
+        let mod_enabled = tokio::fs::metadata(
+            format!("/etc/apache2/mods-enabled/{}.load",   mod_name)).await.is_ok();
         results.push((ver.to_string(), status, is_active, mod_available, mod_enabled));
     }
     results
 }
 
-// ── Apache module scanning ────────────────────────────────────────────────
-
 pub async fn scan_apache_modules() -> Vec<ApacheModule> {
     let avail_dir   = "/etc/apache2/mods-available";
     let enabled_dir = "/etc/apache2/mods-enabled";
-
-    let mut names = Vec::new();
+    let mut names: Vec<String> = Vec::new();
     if let Ok(mut dir) = tokio::fs::read_dir(avail_dir).await {
         while let Ok(Some(entry)) = dir.next_entry().await {
             let fname = entry.file_name().to_string_lossy().to_string();
@@ -54,7 +46,6 @@ pub async fn scan_apache_modules() -> Vec<ApacheModule> {
         }
     }
     names.sort();
-
     let mut results = Vec::new();
     for name in names {
         let enabled = tokio::fs::metadata(format!("{}/{}.load", enabled_dir, name)).await.is_ok();
@@ -62,8 +53,6 @@ pub async fn scan_apache_modules() -> Vec<ApacheModule> {
     }
     results
 }
-
-// ── PHP extension scanning ────────────────────────────────────────────────
 
 pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, bool)> {
     let ext_names = [
@@ -86,8 +75,6 @@ pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, boo
     results
 }
 
-// ── Apache module toggle ──────────────────────────────────────────────────
-
 pub async fn toggle_apache_module(
     name:     String,
     enable:   bool,
@@ -97,13 +84,12 @@ pub async fn toggle_apache_module(
     match sudo_cmd_with_password(&password, &[cmd, &name]).await {
         Ok(_) => {
             let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
-            (true, format!("mod_{} {} — Apache reloaded", name, if enable { "enabled" } else { "disabled" }), name, enable)
+            (true, format!("mod_{} {} — Apache reloaded", name,
+                if enable { "enabled" } else { "disabled" }), name, enable)
         }
         Err(e) => (false, format!("Failed: {}", e), name, enable),
     }
 }
-
-// ── PHP apt install / remove ──────────────────────────────────────────────
 
 pub async fn apt_php_op(version: String, install: bool, password: String) -> (bool, String) {
     let op = if install { "install" } else { "remove" };
@@ -117,14 +103,16 @@ pub async fn apt_php_op(version: String, install: bool, password: String) -> (bo
     };
     let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
     match sudo_cmd_with_password(&password, &["sh", "-c", &full_cmd]).await {
-        Ok(output) if !output.contains("not found") && !output.contains("Unable to locate") =>
-            (true, format!("PHP {} {}ed successfully", version, op)),
-        Ok(_) => (false, format!("PHP {} not found in repositories.", version)),
+        Ok(output) => {
+            if output.contains("not found") || output.contains("Unable to locate") {
+                (false, format!("PHP {} not found in repositories.", version))
+            } else {
+                (true, format!("PHP {} {}ed successfully", version, op))
+            }
+        }
         Err(e) => (false, format!("PHP {} {} failed: {}", version, op, e)),
     }
 }
-
-// ── Generic apt package install/remove ───────────────────────────────────
 
 pub async fn apt_package_op(package: String, install: bool, password: String) -> (bool, String) {
     let args = if install {
@@ -133,18 +121,16 @@ pub async fn apt_package_op(package: String, install: bool, password: String) ->
         vec!["apt-get", "remove", "-y", &package]
     };
     match sudo_cmd_with_password(&password, &args).await {
-        Ok(_) => (true, format!("{} {} successfully", package, if install { "installed" } else { "removed" })),
+        Ok(_)  => (true,  format!("{} {}d successfully", package, if install { "installe" } else { "remove" })),
         Err(e) => (false, format!("Failed: {}", e)),
     }
 }
-
-// ── PHP version switch ────────────────────────────────────────────────────
 
 pub async fn switch_php(version: String, password: String) -> (bool, String) {
     let ver = version.trim_start_matches("php").to_string();
     let bin = format!("/usr/bin/php{}", ver);
     match sudo_cmd_with_password(&password, &["update-alternatives", "--set", "php", &bin]).await {
-        Ok(_)  => (true, format!("Switched to PHP {}", ver)),
+        Ok(_)  => (true,  format!("Switched to PHP {}", ver)),
         Err(e) => (false, e),
     }
 }

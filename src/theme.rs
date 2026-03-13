@@ -16,6 +16,8 @@
 //   --yellow:     #ffd60a   YELLOW (Apple system yellow)
 //   --blue:       #0a84ff   BLUE   (Apple system blue)
 
+#![allow(dead_code)]
+
 use iced::Color;
 
 // ── Brand / Accent ────────────────────────────────────────────────────────

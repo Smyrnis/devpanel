@@ -1,4 +1,5 @@
 // src/tabs/apache_touch/view.rs — all UI rendering for the ApacheTouch tab
+#![allow(dead_code, unused)]
 
 use super::{ApacheTouchTab, LogKind};
 use crate::theme::*;

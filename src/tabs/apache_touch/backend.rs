@@ -1,4 +1,5 @@
 // src/tabs/apache_touch/backend.rs — VirtualHost setup: directory checks, hosts, Apache config
+#![allow(dead_code, unused)]
 
 use super::LogEntry;
 

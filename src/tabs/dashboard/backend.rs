@@ -3,8 +3,6 @@
 use crate::Message;
 use tokio::process::Command;
 
-// ── Public async tasks ────────────────────────────────────────────────────
-
 pub async fn probe_services() -> Message {
     let apache = service_active("apache2").await;
     let mysql  = service_active("mysql").await || service_active("mariadb").await;
@@ -12,13 +10,10 @@ pub async fn probe_services() -> Message {
     Message::StatusRefreshed { apache, mysql, php, php_versions }
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────
-
-async fn service_active(name: &str) -> bool {
+pub async fn service_active(name: &str) -> bool {
     Command::new("systemctl")
         .args(["is-active", "--quiet", name])
-        .status()
-        .await
+        .status().await
         .map(|s| s.success())
         .unwrap_or(false)
 }
@@ -39,13 +34,10 @@ pub async fn detect_php() -> (Option<String>, Vec<String>) {
     versions.sort();
     let active = Command::new("php")
         .arg("--version")
-        .output()
-        .await
-        .ok()
+        .output().await.ok()
         .and_then(|o| {
             let s = String::from_utf8_lossy(&o.stdout).to_string();
-            s.lines()
-                .next()
+            s.lines().next()
                 .and_then(|l| l.split_whitespace().nth(1))
                 .map(|v| v.to_string())
         });
@@ -56,10 +48,8 @@ pub fn detect_distro() -> String {
     if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
         for line in content.lines() {
             if line.starts_with("PRETTY_NAME=") {
-                return line
-                    .trim_start_matches("PRETTY_NAME=")
-                    .trim_matches('"')
-                    .to_string();
+                return line.trim_start_matches("PRETTY_NAME=")
+                    .trim_matches('"').to_string();
             }
         }
     }

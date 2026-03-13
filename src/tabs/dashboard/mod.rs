@@ -3,6 +3,8 @@
 pub mod backend;
 pub mod view;
 
+pub use backend::{detect_php, probe_services, service_active};
+
 use iced::Element;
 use crate::Message;
 

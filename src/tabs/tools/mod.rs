@@ -3,6 +3,11 @@
 pub mod backend;
 pub mod view;
 
+pub use backend::{
+    apt_package_op, apt_php_op, scan_apache_modules, scan_php_extensions,
+    scan_php_versions, switch_php, toggle_apache_module,
+};
+
 use iced::Element;
 use crate::Message;
 

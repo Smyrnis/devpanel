@@ -71,45 +71,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 ---
 
-## Step 3 — Update `Cargo.toml`
-
-Add author info and the `[package.metadata.deb]` section:
-
-```toml
-[package]
-name = "devpanel"
-version = "0.5.5"
-edition = "2021"
-description = "Local development environment manager for Debian/Ubuntu"
-authors = ["Your Name <you@email.com>"]
-
-[package.metadata.deb]
-maintainer = "Your Name <you@email.com>"
-copyright = "2025 Your Name"
-license-file = ["LICENSE"]
-extended-description = """
-DevPanel is a desktop GUI for managing your local development environment.
-Control Apache, MySQL and PHP services, create Apache VirtualHosts,
-and manage SSH keys — all from a single polished interface.
-"""
-depends = "$auto"
-section = "devel"
-priority = "optional"
-assets = [
-  ["target/release/devpanel", "usr/bin/",                       "755"],
-  ["icon.png",                "usr/share/pixmaps/devpanel.png", "644"],
-  ["devpanel.desktop",        "usr/share/applications/",        "644"],
-]
-
-[dependencies]
-iced = { version = "0.13", features = ["tokio", "image"] }
-tokio = { version = "1", features = ["full"] }
-rfd = "0.15"
-image = "0.25"
-```
-
----
-
 ## Step 4 — Install `cargo-deb`
 
 This is a one-time setup:
@@ -132,7 +93,7 @@ This does everything in one command:
 - Produces the `.deb` at:
 
 ```
-target/debian/devpanel_0.5.5_amd64.deb
+target/debian/devpanel_0.5.6_amd64.deb
 ```
 
 ---
@@ -141,7 +102,7 @@ target/debian/devpanel_0.5.5_amd64.deb
 
 ```bash
 # Install
-sudo dpkg -i target/debian/devpanel_0.5.5_amd64.deb
+sudo dpkg -i target/debian/devpanel_0.5.6_amd64.deb
 
 # Verify it launches
 devpanel
@@ -165,15 +126,15 @@ Choose one of the following options depending on your audience:
 
 1. Push your project to GitHub
 2. Go to your repo → **Releases** → **Draft a new release**
-3. Set a version tag (e.g. `v0.5.5`)
-4. Upload `target/debian/devpanel_0.5.5_amd64.deb` as a release asset
+3. Set a version tag (e.g. `v0.5.6`)
+4. Upload `target/debian/devpanel_0.5.6_amd64.deb` as a release asset
 5. Publish the release
 
 Users install it with:
 
 ```bash
 # Download from GitHub releases page, then:
-sudo dpkg -i devpanel_0.5.5_amd64.deb
+sudo dpkg -i devpanel_0.5.6_amd64.deb
 
 # Or fix any missing dependencies automatically:
 sudo apt install -f
