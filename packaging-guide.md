@@ -78,7 +78,7 @@ Add author info and the `[package.metadata.deb]` section:
 ```toml
 [package]
 name = "devpanel"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2021"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Your Name <you@email.com>"]
@@ -132,7 +132,7 @@ This does everything in one command:
 - Produces the `.deb` at:
 
 ```
-target/debian/devpanel_0.5.4_amd64.deb
+target/debian/devpanel_0.5.5_amd64.deb
 ```
 
 ---
@@ -141,7 +141,7 @@ target/debian/devpanel_0.5.4_amd64.deb
 
 ```bash
 # Install
-sudo dpkg -i target/debian/devpanel_0.5.4_amd64.deb
+sudo dpkg -i target/debian/devpanel_0.5.5_amd64.deb
 
 # Verify it launches
 devpanel
@@ -165,15 +165,15 @@ Choose one of the following options depending on your audience:
 
 1. Push your project to GitHub
 2. Go to your repo → **Releases** → **Draft a new release**
-3. Set a version tag (e.g. `v0.5.4`)
-4. Upload `target/debian/devpanel_0.5.4_amd64.deb` as a release asset
+3. Set a version tag (e.g. `v0.5.5`)
+4. Upload `target/debian/devpanel_0.5.5_amd64.deb` as a release asset
 5. Publish the release
 
 Users install it with:
 
 ```bash
 # Download from GitHub releases page, then:
-sudo dpkg -i devpanel_0.5.4_amd64.deb
+sudo dpkg -i devpanel_0.5.5_amd64.deb
 
 # Or fix any missing dependencies automatically:
 sudo apt install -f

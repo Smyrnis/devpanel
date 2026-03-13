@@ -215,6 +215,15 @@ pub enum Message {
     VH_DeleteConfirm(usize),
     VH_DeleteCancel,
     VH_DeleteDone(bool, String),
+    // Config Editor
+    VH_OpenConfigEditor,
+    VH_CloseConfigEditor,
+    VH_ConfigLoaded(String),
+    VH_ConfigEditorAction(iced::widget::text_editor::Action),
+    VH_SaveConfigFile,
+    VH_SaveConfigDone(bool, String),
+    // Auto-refresh
+    AutoRefreshTick,
     // Sudo
     Sudo_PasswordChanged(String),
     Sudo_ToggleShow(bool),
@@ -223,6 +232,15 @@ pub enum Message {
     Sudo_ValidationResult(bool),
     Sudo_Cancel,
     Sudo_ClearSaved,
+    // ApacheTouch
+    AT_ProjectNameChanged(String),
+    AT_BaseDirChanged(String),
+    AT_ApacheConfChanged(String),
+    AT_AuthJsonChanged(String),
+    AT_BrowseAuthJson,
+    AT_RunSetup,
+    AT_ClearLog,
+    AT_SetupDone(Vec<tabs::apache_touch::LogEntry>, bool),
 }
 
 // ── App state ─────────────────────────────────────────────────────────────
@@ -354,7 +372,17 @@ impl App {
                     Message::TOOLS_PhpExtDone(ok, msg)
                 })
             }
+            PendingAction::SaveConfig { path, content } => {
+                Task::perform(tabs::vhosts::save_config_file(path, content, password), |(ok, msg)| {
+                    Message::VH_SaveConfigDone(ok, msg)
+                })
+            }
         }
+    }
+
+    fn subscription(&self) -> iced::Subscription<Message> {
+        iced::time::every(std::time::Duration::from_secs(5))
+            .map(|_| Message::AutoRefreshTick)
     }
 
     fn update(&mut self, msg: Message) -> Task<Message> {
@@ -929,6 +957,62 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
             }
+            // Config Editor
+            Message::VH_OpenConfigEditor => {
+                self.vhosts.view_mode = tabs::vhosts::VHostView::ConfigEditor;
+                self.vhosts.config_loading = true;
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(tabs::vhosts::load_config_file(conf), Message::VH_ConfigLoaded)
+            }
+            Message::VH_CloseConfigEditor => {
+                self.vhosts.view_mode = tabs::vhosts::VHostView::List;
+                Task::none()
+            }
+            Message::VH_ConfigLoaded(text) => {
+                self.vhosts.load_config_text(text);
+                Task::none()
+            }
+            Message::VH_ConfigEditorAction(action) => {
+                let is_edit = action.is_edit();
+                self.vhosts.config_content.perform(action);
+                if is_edit { self.vhosts.config_dirty = true; }
+                Task::none()
+            }
+            Message::VH_SaveConfigFile => {
+                self.vhosts.config_loading = true;
+                let content = self.vhosts.config_content.text();
+                let conf = self.vhosts.devpanel_conf.clone();
+                self.trigger_sudo(PendingAction::SaveConfig { content, path: conf })
+            }
+            Message::VH_SaveConfigDone(ok, msg) => {
+                self.vhosts.config_loading = false;
+                if ok { self.vhosts.config_dirty = false; }
+                self.vhosts.status_msg = Some((ok, msg.clone()));
+                self.toast = Some(Toast { message: msg, ok });
+                if ok {
+                    let conf = self.vhosts.devpanel_conf.clone();
+                    Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                } else {
+                    Task::none()
+                }
+            }
+            // Auto-refresh
+            Message::AutoRefreshTick => {
+                if self.active_tab == Tab::Dashboard {
+                    Task::perform(probe_services(), |r| r)
+                } else {
+                    Task::none()
+                }
+            }
+            // ApacheTouch (tab not yet surfaced in nav)
+            Message::AT_ProjectNameChanged(_)
+            | Message::AT_BaseDirChanged(_)
+            | Message::AT_ApacheConfChanged(_)
+            | Message::AT_AuthJsonChanged(_)
+            | Message::AT_BrowseAuthJson
+            | Message::AT_RunSetup
+            | Message::AT_ClearLog
+            | Message::AT_SetupDone(_, _) => Task::none(),
         } // end match msg
     } // end fn update
 
@@ -1321,6 +1405,7 @@ fn make_fallback_icon() -> Option<iced::window::Icon> {
 fn main() -> iced::Result {
     let icon = load_window_icon().or_else(make_fallback_icon);
     iced::application("DevPanel", App::update, App::view)
+        .subscription(App::subscription)
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
             size: iced::Size::new(1040.0, 660.0),

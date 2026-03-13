@@ -24,7 +24,8 @@ pub const GREEN: Color = Color { r: 0.188, g: 0.820, b: 0.345, a: 1.0 };
 
 // Aliases so existing TEAL / ACCENT references keep compiling.
 pub const TEAL: Color = GREEN;
-pub const ACCENT: Color = GREEN;
+pub const ACCENT:     Color = GREEN;
+pub const ACCENT_DIM: Color = Color { r: 0.080, g: 0.250, b: 0.120, a: 1.0 };
 
 // ── Backgrounds ───────────────────────────────────────────────────────────
 pub const BG_BASE: Color     = Color { r: 0.039, g: 0.039, b: 0.039, a: 1.0 }; // #0a0a0a

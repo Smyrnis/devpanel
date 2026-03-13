@@ -201,6 +201,8 @@ pub enum PendingAction {
     VHostAdd  { server_name: String, document_root: String },
     VHostEdit { index: usize, server_name: String, document_root: String },
     VHostDelete { index: usize },
+    // Config file editor
+    SaveConfig { path: String, content: String },
     // Apache modules
     ApacheModToggle { name: String, enable: bool },
     // Apt package operations (PHP extensions etc)
