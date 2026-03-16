@@ -1,98 +1,63 @@
-# DevPanel
+# DevPanel 
+<img width="100px" height="100px" src="icon.png" alt="application icon"/> 
+A lightweight desktop GUI for managing your local PHP development environment on Ubuntu and Debian. Built with Rust and [Iced](https://github.com/iced-rs/iced).
 
-A lightweight desktop GUI for local PHP development on Ubuntu / Debian.\
-Built with Rust and Iced.\
-Pairs with `share/index.php` --- a matching dark-themed Apache welcome
-page served at `http://localhost`.
+<p> Current version: <strong> 0.5.7 </strong> </p>
 
-------------------------------------------------------------------------
+---
 
-## What Works
+## What it does
 
--   Dashboard (Apache + MySQL checks, PHP switcher, shortcuts)
--   VirtualHosts (list, add, delete)
--   SSH key generation & listing
--   GitHub (`gh`) and Bitbucket repo fetch
--   Repo clone & open
--   PHP version install/remove
--   Apache module toggle
--   PHP extension management
--   DB terminal launcher
--   Session-based sudo handling
--   Config file support
--   Dark-themed Apache welcome page
+The view that devpanel has.
 
-------------------------------------------------------------------------
+| Tab | What you get |
+|---|---|
+| **Dashboard** | Start, stop and restart Apache and MySQL. Switch PHP versions. Jump to common files and folders with one click. |
+| **VirtualHosts** | Add, edit and delete Apache virtual hosts stored in a single `devpanel.conf` file. Edit the raw config directly in the built-in editor. |
+| **SSH Keys** | Generate Ed25519, RSA and ECDSA keys. View all keys in `~/.ssh`. |
+| **Repos** | Fetch and clone GitHub and Bitbucket repos over SSH. Requires `gh` CLI or a configured SSH key. |
+| **Tools** | Install and remove PHP versions, toggle Apache modules, manage PHP extensions, and launch a MySQL terminal. |
+
+---
 
 ## Requirements
 
--   Ubuntu 22.04 / 24.04 or Debian 11+
--   Apache 2.4
--   MySQL 8 or MariaDB 10.6+
--   PHP 8.x (`php-cli`)
--   `sudo` access
--   Terminal emulator
+- Ubuntu 22.04 / 24.04 or Debian 11+
+- Apache 2.4
+- MySQL 8 or MariaDB 10.6+
+- PHP 8.x
+- `sudo` access
 
-Optional: - `gh` CLI - `ondrej/php` PPA
-
-------------------------------------------------------------------------
+---
 
 ## Installation
 
-### Build from source
+The installation come only as a .deb package for now. 
 
-``` bash
-curl https://sh.rustup.rs -sSf | sh
-source "$HOME/.cargo/env"
+Download it [here](https://github.com/Smyrnis/devpanel/packages)
 
-sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype6-dev libx11-dev libxkbcommon-dev libvulkan-dev cmake build-essential git
-
-git clone https://github.com/yourname/devpanel.git
-cd devpanel
-cargo build --release
-
-sudo bash scripts/devpanel-setup.sh
-./target/release/devpanel
-```
-
-### Install from .deb
-
-``` bash
-sudo dpkg -i devpanel_*.deb
-devpanel
-```
-
-------------------------------------------------------------------------
-
-## First Run
-
-`devpanel-setup.sh`:
-
--   Creates `~/projects`
--   Configures Apache site
--   Enables `mod_rewrite`
--   Writes config file
-
-Then open:
-
-http://localhost
-
-------------------------------------------------------------------------
+---
 
 ## Configuration
 
-`~/.config/devpanel/config.toml`
+Settings are stored in `~/.config/devpanel/config.toml` and created automatically on first run.
 
-``` toml
+```toml
 repos_root    = "/home/user/projects"
 devpanel_conf = "/etc/apache2/sites-available/devpanel.conf"
 hosts_file    = "/etc/hosts"
 ```
 
-No in-app settings UI.
+---
 
-------------------------------------------------------------------------
+# TL;DR
+
+The application is current on development.
+
+If you encounter problems please open an issue.
+
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

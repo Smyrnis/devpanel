@@ -29,6 +29,7 @@ assets = [
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
 ]
 maintainer-scripts = "scripts/"
+revision = ""
 
 [dependencies]
 iced = { version = "0.13", features = ["tokio", "image"] }

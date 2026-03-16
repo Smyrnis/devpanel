@@ -1,7 +1,16 @@
-# Remove unnecessary files
-
-target
+# Remove unnecessary files.
 Cargo.lock
+# The cargo.lock file auto made through carogo build command.
+# Ignore simple documentation.
+packaging-guide.md
 
-# Ignore the .idea
+# Ignore the .idea.
 .idea
+
+# Ignore not important files inside the target file.
+#Leaving only the debian packaged application.
+target/debug
+target/devpanel
+target/release
+target/.rustc_info.json
+target/CACHEDIR.TAG
