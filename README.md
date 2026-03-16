@@ -24,18 +24,6 @@ page served at `http://localhost`.
 
 ------------------------------------------------------------------------
 
-## Known Limitations
-
--   No inline VirtualHost editing (delete + re-add required)
--   Bitbucket limited to first 100 repos
--   No in-app config editor
--   No live auto-refresh dashboard
--   Single vhost file management
--   No database GUI (CLI only)
--   Wayland runs under XWayland
-
-------------------------------------------------------------------------
-
 ## Requirements
 
 -   Ubuntu 22.04 / 24.04 or Debian 11+

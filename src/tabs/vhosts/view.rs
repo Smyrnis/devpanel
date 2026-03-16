@@ -250,7 +250,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             column![
                 text("ServerName").size(11).color(TEXT_MUTED),
                 Space::with_height(5),
-                text_input("myproject.local", &tab.form.server_name)
+                text_input("example.local", &tab.form.server_name)
                     .on_input(Message::VH_FormServerNameChanged).size(13).padding(Padding::from([8, 10])).width(Length::Fill),
             ].spacing(0).width(Length::FillPortion(1)),
             Space::with_width(14),
