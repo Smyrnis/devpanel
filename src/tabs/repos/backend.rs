@@ -1,6 +1,7 @@
 // src/tabs/repos/backend.rs — SSH connectivity checks, repo listing, git clone
 
 use super::{Provider, RemoteRepo};
+use crate::dry_run;
 
 pub struct SshCheckResult {
     pub github_ok:  bool,
@@ -8,6 +9,7 @@ pub struct SshCheckResult {
     pub bb_ok:      bool,
     pub bb_msg:     String,
 }
+
 
 pub async fn check_ssh() -> SshCheckResult {
     let (github_ok, github_msg) = check_ssh_host("git@github.com").await;
@@ -20,17 +22,15 @@ pub async fn fetch_remote_repos(repos_root: String) -> Vec<RemoteRepo> {
     repos.extend(fetch_github_repos().await);
     repos.extend(fetch_bitbucket_repos().await);
 
-    // Mark repos that are already cloned locally
     for repo in &mut repos {
         let local = std::path::PathBuf::from(&repos_root).join(&repo.name);
         repo.is_cloned = local.exists();
     }
 
-    // Uncloned first, then alphabetical within each group
     repos.sort_by(|a, b| match (a.is_cloned, b.is_cloned) {
-        (true, false) => std::cmp::Ordering::Greater,
-        (false, true) => std::cmp::Ordering::Less,
-        _             => a.name.cmp(&b.name),
+        (true, false)  => std::cmp::Ordering::Greater,
+        (false, true)  => std::cmp::Ordering::Less,
+        _              => a.name.cmp(&b.name),
     });
     repos
 }
@@ -40,6 +40,15 @@ pub async fn clone_repo(
     name:       String,
     repos_root: String,
 ) -> (bool, String, String) {
+    if dry_run::active() {
+        dry_run::log(&format!("clone_repo: would run: git clone {} {}/{}", ssh_url, repos_root, name));
+        return (
+            true,
+            format!("[dry-run] would clone {} into ~/projects/{}", name, name),
+            ssh_url,
+        );
+    }
+
     let dest = std::path::PathBuf::from(&repos_root).join(&name);
     if dest.exists() {
         return (false, format!("{} already exists in projects", name), ssh_url);
@@ -149,8 +158,6 @@ async fn get_github_username_via_ssh() -> Option<String> {
     if name.is_empty() { None } else { Some(name) }
 }
 
-// Without the gh CLI there is no way to list all repos via SSH alone.
-// This thing is a pile of dog shit , does not work. 
 async fn fetch_github_via_ls_remote(_username: &str) -> Vec<RemoteRepo> { Vec::new() }
 
 async fn fetch_bitbucket_repos() -> Vec<RemoteRepo> {
@@ -158,7 +165,7 @@ async fn fetch_bitbucket_repos() -> Vec<RemoteRepo> {
 }
 
 async fn scan_local_for_bitbucket() -> Vec<RemoteRepo> {
-    let home = home_dir();
+    let home    = home_dir();
     let ssh_cfg = home.join(".ssh").join("config");
     if let Ok(content) = tokio::fs::read_to_string(&ssh_cfg).await {
         if let Some(user) = extract_bitbucket_user_from_ssh_config(&content) {
@@ -180,7 +187,7 @@ async fn try_bitbucket_api(username: &str) -> Option<Vec<RemoteRepo>> {
         .args(["-s", "-u", &format!("{}:{}", username, token), &url])
         .output().await.ok()?;
     if !out.status.success() { return None; }
-    let json = String::from_utf8_lossy(&out.stdout);
+    let json  = String::from_utf8_lossy(&out.stdout);
     let repos = parse_bitbucket_json(&json, username);
     if repos.is_empty() { None } else { Some(repos) }
 }

@@ -3,9 +3,11 @@
 use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::theme::*;
 use crate::Message;
-use iced::widget::{button, column, container, row, scrollable, text, text_editor, text_input, Space};
+use iced::widget::{
+    button, column, container, pick_list, row, scrollable, text,
+    text_editor, text_input, Space,
+};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
-
 
 const GREEN_BG:   Color = Color { r: 0.050, g: 0.160, b: 0.090, a: 1.0 };
 const GREEN_HOVER:Color = Color { r: 0.060, g: 0.185, b: 0.100, a: 1.0 };
@@ -17,7 +19,30 @@ const BLUE_BORDER:Color = Color { r: 0.080, g: 0.140, b: 0.260, a: 1.0 };
 const TEAL_BG:    Color = Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 };
 const TEAL_HOVER: Color = Color { r: 0.050, g: 0.185, b: 0.175, a: 1.0 };
 const TEAL_BORDER:Color = Color { r: 0.060, g: 0.210, b: 0.200, a: 1.0 };
+const PURPLE_BG:  Color = Color { r: 0.110, g: 0.055, b: 0.165, a: 1.0 };
+const PURPLE_BG2: Color = Color { r: 0.140, g: 0.070, b: 0.200, a: 1.0 };
+const PURPLE_BDR: Color = Color { r: 0.170, g: 0.085, b: 0.240, a: 1.0 };
+const PURPLE:     Color = Color { r: 0.749, g: 0.353, b: 0.949, a: 1.0 };
 
+/// Sentinel shown in the pick_list as the "no pinning" choice
+const PHP_GLOBAL: &str = "Use global";
+
+/// Build the pick_list options: ["Use global", "8.1", "8.2", …]
+fn php_options(available: &[String]) -> Vec<String> {
+    let mut opts = vec![PHP_GLOBAL.to_string()];
+    opts.extend(available.iter().cloned());
+    opts
+}
+
+/// Convert the pick_list selection back to Option<String>
+fn selection_to_php(s: &str) -> Option<String> {
+    if s == PHP_GLOBAL { None } else { Some(s.to_string()) }
+}
+
+/// Convert Option<String> → pick_list display string
+fn php_to_selection(v: &Option<String>) -> String {
+    v.clone().unwrap_or_else(|| PHP_GLOBAL.to_string())
+}
 
 pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
     match tab.view_mode {
@@ -79,6 +104,23 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
         None => Space::with_height(0).into(),
     };
 
+    let php_info: Element<Message> = if tab.available_php_versions.is_empty() {
+        container(row![
+            text("i").size(10).color(BLUE),
+            Space::with_width(8),
+            text("No Apache PHP modules detected. Go to Tools → PHP Versions and enable a mod_phpX.Y to allow per-vhost PHP pinning.")
+                .size(11).color(TEXT_MUTED),
+        ].align_y(Alignment::Center))
+        .padding(Padding::from([10, 14])).width(Length::Fill)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(BLUE_BG.into()),
+            border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() },
+            ..Default::default()
+        }).into()
+    } else {
+        Space::with_height(0).into()
+    };
+
     let body: Element<Message> = if tab.vhosts.is_empty() && !tab.scanning {
         container(column![
             text("No virtual hosts found in devpanel.conf").size(15).color(TEXT_SECONDARY),
@@ -99,6 +141,8 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
         Space::with_height(18),
         path_bar,
         Space::with_height(10),
+        php_info,
+        if tab.available_php_versions.is_empty() { Space::with_height(10) } else { Space::with_height(0) },
         form_el,
         if tab.form.mode != FormMode::Hidden { Space::with_height(10) } else { Space::with_height(0) },
         status,
@@ -163,7 +207,6 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
 fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message> {
     let idx = vh.index;
 
-    // Inline edit: replace the card with the edit form in-place
     if matches!(tab.form.mode, FormMode::Edit(i) if i == idx) {
         return inline_edit_widget(tab, idx);
     }
@@ -189,6 +232,29 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             .size(12).color(TEXT_SECONDARY),
     ].align_y(Alignment::Center);
 
+    let php_badge: Element<Message> = match &vh.php_version {
+        Some(ver) => container(
+            row![
+                text("PHP").size(9).color(PURPLE),
+                Space::with_width(4),
+                text(ver.as_str()).size(10).color(PURPLE),
+            ].align_y(Alignment::Center)
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(PURPLE_BG.into()),
+            border: Border { color: PURPLE_BDR, width: 1.0, radius: 20.0.into() },
+            ..Default::default()
+        }).into(),
+        None => container(text("global PHP").size(9).color(TEXT_MUTED))
+            .padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(BG_SURFACE.into()),
+                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 20.0.into() },
+                ..Default::default()
+            }).into(),
+    };
+
     let is_confirming = tab.confirm_delete == Some(idx);
     let del_btn: Element<Message> = if is_confirming {
         row![
@@ -201,7 +267,14 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
     };
 
     container(column![
-        name_row, Space::with_height(6), info_row, Space::with_height(14), thin_line(), Space::with_height(12),
+        name_row,
+        Space::with_height(4),
+        info_row,
+        Space::with_height(6),
+        php_badge,
+        Space::with_height(14),
+        thin_line(),
+        Space::with_height(12),
         row![
             small_btn("Edit",    BLUE, BLUE_BG, BLUE_HOVER, BLUE_BORDER, Some(Message::VH_EditRequest(idx))),
             Space::with_width(6),
@@ -214,7 +287,8 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
 }
 
 fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Message> {
-    let can_save = !tab.form.server_name.trim().is_empty() && !tab.form.document_root.trim().is_empty();
+    let can_save = !tab.form.server_name.trim().is_empty()
+        && !tab.form.document_root.trim().is_empty();
 
     let submit_btn = button(text("Save Changes").size(13).color(if can_save { GREEN } else { TEXT_MUTED }))
         .padding(Padding::from([9, 18]))
@@ -229,7 +303,14 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
                 border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() }, ..Default::default()
             },
         });
-    let submit_el: Element<Message> = if can_save { submit_btn.on_press(Message::VH_SaveEdit).into() } else { submit_btn.into() };
+    let submit_el: Element<Message> =
+        if can_save { submit_btn.on_press(Message::VH_SaveEdit).into() } else { submit_btn.into() };
+
+    let php_picker = php_version_picker(
+        &tab.available_php_versions,
+        &tab.form.php_version,
+        |sel| Message::VH_FormPhpVersionChanged(selection_to_php(&sel)),
+    );
 
     container(column![
         row![
@@ -243,16 +324,24 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
                 text("ServerName").size(11).color(TEXT_MUTED),
                 Space::with_height(5),
                 text_input("example.local", &tab.form.server_name)
-                    .on_input(Message::VH_FormServerNameChanged).size(13).padding(Padding::from([8, 10])).width(Length::Fill),
+                    .on_input(Message::VH_FormServerNameChanged)
+                    .size(13).padding(Padding::from([8, 10])).width(Length::Fill),
             ].spacing(0).width(Length::FillPortion(1)),
             Space::with_width(14),
             column![
                 text("DocumentRoot").size(11).color(TEXT_MUTED),
                 Space::with_height(5),
                 text_input("/home/user/projects/app/public", &tab.form.document_root)
-                    .on_input(Message::VH_FormDocRootChanged).size(13).padding(Padding::from([8, 10])).width(Length::Fill),
+                    .on_input(Message::VH_FormDocRootChanged)
+                    .size(13).padding(Padding::from([8, 10])).width(Length::Fill),
             ].spacing(0).width(Length::FillPortion(2)),
         ].align_y(Alignment::Start),
+        Space::with_height(12),
+        column![
+            text("PHP Version (optional)").size(11).color(TEXT_MUTED),
+            Space::with_height(5),
+            php_picker,
+        ].spacing(0),
         Space::with_height(14),
         submit_el,
     ].spacing(0).padding(Padding::from([16, 18]))).width(Length::Fill)
@@ -265,28 +354,39 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
 
 fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
     let is_edit   = matches!(tab.form.mode, FormMode::Edit(_));
-    let can_save  = !tab.form.server_name.trim().is_empty() && !tab.form.document_root.trim().is_empty();
+    let can_save  = !tab.form.server_name.trim().is_empty()
+        && !tab.form.document_root.trim().is_empty();
     let save_msg  = if is_edit { Message::VH_SaveEdit } else { Message::VH_Create };
     let save_lbl  = if is_edit { "Save Changes" } else { "Create VirtualHost" };
 
-    let submit_btn = button(text(save_lbl).size(13).color(if can_save { GREEN } else { TEXT_MUTED }))
-        .padding(Padding::from([9, 18]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
-                background: Some(GREEN_HOVER.into()), text_color: GREEN,
-                border: Border { radius: 8.0.into(), ..Default::default() }, ..Default::default()
-            },
-            _ => iced::widget::button::Style {
-                background: Some(if can_save { GREEN_BG } else { BG_SURFACE }.into()),
-                text_color: if can_save { GREEN } else { TEXT_MUTED },
-                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() }, ..Default::default()
-            },
-        });
-    let submit_el: Element<Message> = if can_save { submit_btn.on_press(save_msg).into() } else { submit_btn.into() };
+    let submit_btn = button(
+        text(save_lbl).size(13).color(if can_save { GREEN } else { TEXT_MUTED }),
+    )
+    .padding(Padding::from([9, 18]))
+    .style(move |_, status| match status {
+        iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
+            background: Some(GREEN_HOVER.into()), text_color: GREEN,
+            border: Border { radius: 8.0.into(), ..Default::default() }, ..Default::default()
+        },
+        _ => iced::widget::button::Style {
+            background: Some(if can_save { GREEN_BG } else { BG_SURFACE }.into()),
+            text_color: if can_save { GREEN } else { TEXT_MUTED },
+            border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() }, ..Default::default()
+        },
+    });
+    let submit_el: Element<Message> =
+        if can_save { submit_btn.on_press(save_msg).into() } else { submit_btn.into() };
+
+    let php_picker = php_version_picker(
+        &tab.available_php_versions,
+        &tab.form.php_version,
+        |sel| Message::VH_FormPhpVersionChanged(selection_to_php(&sel)),
+    );
 
     container(column![
         row![
-            text(if is_edit { "Edit VirtualHost" } else { "Add VirtualHost" }).size(14).color(TEXT_SECONDARY),
+            text(if is_edit { "Edit VirtualHost" } else { "Add VirtualHost" })
+                .size(14).color(TEXT_SECONDARY),
             Space::with_width(Length::Fill),
             small_btn("Cancel", TEXT_MUTED, BG_SURFACE, BG_HOVER, BORDER_SUBTLE, Some(Message::VH_HideForm)),
         ].align_y(Alignment::Center),
@@ -295,49 +395,145 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             text("ServerName  (e.g. myproject.local)").size(11).color(TEXT_MUTED),
             Space::with_height(5),
             text_input("myproject.local", &tab.form.server_name)
-                .on_input(Message::VH_FormServerNameChanged).size(13).padding(Padding::from([8, 10])).width(Length::Fill),
+                .on_input(Message::VH_FormServerNameChanged)
+                .size(13).padding(Padding::from([8, 10])).width(Length::Fill),
         ].spacing(0),
         Space::with_height(12),
         column![
-            text("DocumentRoot  (full path, e.g. /home/user/projects/myapp/public)").size(11).color(TEXT_MUTED),
+            text("DocumentRoot  (full path, e.g. /home/user/projects/myapp/public)")
+                .size(11).color(TEXT_MUTED),
             Space::with_height(5),
             text_input("/home/user/projects/myapp/public", &tab.form.document_root)
-                .on_input(Message::VH_FormDocRootChanged).size(13).padding(Padding::from([8, 10])).width(Length::Fill),
+                .on_input(Message::VH_FormDocRootChanged)
+                .size(13).padding(Padding::from([8, 10])).width(Length::Fill),
+        ].spacing(0),
+        Space::with_height(12),
+        column![
+            row![
+                text("PHP Version").size(11).color(TEXT_MUTED),
+                Space::with_width(6),
+                text("(optional — pins this vhost to a specific PHP via SetHandler)")
+                    .size(10).color(TEXT_MUTED),
+            ].align_y(Alignment::Center),
+            Space::with_height(5),
+            php_picker,
         ].spacing(0),
         Space::with_height(18),
         submit_el,
     ].spacing(0).padding(Padding::from([20, 22]))).width(Length::Fill).style(card_style()).into()
 }
 
-fn card_style()    -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style { background: Some(BG_CARD.into()),    border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 10.0.into() }, ..Default::default() }
+fn php_version_picker<'a, F>(
+    available:   &'a [String],
+    current:     &'a Option<String>,
+    on_select:   F,
+) -> Element<'a, Message>
+where
+    F: Fn(String) -> Message + 'a,
+{
+    let options   = php_options(available);
+    let selected  = php_to_selection(current);
+
+    let el = pick_list(options, Some(selected), move |s: String| on_select(s))
+        .padding(Padding::from([8, 12]))
+        .width(Length::Fixed(220.0))
+        .style(|_theme, status| {
+            use iced::widget::pick_list;
+            let open = matches!(status, pick_list::Status::Opened);
+            pick_list::Style {
+                text_color:        PURPLE,
+                placeholder_color: TEXT_MUTED,
+                handle_color:      PURPLE,
+                background: iced::Background::Color(if open { PURPLE_BG2 } else { PURPLE_BG }),
+                border: Border {
+                    color:  if open { PURPLE } else { PURPLE_BDR },
+                    width:  1.0,
+                    radius: 8.0.into(),
+                },
+            }
+        });
+
+    if available.is_empty() {
+        column![
+            el,
+            Space::with_height(3),
+            text("No mod_phpX.Y enabled — only global PHP available")
+                .size(10).color(TEXT_MUTED),
+        ].spacing(0).into()
+    } else {
+        el.into()
+    }
+}
+
+fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
+    |_| container::Style {
+        background: Some(BG_CARD.into()),
+        border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 10.0.into() },
+        ..Default::default()
+    }
 }
 fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style { background: Some(BG_SURFACE.into()), border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into()  }, ..Default::default() }
+    |_| container::Style {
+        background: Some(BG_SURFACE.into()),
+        border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() },
+        ..Default::default()
+    }
 }
 fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
     container(Space::with_height(1)).width(Length::Fill).height(1)
-        .style(|_: &iced::Theme| container::Style { background: Some(BORDER_SUBTLE.into()), ..Default::default() })
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(BORDER_SUBTLE.into()), ..Default::default()
+        })
 }
-fn small_btn<'a>(label: &'a str, color: Color, bg: Color, bg_hover: Color, border: Color, on_press: Option<Message>) -> Element<'a, Message> {
+fn small_btn<'a>(
+    label:    &'a str,
+    color:    Color,
+    bg:       Color,
+    bg_hover: Color,
+    border:   Color,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
     let b = button(text(label).size(12).color(color))
         .padding(Padding::from([6, 12]))
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                iced::widget::button::Style { background: Some(bg_hover.into()), text_color: color, border: Border { color: border, width: 1.0, radius: 7.0.into() }, ..Default::default() },
+                iced::widget::button::Style {
+                    background: Some(bg_hover.into()), text_color: color,
+                    border: Border { color: border, width: 1.0, radius: 7.0.into() },
+                    ..Default::default()
+                },
             _ =>
-                iced::widget::button::Style { background: Some(bg.into()), text_color: color, border: Border { color: border, width: 1.0, radius: 7.0.into() }, ..Default::default() },
+                iced::widget::button::Style {
+                    background: Some(bg.into()), text_color: color,
+                    border: Border { color: border, width: 1.0, radius: 7.0.into() },
+                    ..Default::default()
+                },
         });
     if let Some(msg) = on_press { b.on_press(msg).into() } else { b.into() }
 }
-fn icon_btn<'a>(label: &'a str, color: Color, bg: Color, bg_hover: Color, border: Color, on_press: Option<Message>) -> Element<'a, Message> {
+fn icon_btn<'a>(
+    label:    &'a str,
+    color:    Color,
+    bg:       Color,
+    bg_hover: Color,
+    border:   Color,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
     let b = button(text(label).size(12).color(color))
         .padding(Padding::from([7, 14]))
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                iced::widget::button::Style { background: Some(bg_hover.into()), text_color: color, border: Border { color: border, width: 1.0, radius: 8.0.into() }, ..Default::default() },
+                iced::widget::button::Style {
+                    background: Some(bg_hover.into()), text_color: color,
+                    border: Border { color: border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                },
             _ =>
-                iced::widget::button::Style { background: Some(bg.into()), text_color: color, border: Border { color: border, width: 1.0, radius: 8.0.into() }, ..Default::default() },
+                iced::widget::button::Style {
+                    background: Some(bg.into()), text_color: color,
+                    border: Border { color: border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                },
         });
     if let Some(msg) = on_press { b.on_press(msg).into() } else { b.into() }
 }

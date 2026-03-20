@@ -1,12 +1,15 @@
 // src/main.rs -- DevPanel: Apache + SSH + VirtualHost + Repos manager
 
+mod dry_run;
+mod first_run;
+mod first_run_install;
 mod sudo_prompt;
 mod tabs;
 mod theme;
 
 use sudo_prompt::{
-    clear_saved_password, save_password, sudo_cmd_with_password, validate_sudo_password,
-    ModalState, PendingAction, SudoModal,
+    ModalState, PendingAction, SudoModal, clear_saved_password, save_password,
+    sudo_cmd_with_password, validate_sudo_password,
 };
 use tabs::dashboard::DashboardTab;
 use tabs::repos::{ReposTab, SshStatus};
@@ -16,11 +19,9 @@ use tabs::tools::ToolsTab;
 use tabs::vhosts::{VHostEntry, VHostsTab};
 use theme::*;
 
-use iced::widget::{button, column, container, row, stack, text, Space};
+use iced::widget::{Space, button, column, container, row, stack, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Task, Theme};
 use std::path::PathBuf;
-//use tokio::process::Command;
-
 
 #[derive(Debug, Clone)]
 pub struct DevPanelConfig {
@@ -56,10 +57,7 @@ impl DevPanelConfig {
         let _ = std::fs::write(
             dir.join("config.toml"),
             format!(
-                "repos_root    = \"{}\"
-devpanel_conf = \"{}\"
-hosts_file    = \"{}\"
-",
+                "repos_root    = \"{}\"\ndevpanel_conf = \"{}\"\nhosts_file    = \"{}\"\n",
                 self.repos_root, self.devpanel_conf, self.hosts_file
             ),
         );
@@ -93,7 +91,6 @@ fn default_devpanel_conf() -> String {
     "/etc/apache2/sites-available/devpanel.conf".to_string()
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tab {
     Dashboard,
@@ -103,11 +100,11 @@ pub enum Tab {
     Tools,
 }
 
-
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub enum Message {
     SelectTab(Tab),
+    // Dashboard
     StartApache,
     StopApache,
     RestartApache,
@@ -141,6 +138,7 @@ pub enum Message {
         php: Option<String>,
         php_versions: Vec<String>,
     },
+    // SSH Keys
     SSH_EmailChanged(String),
     SSH_KeyNameChanged(String),
     SSH_KeyTypeChanged(KeyType),
@@ -153,7 +151,7 @@ pub enum Message {
     SSH_OpenDir,
     SSH_ListKeys,
     SSH_KeysListed(Vec<KeyEntry>),
-    
+    // Tools
     TOOLS_ScanPhp,
     TOOLS_ScanDone(Vec<(String, tabs::tools::PhpStatus, bool, bool, bool)>),
     TOOLS_InstallPhp(String),
@@ -178,7 +176,7 @@ pub enum Message {
     TOOLS_InstallPhpExt(String),
     TOOLS_RemovePhpExt(String),
     TOOLS_PhpExtDone(bool, String),
-    
+    // Repos
     REPOS_CheckSsh,
     REPOS_SshChecked(bool, String, bool, String),
     REPOS_Fetch,
@@ -192,13 +190,14 @@ pub enum Message {
     REPOS_SearchChanged(String),
     REPOS_SetFilter(tabs::repos::ProviderFilter),
     REPOS_OpenRoot,
-    
+    // VHosts
     VH_Scan,
     VH_ScanDone(Vec<VHostEntry>),
     VH_ShowAddForm,
     VH_HideForm,
     VH_FormServerNameChanged(String),
     VH_FormDocRootChanged(String),
+    VH_FormPhpVersionChanged(Option<String>),
     VH_Create,
     VH_CreateDone(bool, String),
     VH_EditRequest(usize),
@@ -210,16 +209,16 @@ pub enum Message {
     VH_DeleteConfirm(usize),
     VH_DeleteCancel,
     VH_DeleteDone(bool, String),
-    
+    // Config Editor
     VH_OpenConfigEditor,
     VH_CloseConfigEditor,
     VH_ConfigLoaded(String),
     VH_ConfigEditorAction(iced::widget::text_editor::Action),
     VH_SaveConfigFile,
     VH_SaveConfigDone(bool, String),
-    
+    // Auto-refresh
     AutoRefreshTick,
-    
+    // Sudo
     Sudo_PasswordChanged(String),
     Sudo_ToggleShow(bool),
     Sudo_ToggleSave(bool),
@@ -227,7 +226,7 @@ pub enum Message {
     Sudo_ValidationResult(bool),
     Sudo_Cancel,
     Sudo_ClearSaved,
-    
+    // ApacheTouch
     AT_ProjectNameChanged(String),
     AT_BaseDirChanged(String),
     AT_ApacheConfChanged(String),
@@ -236,8 +235,11 @@ pub enum Message {
     AT_RunSetup,
     AT_ClearLog,
     AT_SetupDone(Vec<tabs::apache_touch::LogEntry>, bool),
+    // First-run welcome modal
+    FirstRun_Continue,
+    FirstRun_Exit,
+    FirstRun_InstallDone(bool, String),
 }
-
 
 struct App {
     active_tab: Tab,
@@ -250,6 +252,7 @@ struct App {
     toast: Option<Toast>,
     sudo: SudoModal,
     sudo_pending_action: Option<PendingAction>,
+    first_run: first_run::FirstRunState,
 }
 
 #[derive(Clone)]
@@ -268,12 +271,23 @@ impl App {
             dashboard: DashboardTab::new(),
             ssh_keys: SshKeysTab::new(),
             tools: ToolsTab::new(),
+            first_run: first_run::FirstRunState::default(),
             config,
             toast: None,
             sudo: SudoModal::new(),
             sudo_pending_action: None,
         };
         (app, Task::perform(tabs::dashboard::probe_services(), |r| r))
+    }
+
+    fn show_toast(&mut self, message: String, ok: bool) -> Task<Message> {
+        self.toast = Some(Toast { message, ok });
+        Task::perform(
+            async {
+                tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+            },
+            |_| Message::TOOLS_ClearToast,
+        )
     }
 
     fn trigger_sudo(&mut self, action: PendingAction) -> Task<Message> {
@@ -314,23 +328,28 @@ impl App {
                     |r| r,
                 ),
             ]),
-            PendingAction::PhpInstall(version) => {
-                Task::perform(tabs::tools::apt_php_op(version, true, password), |(ok, msg)| {
-                    Message::TOOLS_PhpOpDone(ok, msg)
-                })
-            }
-            PendingAction::PhpRemove(version) => {
-                Task::perform(tabs::tools::apt_php_op(version, false, password), |(ok, msg)| {
-                    Message::TOOLS_PhpOpDone(ok, msg)
-                })
-            }
+            PendingAction::PhpInstall(version) => Task::perform(
+                tabs::tools::apt_php_op(version, true, password),
+                |(ok, msg)| Message::TOOLS_PhpOpDone(ok, msg),
+            ),
+            PendingAction::PhpRemove(version) => Task::perform(
+                tabs::tools::apt_php_op(version, false, password),
+                |(ok, msg)| Message::TOOLS_PhpOpDone(ok, msg),
+            ),
             PendingAction::VHostAdd {
                 server_name,
                 document_root,
+                php_version,
             } => {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(
-                    tabs::vhosts::add_vhost(conf, server_name, document_root, password),
+                    tabs::vhosts::add_vhost(
+                        conf,
+                        server_name,
+                        document_root,
+                        php_version,
+                        password,
+                    ),
                     |(ok, msg)| Message::VH_CreateDone(ok, msg),
                 )
             }
@@ -338,10 +357,18 @@ impl App {
                 index,
                 server_name,
                 document_root,
+                php_version,
             } => {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(
-                    tabs::vhosts::edit_vhost(conf, index, server_name, document_root, password),
+                    tabs::vhosts::edit_vhost(
+                        conf,
+                        index,
+                        server_name,
+                        document_root,
+                        php_version,
+                        password,
+                    ),
                     |(ok, msg)| Message::VH_SaveEditDone(ok, msg),
                 )
             }
@@ -356,27 +383,27 @@ impl App {
                 tabs::tools::toggle_apache_module(name, enable, password),
                 |(ok, msg, n, en)| Message::TOOLS_ApacheModDone(ok, msg, n, en),
             ),
-            PendingAction::AptInstall { package } => {
-                Task::perform(tabs::tools::apt_package_op(package, true, password), |(ok, msg)| {
-                    Message::TOOLS_PhpExtDone(ok, msg)
-                })
-            }
-            PendingAction::AptRemove { package } => {
-                Task::perform(tabs::tools::apt_package_op(package, false, password), |(ok, msg)| {
-                    Message::TOOLS_PhpExtDone(ok, msg)
-                })
-            }
-            PendingAction::SaveConfig { path, content } => {
-                Task::perform(tabs::vhosts::save_config_file(path, content, password), |(ok, msg)| {
-                    Message::VH_SaveConfigDone(ok, msg)
-                })
-            }
+            PendingAction::AptInstall { package } => Task::perform(
+                tabs::tools::apt_package_op(package, true, password),
+                |(ok, msg)| Message::TOOLS_PhpExtDone(ok, msg),
+            ),
+            PendingAction::AptRemove { package } => Task::perform(
+                tabs::tools::apt_package_op(package, false, password),
+                |(ok, msg)| Message::TOOLS_PhpExtDone(ok, msg),
+            ),
+            PendingAction::SaveConfig { path, content } => Task::perform(
+                tabs::vhosts::save_config_file(path, content, password),
+                |(ok, msg)| Message::VH_SaveConfigDone(ok, msg),
+            ),
+            PendingAction::FirstRunInstall => Task::perform(
+                first_run_install::run_first_run_install(password),
+                |(ok, msg)| Message::FirstRun_InstallDone(ok, msg),
+            ),
         }
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
-        iced::time::every(std::time::Duration::from_secs(5))
-            .map(|_| Message::AutoRefreshTick)
+        iced::time::every(std::time::Duration::from_secs(5)).map(|_| Message::AutoRefreshTick)
     }
 
     fn update(&mut self, msg: Message) -> Task<Message> {
@@ -385,11 +412,15 @@ impl App {
                 self.active_tab = tab.clone();
                 match tab {
                     Tab::Dashboard => Task::perform(tabs::dashboard::probe_services(), |r| r),
-                    Tab::SshKeys => Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed),
+                    Tab::SshKeys => {
+                        Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed)
+                    }
                     Tab::Tools => {
                         self.tools.scanning = true;
                         Task::perform(
-                            tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
+                            tabs::tools::scan_php_versions(
+                                self.dashboard.active_php_version.clone(),
+                            ),
                             Message::TOOLS_ScanDone,
                         )
                     }
@@ -452,11 +483,26 @@ impl App {
                 clear_saved_password();
                 self.sudo.cached_password = None;
                 self.sudo.save_password = false;
-                self.toast = Some(Toast {
-                    message: "Saved password cleared.".into(),
-                    ok: true,
-                });
-                Task::none()
+                self.show_toast("Saved password cleared.".into(), true)
+            }
+            Message::FirstRun_Continue => {
+                first_run::mark_done();
+                self.first_run = first_run::FirstRunState::Hidden;
+                self.trigger_sudo(PendingAction::FirstRunInstall)
+            }
+            Message::FirstRun_Exit => {
+                std::process::exit(0);
+            }
+            Message::FirstRun_InstallDone(ok, msg) => {
+                self.tools.scanning = true;
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(tabs::dashboard::probe_services(), |r| r),
+                    Task::perform(
+                        tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
+                        Message::TOOLS_ScanDone,
+                    ),
+                ])
             }
             Message::RefreshStatus => Task::perform(tabs::dashboard::probe_services(), |r| r),
             Message::StatusRefreshed {
@@ -499,21 +545,21 @@ impl App {
                 success,
                 output,
             } => {
-                self.toast = Some(Toast {
-                    message: if success {
-                        format!("{} {}ed", service, action)
-                    } else {
-                        format!("Failed to {} {}: {}", action, service, output)
-                    },
-                    ok: success,
-                });
-                Task::perform(tabs::dashboard::probe_services(), |r| r)
+                let msg = if success {
+                    format!("{} {}ed", service, action)
+                } else {
+                    format!("Failed to {} {}: {}", action, service, output)
+                };
+                Task::batch([
+                    self.show_toast(msg, success),
+                    Task::perform(tabs::dashboard::probe_services(), |r| r),
+                ])
             }
             Message::SwitchPHPVersion(v) => self.trigger_sudo(PendingAction::PhpSwitch(v)),
-            Message::PhpSwitchResult(ok, msg) => {
-                self.toast = Some(Toast { message: msg, ok });
-                Task::perform(tabs::dashboard::probe_services(), |r| r)
-            }
+            Message::PhpSwitchResult(ok, msg) => Task::batch([
+                self.show_toast(msg, ok),
+                Task::perform(tabs::dashboard::probe_services(), |r| r),
+            ]),
             Message::ShowPHPInfo => {
                 let _ = open_url("http://localhost/phpinfo.php");
                 Task::none()
@@ -559,6 +605,7 @@ impl App {
                 Task::none()
             }
             Message::RestartAll => self.trigger_sudo(PendingAction::RestartAll),
+
             Message::TOOLS_ScanPhp => {
                 self.tools.scanning = true;
                 Task::perform(
@@ -568,6 +615,14 @@ impl App {
             }
             Message::TOOLS_ScanDone(results) => {
                 self.tools.apply_scan(results);
+                let enabled_versions: Vec<String> = self
+                    .tools
+                    .php_releases
+                    .iter()
+                    .filter(|r| r.apache_mod_enabled)
+                    .map(|r| r.version.clone())
+                    .collect();
+                self.vhosts.update_php_versions(enabled_versions);
                 Task::none()
             }
             Message::TOOLS_InstallPhp(ver) => {
@@ -582,19 +637,13 @@ impl App {
             }
             Message::TOOLS_PhpOpDone(ok, msg) => {
                 self.tools.push_log(ok, msg.clone());
-                self.toast = Some(Toast { message: msg, ok });
                 self.tools.scanning = true;
                 Task::batch([
+                    self.show_toast(msg, ok),
                     Task::perform(tabs::dashboard::probe_services(), |r| r),
                     Task::perform(
                         tabs::tools::scan_php_versions(self.dashboard.active_php_version.clone()),
                         Message::TOOLS_ScanDone,
-                    ),
-                    Task::perform(
-                        async {
-                            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                        },
-                        |_| Message::TOOLS_ClearToast,
                     ),
                 ])
             }
@@ -634,26 +683,26 @@ impl App {
                 })
             }
             Message::TOOLS_CopyDone => {
-                self.toast = Some(Toast {
-                    message: "Commands copied to clipboard!".into(),
-                    ok: true,
-                });
-                Task::perform(
-                    async {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                    },
-                    |_| Message::TOOLS_ClearToast,
-                )
+                self.show_toast("Commands copied to clipboard!".into(), true)
             }
             Message::TOOLS_SetSection(section) => {
                 self.tools.active_section = section;
                 Task::none()
             }
-            Message::TOOLS_ScanApacheMods => {
-                Task::perform(tabs::tools::scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
-            }
+            Message::TOOLS_ScanApacheMods => Task::perform(
+                tabs::tools::scan_apache_modules(),
+                Message::TOOLS_ScanApacheModsDone,
+            ),
             Message::TOOLS_ScanApacheModsDone(results) => {
                 self.tools.apply_mod_scan(results);
+                let enabled_versions: Vec<String> = self
+                    .tools
+                    .php_releases
+                    .iter()
+                    .filter(|r| r.apache_mod_enabled)
+                    .map(|r| r.version.clone())
+                    .collect();
+                self.vhosts.update_php_versions(enabled_versions);
                 Task::none()
             }
             Message::TOOLS_ModFilterChanged(v) => {
@@ -677,11 +726,24 @@ impl App {
             }
             Message::TOOLS_ApacheModDone(ok, msg, name, enabled) => {
                 self.tools.push_log(ok, msg.clone());
-                self.toast = Some(Toast { message: msg, ok });
                 if ok {
                     self.tools.set_mod_enabled(&name, enabled);
                 }
-                Task::perform(tabs::tools::scan_apache_modules(), Message::TOOLS_ScanApacheModsDone)
+                let enabled_versions: Vec<String> = self
+                    .tools
+                    .php_releases
+                    .iter()
+                    .filter(|r| r.apache_mod_enabled)
+                    .map(|r| r.version.clone())
+                    .collect();
+                self.vhosts.update_php_versions(enabled_versions);
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(
+                        tabs::tools::scan_apache_modules(),
+                        Message::TOOLS_ScanApacheModsDone,
+                    ),
+                ])
             }
             Message::TOOLS_ScanPhpExts => {
                 let active = self
@@ -690,7 +752,10 @@ impl App {
                     .iter()
                     .find(|r| r.is_active)
                     .map(|r| r.version.clone());
-                Task::perform(tabs::tools::scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+                Task::perform(
+                    tabs::tools::scan_php_extensions(active),
+                    Message::TOOLS_ScanPhpExtsDone,
+                )
             }
             Message::TOOLS_ScanPhpExtsDone(results) => {
                 self.tools.apply_ext_scan(results);
@@ -710,16 +775,20 @@ impl App {
             }
             Message::TOOLS_PhpExtDone(ok, msg) => {
                 self.tools.push_log(ok, msg.clone());
-                self.toast = Some(Toast { message: msg, ok });
                 let active = self
                     .tools
                     .php_releases
                     .iter()
                     .find(|r| r.is_active)
                     .map(|r| r.version.clone());
-                Task::perform(tabs::tools::scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(
+                        tabs::tools::scan_php_extensions(active),
+                        Message::TOOLS_ScanPhpExtsDone,
+                    ),
+                ])
             }
-            
             Message::SSH_EmailChanged(v) => {
                 self.ssh_keys.email = v;
                 Task::none()
@@ -758,11 +827,13 @@ impl App {
                     StatusKind::Error
                 };
                 self.ssh_keys.status_message = msg.clone();
-                self.toast = Some(Toast { message: msg, ok });
                 if ok {
-                    Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed)
+                    Task::batch([
+                        self.show_toast(msg, ok),
+                        Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed),
+                    ])
                 } else {
-                    Task::none()
+                    self.show_toast(msg, ok)
                 }
             }
             Message::SSH_AddExisting => {
@@ -779,19 +850,19 @@ impl App {
                     StatusKind::Error
                 };
                 self.ssh_keys.status_message = msg.clone();
-                self.toast = Some(Toast { message: msg, ok });
-                Task::none()
+                self.show_toast(msg, ok)
             }
             Message::SSH_OpenDir => {
                 let _ = xdg_open(&format!("{}/.ssh", get_home().display()));
                 Task::none()
             }
-            Message::SSH_ListKeys => Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed),
+            Message::SSH_ListKeys => {
+                Task::perform(tabs::ssh_keys::list_keys(), Message::SSH_KeysListed)
+            }
             Message::SSH_KeysListed(keys) => {
                 self.ssh_keys.keys_list = keys;
                 Task::none()
             }
-            
             Message::REPOS_CheckSsh => Task::perform(tabs::repos::check_ssh(), |r| {
                 Message::REPOS_SshChecked(r.github_ok, r.github_msg, r.bb_ok, r.bb_msg)
             }),
@@ -835,12 +906,10 @@ impl App {
                     self.repos.mark_cloning(&ssh_url, false);
                 }
                 self.repos.status_msg = Some((ok, msg.clone()));
-                self.toast = Some(Toast { message: msg, ok });
-                Task::none()
+                self.show_toast(msg, ok)
             }
             Message::REPOS_OpenCloned(name) => {
-                let path = format!("{}/{}", self.repos.repos_root, name);
-                open_terminal_at(&path);
+                open_terminal_at(&format!("{}/{}", self.repos.repos_root, name));
                 Task::none()
             }
             Message::REPOS_SearchChanged(v) => {
@@ -855,7 +924,6 @@ impl App {
                 let _ = xdg_open(&self.repos.repos_root);
                 Task::none()
             }
-            
             Message::VH_Scan => {
                 self.vhosts.scanning = true;
                 let conf = self.vhosts.devpanel_conf.clone();
@@ -881,20 +949,28 @@ impl App {
                 self.vhosts.form.document_root = v;
                 Task::none()
             }
+            Message::VH_FormPhpVersionChanged(v) => {
+                self.vhosts.form.php_version = v;
+                Task::none()
+            }
             Message::VH_Create => {
                 let sn = self.vhosts.form.server_name.trim().to_string();
                 let dr = self.vhosts.form.document_root.trim().to_string();
+                let php = self.vhosts.form.php_version.clone();
                 self.trigger_sudo(PendingAction::VHostAdd {
                     server_name: sn,
                     document_root: dr,
+                    php_version: php,
                 })
             }
             Message::VH_CreateDone(ok, msg) => {
                 self.vhosts.form.hide();
                 self.vhosts.status_msg = Some((ok, msg.clone()));
-                self.toast = Some(Toast { message: msg, ok });
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone),
+                ])
             }
             Message::VH_EditRequest(idx) => {
                 if let Some(entry) = self.vhosts.vhosts.iter().find(|e| e.index == idx) {
@@ -906,6 +982,7 @@ impl App {
             Message::VH_SaveEdit => {
                 let sn = self.vhosts.form.server_name.trim().to_string();
                 let dr = self.vhosts.form.document_root.trim().to_string();
+                let php = self.vhosts.form.php_version.clone();
                 let idx = if let tabs::vhosts::FormMode::Edit(i) = self.vhosts.form.mode {
                     i
                 } else {
@@ -915,14 +992,17 @@ impl App {
                     index: idx,
                     server_name: sn,
                     document_root: dr,
+                    php_version: php,
                 })
             }
             Message::VH_SaveEditDone(ok, msg) => {
                 self.vhosts.form.hide();
                 self.vhosts.status_msg = Some((ok, msg.clone()));
-                self.toast = Some(Toast { message: msg, ok });
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone),
+                ])
             }
             Message::VH_OpenBrowser(sn) => {
                 let _ = open_url(&format!("http://{}", sn));
@@ -946,16 +1026,20 @@ impl App {
             }
             Message::VH_DeleteDone(ok, msg) => {
                 self.vhosts.status_msg = Some((ok, msg.clone()));
-                self.toast = Some(Toast { message: msg, ok });
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone),
+                ])
             }
-            
             Message::VH_OpenConfigEditor => {
                 self.vhosts.view_mode = tabs::vhosts::VHostView::ConfigEditor;
                 self.vhosts.config_loading = true;
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(tabs::vhosts::load_config_file(conf), Message::VH_ConfigLoaded)
+                Task::perform(
+                    tabs::vhosts::load_config_file(conf),
+                    Message::VH_ConfigLoaded,
+                )
             }
             Message::VH_CloseConfigEditor => {
                 self.vhosts.view_mode = tabs::vhosts::VHostView::List;
@@ -968,28 +1052,36 @@ impl App {
             Message::VH_ConfigEditorAction(action) => {
                 let is_edit = action.is_edit();
                 self.vhosts.config_content.perform(action);
-                if is_edit { self.vhosts.config_dirty = true; }
+                if is_edit {
+                    self.vhosts.config_dirty = true;
+                }
                 Task::none()
             }
             Message::VH_SaveConfigFile => {
                 self.vhosts.config_loading = true;
                 let content = self.vhosts.config_content.text();
                 let conf = self.vhosts.devpanel_conf.clone();
-                self.trigger_sudo(PendingAction::SaveConfig { content, path: conf })
+                self.trigger_sudo(PendingAction::SaveConfig {
+                    content,
+                    path: conf,
+                })
             }
             Message::VH_SaveConfigDone(ok, msg) => {
                 self.vhosts.config_loading = false;
-                if ok { self.vhosts.config_dirty = false; }
-                self.vhosts.status_msg = Some((ok, msg.clone()));
-                self.toast = Some(Toast { message: msg, ok });
                 if ok {
-                    let conf = self.vhosts.devpanel_conf.clone();
-                    Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
+                    self.vhosts.config_dirty = false;
+                }
+                self.vhosts.status_msg = Some((ok, msg.clone()));
+                let conf = self.vhosts.devpanel_conf.clone();
+                if ok {
+                    Task::batch([
+                        self.show_toast(msg, ok),
+                        Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone),
+                    ])
                 } else {
-                    Task::none()
+                    self.show_toast(msg, ok)
                 }
             }
-            
             Message::AutoRefreshTick => {
                 if self.active_tab == Tab::Dashboard {
                     Task::perform(tabs::dashboard::probe_services(), |r| r)
@@ -997,7 +1089,6 @@ impl App {
                     Task::none()
                 }
             }
-            
             Message::AT_ProjectNameChanged(_)
             | Message::AT_BaseDirChanged(_)
             | Message::AT_ApacheConfChanged(_)
@@ -1006,7 +1097,7 @@ impl App {
             | Message::AT_RunSetup
             | Message::AT_ClearLog
             | Message::AT_SetupDone(_, _) => Task::none(),
-        } 
+        }
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -1088,7 +1179,16 @@ impl App {
                 }),
         ];
 
-        if self.sudo.is_visible() {
+        let show_first_run = self.first_run == first_run::FirstRunState::Visible;
+        let show_sudo = self.sudo.is_visible();
+
+        if show_first_run {
+            stack![
+                container(app_area).width(Length::Fill).height(Length::Fill),
+                first_run::view()
+            ]
+            .into()
+        } else if show_sudo {
             stack![
                 container(app_area).width(Length::Fill).height(Length::Fill),
                 self.sudo.view()
@@ -1104,26 +1204,28 @@ impl App {
 
     fn sidebar(&self) -> Element<'_, Message> {
         let logo = container(
-            column![row![
-                container(Space::with_width(3))
-                    .width(3)
-                    .height(26)
-                    .style(|_: &iced::Theme| container::Style {
-                        background: Some(TEAL.into()),
-                        border: Border {
-                            radius: 2.0.into(),
+            column![
+                row![
+                    container(Space::with_width(3))
+                        .width(3)
+                        .height(26)
+                        .style(|_: &iced::Theme| container::Style {
+                            background: Some(TEAL.into()),
+                            border: Border {
+                                radius: 2.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    }),
-                Space::with_width(10),
-                column![
-                    text("dev").size(19).color(TEAL),
-                    text("panel").size(19).color(TEXT_PRIMARY)
+                        }),
+                    Space::with_width(10),
+                    column![
+                        text("dev").size(19).color(TEAL),
+                        text("panel").size(19).color(TEXT_PRIMARY),
+                    ]
+                    .spacing(0),
                 ]
-                .spacing(0),
+                .align_y(Alignment::Center)
             ]
-            .align_y(Alignment::Center)]
             .spacing(0),
         )
         .padding(Padding::from([22, 16]));
@@ -1236,6 +1338,52 @@ impl App {
             .into()
         };
 
+        let dev_badge: Element<Message> = if dry_run::active() {
+            container(
+                column![
+                    container(
+                        row![
+                            text("DEV").size(9).color(YELLOW),
+                            Space::with_width(6),
+                            text("dry-run mode").size(11).color(TEXT_MUTED),
+                        ]
+                        .align_y(Alignment::Center),
+                    )
+                    .padding(Padding::from([5, 10]))
+                    .style(|_: &iced::Theme| container::Style {
+                        background: Some(
+                            Color {
+                                r: 0.190,
+                                g: 0.160,
+                                b: 0.040,
+                                a: 1.0
+                            }
+                            .into()
+                        ),
+                        border: Border {
+                            color: Color {
+                                r: 0.240,
+                                g: 0.200,
+                                b: 0.050,
+                                a: 1.0
+                            },
+                            width: 1.0,
+                            radius: 7.0.into(),
+                        },
+                        ..Default::default()
+                    }),
+                    Space::with_height(4),
+                    text("No commands will run.").size(10).color(TEXT_MUTED),
+                ]
+                .spacing(0),
+            )
+            .padding(Padding::from([0, 14]))
+            .width(Length::Fill)
+            .into()
+        } else {
+            Space::with_height(0).into()
+        };
+
         let bottom = container(
             column![
                 sudo_indicator,
@@ -1244,7 +1392,7 @@ impl App {
                     row![
                         text("R").size(11).color(TEXT_MUTED),
                         Space::with_width(6),
-                        text("Refresh").size(12).color(TEXT_MUTED)
+                        text("Refresh").size(12).color(TEXT_MUTED),
                     ]
                     .align_y(Alignment::Center)
                 )
@@ -1284,8 +1432,10 @@ impl App {
                 Space::with_height(10),
                 nav,
                 Space::with_height(Length::Fill),
+                dev_badge,
+                Space::with_height(8),
                 divider(),
-                bottom
+                bottom,
             ]
             .height(Length::Fill),
         )
@@ -1311,18 +1461,12 @@ impl App {
             Color::TRANSPARENT
         };
         let text_color = if active { TEXT_PRIMARY } else { TEXT_SECONDARY };
-        let (icon, icon_color): (&str, Color) = match &tab {
-            Tab::Dashboard => ("", if active { TEAL } else { TEXT_MUTED }),
-            Tab::Repos => ("", if active { TEAL } else { TEXT_MUTED }),
-            Tab::VHosts => ("", if active { TEAL } else { TEXT_MUTED }),
-            Tab::SshKeys => ("", if active { TEAL } else { TEXT_MUTED }),
-            Tab::Tools => ("", if active { TEAL } else { TEXT_MUTED }),
-        };
+        let icon_color = if active { TEAL } else { TEXT_MUTED };
         button(
             row![
-                text(icon).size(12).color(icon_color),
+                text("").size(12).color(icon_color),
                 Space::with_width(10),
-                text(label).size(13).color(text_color)
+                text(label).size(13).color(text_color),
             ]
             .align_y(Alignment::Center),
         )
@@ -1363,7 +1507,6 @@ fn divider<'a>() -> Element<'a, Message> {
         })
         .into()
 }
-
 
 static ICON_BYTES: &[u8] = include_bytes!("../icon.png");
 
@@ -1418,10 +1561,12 @@ async fn run_service_cmd_with_pass(service: &str, action: &str, password: String
     }
 }
 
-
-
 async fn ssh_add(path: String) -> (bool, String) {
-    match tokio::process::Command::new("ssh-add").arg(&path).output().await {
+    match tokio::process::Command::new("ssh-add")
+        .arg(&path)
+        .output()
+        .await
+    {
         Ok(o) if o.status.success() => (true, format!("Key added: {}", path)),
         Ok(o) => (false, String::from_utf8_lossy(&o.stderr).to_string()),
         Err(e) => (false, e.to_string()),
@@ -1439,7 +1584,6 @@ fn open_url(url: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
 }
-
 fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
     if let Some(version) = active_php {
         let short = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
@@ -1477,11 +1621,9 @@ fn open_terminal_at(path: &str) {
             .arg("--working-directory")
             .arg(path)
             .spawn(),
-        // xterm and friends: use -e bash -c "cd X && exec bash" as split args
         "xterm" => std::process::Command::new("xterm")
             .args(["-e", "bash", "-c", &cd_cmd])
             .spawn(),
-        // lxterminal / tilix: -e takes a single shell string
         "lxterminal" | "tilix" => std::process::Command::new(&term)
             .arg("-e")
             .arg(format!("bash -c {}", shell_quote(&cd_cmd)))
@@ -1494,66 +1636,45 @@ fn open_terminal_at(path: &str) {
 }
 
 fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, String> {
-    // Build mysql command (runs as root via sudo)
     let mysql_cmd = if socket_auth {
         format!("sudo {} -u root", binary)
     } else {
         format!("sudo {} -u root -p", binary)
     };
-
-    // Shell script that runs mysql then waits before closing
-    // Use only POSIX-safe escapes — no \033 (not POSIX sh), use printf octal instead
     let inner = format!(
         "{cmd}; printf '\\n\\033[0;33m--- session ended, press Enter to close ---\\033[0m\\n'; read _",
         cmd = mysql_cmd
     );
-
     let term = match find_terminal() {
         Some(t) => t,
-        None => return Err(
-            "No terminal emulator found. Install gnome-terminal, xterm, konsole, or xfce4-terminal.".into()
-        ),
+        None    => return Err("No terminal emulator found. Install gnome-terminal, xterm, konsole, or xfce4-terminal.".into()),
     };
-
-    // Every terminal gets bash -c "<inner>" with args passed individually
-    // (never concatenated into a single shell-escaped string) so the shell
-    // does not double-interpret the command.
     let result = match term.as_str() {
-        // These support `-- bash -c "cmd"` (recommended, cleanest)
         "gnome-terminal" | "mate-terminal" => std::process::Command::new(&term)
             .args(["--", "bash", "-c", &inner])
             .spawn(),
-        // These support `-e bash -c "cmd"` with args split
         "xterm" | "konsole" => std::process::Command::new(&term)
             .args(["-e", "bash", "-c", &inner])
             .spawn(),
-        // xfce4-terminal: --command takes a single string, but it runs it
-        // through the shell, so pass `bash -c 'cmd'` properly quoted
         "xfce4-terminal" => std::process::Command::new("xfce4-terminal")
             .arg("--command")
             .arg(format!("bash -c {}", shell_quote(&inner)))
             .spawn(),
-        // tilix: same as xfce4 — -e takes a shell string
         "tilix" => std::process::Command::new("tilix")
             .arg("-e")
             .arg(format!("bash -c {}", shell_quote(&inner)))
             .spawn(),
-        // lxterminal: -e takes a single string run via sh -c
         "lxterminal" => std::process::Command::new("lxterminal")
             .arg("-e")
             .arg(format!("bash -c {}", shell_quote(&inner)))
             .spawn(),
-        // x-terminal-emulator: Debian alternative, usually points to xterm/gnome-terminal
-        // Try -- first (works for gnome), fall back to -e
         "x-terminal-emulator" => std::process::Command::new("x-terminal-emulator")
             .args(["-e", "bash", "-c", &inner])
             .spawn(),
-        // Unknown terminal: best-effort -e
         _ => std::process::Command::new(&term)
             .args(["-e", "bash", "-c", &inner])
             .spawn(),
     };
-
     match result {
         Ok(_) => Ok(format!("Launched '{}' in {}", mysql_cmd, term)),
         Err(e) => Err(format!("Failed to open {}: {}", term, e)),
@@ -1583,14 +1704,12 @@ fn find_terminal() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    // last rezort , if above fails.
     if std::path::Path::new("/usr/bin/xterm").exists() {
         return Some("xterm".to_string());
     }
     None
 }
 
-/// Wrap a string in single quotes for shell, escaping any embedded single quotes.
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
@@ -1644,6 +1763,7 @@ async fn try_copy_with_xclip(text: &str) -> bool {
         Err(_) => false,
     }
 }
+
 async fn try_copy_with_wl_copy(text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
     match tokio::process::Command::new("wl-copy")
@@ -1665,6 +1785,7 @@ async fn try_copy_with_wl_copy(text: &str) -> bool {
         Err(_) => false,
     }
 }
+
 async fn try_copy_with_xsel(text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
     match tokio::process::Command::new("xsel")
@@ -1688,6 +1809,3 @@ async fn try_copy_with_xsel(text: &str) -> bool {
         Err(_) => false,
     }
 }
-
-// The detection of the php version , does not work . The core logic os partioal ready . 
-// Add it here , and make changes here later. 

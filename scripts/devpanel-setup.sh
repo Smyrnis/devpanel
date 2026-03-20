@@ -1,11 +1,21 @@
 #!/bin/bash
+# devpanel-setup.sh — First-run setup for DevPanel
+# ─────────────────────────────────────────────────────────────────────────────
+# What this does:
+#   1. Creates ~/projects/                  → PHP project source code lives here
+#   2. Copies index.php → /var/www/html/    → replaces Apache's default welcome
+#                                             page; index.html is left untouched
+#   3. Sets DirectoryIndex in 000-default.conf → php loads before html globally
+#   4. Creates /etc/apache2/sites-available/devpanel.conf (empty, for vhosts)
+#   5. Enables devpanel.conf via a2ensite
+#   6. Enables mod_rewrite (required by most PHP frameworks)
+#   7. Enables mod_phpX.Y for EVERY installed PHP version found on the system
+#      so that per-VirtualHost SetHandler application/x-httpd-phpX.Y works
+#      immediately without manual intervention.
+#   8. Writes ~/.config/devpanel/config.toml
+# ─────────────────────────────────────────────────────────────────────────────
 set -e
-#
-# This is the core script of the installation process that makes the creations of the .conf file
-# and the file directory as and the ovewrites on core apache2 files.
-# 
-# This file do not change it or manipulate it , change it Only if you are expirienced with the setup of apache2. 
-# 
+
 TEAL='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 
@@ -56,7 +66,7 @@ if ! command -v apache2 &>/dev/null && ! command -v apachectl &>/dev/null; then
     exit 1
 fi
 
-log_step "1/7" "Creating ~/projects/ directory"
+log_step "1/8" "Creating ~/projects/ directory"
 if [ ! -d "$PROJECTS_DIR" ]; then
     mkdir -p "$PROJECTS_DIR"
     chown "$REAL_USER:www-data" "$PROJECTS_DIR"
@@ -67,7 +77,7 @@ else
     log_info "Already exists: $PROJECTS_DIR"
 fi
 
-log_step "2/7" "Installing DevPanel welcome page → /var/www/html/index.php"
+log_step "2/8" "Installing DevPanel welcome page → /var/www/html/index.php"
 if [ -f "$INDEX_PHP_SRC" ]; then
     cp "$INDEX_PHP_SRC" "$WEBROOT/index.php"
     chown root:www-data "$WEBROOT/index.php"
@@ -79,11 +89,8 @@ else
     log_warn "Copy it manually: sudo cp share/index.php $WEBROOT/index.php"
 fi
 
-
-log_step "3/7" "Setting DirectoryIndex in 000-default.conf (index.php first)"
-
+log_step "3/8" "Setting DirectoryIndex in 000-default.conf (index.php first)"
 if [ -f "$DEFAULT_SITE" ]; then
-
     if [ ! -f "${DEFAULT_SITE}.devpanel.bak" ]; then
         cp "$DEFAULT_SITE" "${DEFAULT_SITE}.devpanel.bak"
         log_ok "Backup saved: ${DEFAULT_SITE}.devpanel.bak"
@@ -95,12 +102,11 @@ if [ -f "$DEFAULT_SITE" ]; then
         sed -i '/<VirtualHost \*:80>/a\    DirectoryIndex index.php index.html index.htm' "$DEFAULT_SITE"
         log_ok "Inserted DirectoryIndex into VirtualHost block"
     fi
-
 else
     log_warn "000-default.conf not found at $DEFAULT_SITE — skipping"
 fi
 
-log_step "4/7" "Creating /etc/apache2/sites-available/devpanel.conf"
+log_step "4/8" "Creating /etc/apache2/sites-available/devpanel.conf"
 if [ ! -f "$DEVPANEL_CONF" ]; then
     cat > "$DEVPANEL_CONF" << 'APACHECONF'
 # DevPanel managed VirtualHosts
@@ -113,7 +119,7 @@ else
     log_info "Already exists: $DEVPANEL_CONF (not overwritten)"
 fi
 
-log_step "5/7" "Enabling devpanel.conf"
+log_step "5/8" "Enabling devpanel.conf"
 if command -v a2ensite &>/dev/null; then
     a2ensite devpanel.conf 2>/dev/null \
         && log_ok "a2ensite devpanel.conf" \
@@ -128,18 +134,52 @@ else
     fi
 fi
 
-log_step "6/7" "Enabling mod_rewrite and mod_php"
+log_step "6/8" "Enabling mod_rewrite"
 if command -v a2enmod &>/dev/null; then
     a2enmod rewrite 2>/dev/null && log_ok "mod_rewrite enabled" \
         || log_info "mod_rewrite already enabled"
-    for phpmod in php8.4 php8.3 php8.2 php8.1 php8.0 php7.4; do
-        if a2enmod "$phpmod" 2>/dev/null; then
-            log_ok "Apache PHP module enabled: $phpmod"
-            break
-        fi
-    done
 else
     log_warn "a2enmod not found — enable mod_rewrite manually"
+fi
+
+log_step "7/8" "Enabling Apache mod_phpX.Y for all installed PHP versions"
+PHP_MODS_ENABLED=0
+PHP_MODS_FOUND=0
+
+for ver in 7.4 8.0 8.1 8.2 8.3 8.4; do
+    MOD_LOAD="/etc/apache2/mods-available/php${ver}.load"
+    if [ -f "$MOD_LOAD" ]; then
+        PHP_MODS_FOUND=$((PHP_MODS_FOUND + 1))
+        if command -v a2enmod &>/dev/null; then
+            if a2enmod "php${ver}" 2>/dev/null; then
+                log_ok "Enabled: mod_php${ver}"
+                PHP_MODS_ENABLED=$((PHP_MODS_ENABLED + 1))
+            else
+                log_info "mod_php${ver} already enabled or skipped"
+                PHP_MODS_ENABLED=$((PHP_MODS_ENABLED + 1))
+            fi
+        else
+            ENABLED_LINK="/etc/apache2/mods-enabled/php${ver}.load"
+            CONF_LINK="/etc/apache2/mods-enabled/php${ver}.conf"
+            if [ ! -L "$ENABLED_LINK" ]; then
+                ln -s "$MOD_LOAD" "$ENABLED_LINK" 2>/dev/null && \
+                    log_ok "Symlinked: $ENABLED_LINK" || true
+            fi
+            MOD_CONF="/etc/apache2/mods-available/php${ver}.conf"
+            if [ -f "$MOD_CONF" ] && [ ! -L "$CONF_LINK" ]; then
+                ln -s "$MOD_CONF" "$CONF_LINK" 2>/dev/null || true
+            fi
+            PHP_MODS_ENABLED=$((PHP_MODS_ENABLED + 1))
+        fi
+    fi
+done
+
+if [ "$PHP_MODS_FOUND" -eq 0 ]; then
+    log_warn "No mod_phpX.Y found in /etc/apache2/mods-available/"
+    log_warn "Install PHP with: sudo apt-get install -y libapache2-mod-php8.2"
+    log_warn "Per-vhost PHP pinning (SetHandler) will not be available until then."
+else
+    log_ok "PHP Apache mods ready: $PHP_MODS_ENABLED/$PHP_MODS_FOUND version(s)"
 fi
 
 echo ""
@@ -158,7 +198,7 @@ else
     apache2ctl configtest 2>&1 | sed 's/^/    /'
 fi
 
-log_step "7/7" "Writing DevPanel configuration"
+log_step "8/8" "Writing DevPanel configuration"
 mkdir -p "$CFG_DIR"
 chown -R "$REAL_USER" "$CFG_DIR"
 cat > "$CFG_FILE" << TOML
@@ -186,5 +226,10 @@ echo -e "  ${TEAL}→${NC} index.html at $WEBROOT/index.html is unchanged"
 echo -e "  ${TEAL}→${NC} Clone or create PHP projects in ${BOLD}$PROJECTS_DIR/${NC}"
 echo -e "  ${TEAL}→${NC} Open DevPanel → ${BOLD}VirtualHosts${NC} to add project .local domains"
 echo -e "  ${TEAL}→${NC} Use ${BOLD}Repos${NC} tab to clone from GitHub / Bitbucket"
+if [ "$PHP_MODS_ENABLED" -gt 0 ]; then
+echo -e "  ${TEAL}→${NC} Per-vhost PHP pinning is ${BOLD}ready${NC}: $PHP_MODS_ENABLED PHP mod(s) enabled"
+echo -e "     Add ${BOLD}SetHandler application/x-httpd-phpX.Y${NC} inside a <Directory> block"
+echo -e "     or use the ${BOLD}PHP Version${NC} dropdown in DevPanel → VirtualHosts"
+fi
 echo -e "${TEAL}─────────────────────────────────────────────${NC}"
 echo ""

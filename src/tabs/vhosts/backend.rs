@@ -3,6 +3,8 @@
 use super::VHostEntry;
 use tokio::io::AsyncWriteExt;
 
+// ── Public async tasks ────────────────────────────────────────────────────
+
 pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
     let content = tokio::fs::read_to_string(&devpanel_conf).await.unwrap_or_default();
     parse_vhosts_from_content(&content)
@@ -28,6 +30,7 @@ pub async fn add_vhost(
     devpanel_conf: String,
     server_name:   String,
     document_root: String,
+    php_version:   Option<String>,
     password:      String,
 ) -> (bool, String) {
     let existing = tokio::fs::read_to_string(&devpanel_conf).await.unwrap_or_default();
@@ -38,7 +41,12 @@ pub async fn add_vhost(
     if entries.iter().any(|e| e.server_name == sn) {
         return (false, format!("VirtualHost '{}' already exists", sn));
     }
-    entries.push(VHostEntry { server_name: sn.clone(), document_root: dr, index: entries.len() });
+    entries.push(VHostEntry {
+        server_name:   sn.clone(),
+        document_root: dr,
+        php_version:   php_version.clone(),
+        index:         entries.len(),
+    });
 
     if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
         return (false, format!("Write failed: {}", e));
@@ -53,7 +61,11 @@ pub async fn add_vhost(
     let _ = crate::sudo_prompt::sudo_cmd_with_password(
         &password, &["systemctl", "reload", "apache2"],
     ).await;
-    (true, format!("VirtualHost '{}' created and Apache reloaded", sn))
+
+    let php_note = php_version
+        .map(|v| format!(" (PHP {})", v))
+        .unwrap_or_default();
+    (true, format!("VirtualHost '{}'{} created and Apache reloaded", sn, php_note))
 }
 
 pub async fn edit_vhost(
@@ -61,6 +73,7 @@ pub async fn edit_vhost(
     index:         usize,
     server_name:   String,
     document_root: String,
+    php_version:   Option<String>,
     password:      String,
 ) -> (bool, String) {
     let existing = tokio::fs::read_to_string(&devpanel_conf).await.unwrap_or_default();
@@ -71,6 +84,7 @@ pub async fn edit_vhost(
     let new_sn = server_name.trim().to_string();
     entries[index].server_name   = new_sn.clone();
     entries[index].document_root = document_root.trim().to_string();
+    entries[index].php_version   = php_version.clone();
 
     if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
         return (false, format!("Write failed: {}", e));
@@ -87,7 +101,11 @@ pub async fn edit_vhost(
     let _ = crate::sudo_prompt::sudo_cmd_with_password(
         &password, &["systemctl", "reload", "apache2"],
     ).await;
-    (true, format!("VirtualHost '{}' updated", new_sn))
+
+    let php_note = php_version
+        .map(|v| format!(" (PHP {})", v))
+        .unwrap_or_default();
+    (true, format!("VirtualHost '{}'{} updated", new_sn, php_note))
 }
 
 pub async fn delete_vhost(
@@ -112,6 +130,7 @@ pub async fn delete_vhost(
     (true, format!("VirtualHost '{}' removed", removed))
 }
 
+// ── Parse / Build helpers ─────────────────────────────────────────────────
 
 pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
     let mut entries  = Vec::new();
@@ -119,21 +138,35 @@ pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
     let mut in_block = false;
     let mut sn       = String::new();
     let mut dr       = String::new();
+    let mut php_ver: Option<String> = None;
 
     for line in content.lines() {
         let t = line.trim().to_lowercase();
         if t.starts_with("<virtualhost") {
-            in_block = true; sn.clear(); dr.clear();
+            in_block = true;
+            sn.clear();
+            dr.clear();
+            php_ver = None;
         } else if t.starts_with("</virtualhost>") && in_block {
             if !sn.is_empty() {
-                entries.push(VHostEntry { server_name: sn.clone(), document_root: dr.clone(), index: idx });
+                entries.push(VHostEntry {
+                    server_name:   sn.clone(),
+                    document_root: dr.clone(),
+                    php_version:   php_ver.clone(),
+                    index:         idx,
+                });
                 idx += 1;
             }
             in_block = false;
         } else if in_block {
             let orig = line.trim();
-            if orig.to_lowercase().starts_with("servername")   { sn = parse_directive(orig, "ServerName"); }
-            if orig.to_lowercase().starts_with("documentroot") { dr = parse_directive(orig, "DocumentRoot"); }
+            let lower = orig.to_lowercase();
+            if lower.starts_with("servername")   { sn = parse_directive(orig, "ServerName"); }
+            if lower.starts_with("documentroot") { dr = parse_directive(orig, "DocumentRoot"); }
+            // Parse:  SetHandler application/x-httpd-php8.2
+            if lower.contains("sethandler") && lower.contains("x-httpd-php") {
+                php_ver = extract_php_version_from_sethandler(orig);
+            }
         }
     }
     entries
@@ -146,18 +179,39 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
     for e in entries {
         let sn   = e.server_name.trim_end_matches('/');
         let slug = sn.replace('.', "_");
+
+        // Build the Directory block — inject SetHandler when a PHP version is pinned
+        let set_handler = match &e.php_version {
+            Some(ver) => format!(
+                "\n        SetHandler application/x-httpd-php{}",
+                ver
+            ),
+            None => String::new(),
+        };
+
         out.push_str(&format!(
-            "<VirtualHost *:80>\n    ServerName {sn}\n    ServerAlias www.{sn}\n\
-             DocumentRoot {dr}\n\n    <Directory {dr}>\n        Options Indexes FollowSymLinks\n\
-             AllowOverride All\n        Require all granted\n    </Directory>\n\n\
-             ErrorLog ${{APACHE_LOG_DIR}}/{slug}_error.log\n\
-             CustomLog ${{APACHE_LOG_DIR}}/{slug}_access.log combined\n</VirtualHost>\n\n",
-            sn = sn, dr = e.document_root, slug = slug,
+            "<VirtualHost *:80>\n\
+             \tServerName {sn}\n\
+             \tServerAlias www.{sn}\n\
+             \tDocumentRoot {dr}\n\n\
+             \t<Directory {dr}>\n\
+             \t\tOptions Indexes FollowSymLinks\n\
+             \t\tAllowOverride All\n\
+             \t\tRequire all granted{set_handler}\n\
+             \t</Directory>\n\n\
+             \tErrorLog ${{APACHE_LOG_DIR}}/{slug}_error.log\n\
+             \tCustomLog ${{APACHE_LOG_DIR}}/{slug}_access.log combined\n\
+             </VirtualHost>\n\n",
+            sn          = sn,
+            dr          = e.document_root,
+            slug        = slug,
+            set_handler = set_handler,
         ));
     }
     out
 }
 
+// ── Internal helpers ──────────────────────────────────────────────────────
 
 fn parse_directive(content: &str, directive: &str) -> String {
     for line in content.lines() {
@@ -168,6 +222,15 @@ fn parse_directive(content: &str, directive: &str) -> String {
         }
     }
     String::new()
+}
+
+/// Extract "8.2" from "SetHandler application/x-httpd-php8.2"
+fn extract_php_version_from_sethandler(line: &str) -> Option<String> {
+    let lower = line.to_lowercase();
+    let prefix = "x-httpd-php";
+    let pos = lower.find(prefix)?;
+    let ver = line[pos + prefix.len()..].trim().to_string();
+    if ver.is_empty() { None } else { Some(ver) }
 }
 
 async fn write_conf(path: &str, content: &str, password: &str) -> Result<(), String> {
@@ -183,5 +246,9 @@ async fn write_conf(path: &str, content: &str, password: &str) -> Result<(), Str
         let _ = stdin.write_all(content.as_bytes()).await;
     }
     let out = child.wait_with_output().await.map_err(|e| e.to_string())?;
-    if out.status.success() { Ok(()) } else { Err(String::from_utf8_lossy(&out.stderr).to_string()) }
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).to_string())
+    }
 }
