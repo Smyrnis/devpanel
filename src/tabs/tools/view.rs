@@ -6,8 +6,6 @@ use crate::Message;
 use iced::widget::{button, column, container, row, scrollable, text, text_input, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Tinted solid backgrounds ──────────────────────────────────────────────
-
 const BLUE_BG:      Color = Color { r: 0.050, g: 0.090, b: 0.180, a: 1.0 };
 const BLUE_BORDER:  Color = Color { r: 0.080, g: 0.140, b: 0.260, a: 1.0 };
 const BLUE_HOVER:   Color = Color { r: 0.070, g: 0.120, b: 0.230, a: 1.0 };
@@ -23,8 +21,6 @@ const TEAL_HOVER:   Color = Color { r: 0.050, g: 0.185, b: 0.175, a: 1.0 };
 const PURPLE_BG:    Color = Color { r: 0.140, g: 0.060, b: 0.180, a: 1.0 };
 const PURPLE_BORDER:Color = Color { r: 0.180, g: 0.080, b: 0.230, a: 1.0 };
 const PURPLE_HOVER: Color = Color { r: 0.160, g: 0.070, b: 0.205, a: 1.0 };
-
-// ── Entry point ───────────────────────────────────────────────────────────
 
 pub fn render(tab: &ToolsTab) -> Element<'_, Message> {
     scrollable(column![
@@ -49,8 +45,6 @@ pub fn render(tab: &ToolsTab) -> Element<'_, Message> {
         Space::with_height(22),
     ].spacing(0).padding(Padding::from([22, 24]))).into()
 }
-
-// ── Section tab bar ───────────────────────────────────────────────────────
 
 fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
     let sections = [
@@ -82,8 +76,6 @@ fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
     }).collect();
     row(tabs).spacing(8).into()
 }
-
-// ── PHP Versions panel ────────────────────────────────────────────────────
 
 fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let scan_lbl = if tab.scanning { "Scanning…" } else { "Scan" };
@@ -186,8 +178,6 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
     .into()
 }
 
-// ── Apache Modules panel ──────────────────────────────────────────────────
-
 fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let scan_lbl = if tab.mods_scanning { "Scanning…" } else { "Scan" };
     let header = row![
@@ -285,8 +275,6 @@ fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
     .into()
 }
 
-// ── PHP Extensions panel ──────────────────────────────────────────────────
-
 fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let active_ver: Option<String> = tab.php_releases.iter().find(|r| r.is_active).map(|r| r.version.clone());
     let ver_label = active_ver.as_deref().unwrap_or("active");
@@ -346,8 +334,6 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
     .into()
 }
 
-// ── Database CLI panel ────────────────────────────────────────────────────
-
 fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let note = container(row![
         text("").size(10).color(YELLOW), Space::with_width(8),
@@ -378,8 +364,6 @@ fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     ].spacing(0).padding(Padding::from([22, 22])))
     .width(Length::Fill).style(card_style()).into()
 }
-
-// ── Activity log ──────────────────────────────────────────────────────────
 
 fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
     if tab.install_log.is_empty() { return Space::with_height(0).into(); }
@@ -448,8 +432,6 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
     })
     .into()
 }
-
-// ── Style/widget helpers ──────────────────────────────────────────────────
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style { background: Some(BG_CARD.into()), border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 10.0.into() }, ..Default::default() }

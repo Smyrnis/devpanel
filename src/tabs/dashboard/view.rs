@@ -6,8 +6,6 @@ use crate::Message;
 use iced::widget::{button, column, container, pick_list, row, scrollable, text, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Tinted solid backgrounds ──────────────────────────────────────────────
-
 const GREEN_BG:   Color = Color { r: 0.071, g: 0.122, b: 0.082, a: 1.0 };
 const PURPLE_BG:  Color = Color { r: 0.110, g: 0.055, b: 0.165, a: 1.0 };
 const PURPLE_BG2: Color = Color { r: 0.140, g: 0.070, b: 0.200, a: 1.0 };
@@ -15,8 +13,6 @@ const PURPLE_BDR: Color = Color { r: 0.170, g: 0.085, b: 0.240, a: 1.0 };
 const BLUE_BG:    Color = Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 };
 const STOPPED_BG: Color = Color { r: 0.110, g: 0.110, b: 0.110, a: 1.0 };
 const STATUS_STOP: Color = TEXT_MUTED;
-
-// ── Entry point ───────────────────────────────────────────────────────────
 
 pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     let info_bar = container(
@@ -93,8 +89,6 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     .into()
 }
 
-// ── Service card ──────────────────────────────────────────────────────────
-
 fn service_card<'a>(
     name: &'a str,
     subtitle: &'a str,
@@ -166,8 +160,6 @@ fn service_card<'a>(
     .style(card_style(card_border))
     .into()
 }
-
-// ── PHP card ──────────────────────────────────────────────────────────────
 
 fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
     let version_text = tab.active_php_version.as_deref().unwrap_or("n/a");
@@ -261,8 +253,6 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
     .style(card_style(BORDER_SUBTLE))
     .into()
 }
-
-// ── Quick action row ──────────────────────────────────────────────────────
 
 fn quick_row<'a>(items: &[(&'a str, Message)]) -> Element<'a, Message> {
     let btns: Vec<Element<Message>> = items.iter().map(|(label, msg)| {

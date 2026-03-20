@@ -13,7 +13,6 @@ use iced::widget::text_editor;
 use iced::Element;
 use crate::Message;
 
-// ── Data types ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct VHostEntry {
@@ -52,7 +51,6 @@ impl VHostForm {
 #[derive(Debug, Clone, PartialEq)]
 pub enum VHostView { List, ConfigEditor }
 
-// ── Tab state ─────────────────────────────────────────────────────────────
 
 pub struct VHostsTab {
     pub devpanel_conf:  String,

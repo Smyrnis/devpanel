@@ -1,9 +1,17 @@
 <?php
 declare(strict_types=1);
 /**
- * DevPanel Welcome Page
+ * Devpanel localhost page
+ * This is the main localhost page that apache 2 is serving main 
+ * To go to the apache2 default .html file go to the localhost/index.html
  * Served from /var/www/html — the standard Apache webroot.
  * Reads virtual hosts from /etc/apache2/sites-available/devpanel.conf
+ * 
+ * 
+ * We do not recomment ovewritting this file. 
+ * If core functionalities are messed up then their will be problems with the workability of the localhost page, NOT the apache
+ * But on the other hand if you want to play with the file go for it
+ * 
  */
 
 $DEVPANEL_CONF = '/etc/apache2/sites-available/devpanel.conf';
@@ -142,7 +150,6 @@ $memPct     = $memTotalMb > 0 ? round($memUsedMb / $memTotalMb * 100) : 0;
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Tokens ── */
 :root {
     --bg:          #0a0a0a;
     --surface:     #111111;
@@ -169,8 +176,6 @@ $memPct     = $memTotalMb > 0 ? round($memUsedMb / $memTotalMb * 100) : 0;
     --mono:        'DM Mono', 'SF Mono', monospace;
     --ease:        cubic-bezier(.25,.46,.45,.94);
 }
-
-/* ── Base ── */
 html { scroll-behavior: smooth; }
 body {
     background: var(--bg);
@@ -191,8 +196,6 @@ code {
     border-radius: 4px;
     border: 1px solid var(--border);
 }
-
-/* ── Layout ── */
 .shell {
     display: grid;
     grid-template-columns: 220px 1fr;
@@ -203,8 +206,6 @@ code {
         "footer footer";
     min-height: 100vh;
 }
-
-/* ── Topbar ── */
 .topbar {
     grid-area: topbar;
     display: flex;
@@ -280,7 +281,6 @@ code {
 }
 .topbar-meta span { color: var(--text-2); }
 
-/* ── Sidebar ── */
 .sidebar {
     grid-area: sidebar;
     background: var(--surface);
@@ -335,7 +335,6 @@ code {
 
 .sidebar-divider { height: 1px; background: var(--border); margin: 8px 10px; }
 
-/* Service status in sidebar */
 .service-row {
     display: flex;
     align-items: center;
@@ -348,7 +347,6 @@ code {
 .service-status-ok  { color: var(--green); font-weight: 500; font-size: 11px; }
 .service-status-err { color: var(--red);   font-weight: 500; font-size: 11px; }
 
-/* Memory bar */
 .mem-block { padding: 4px 10px 10px; }
 .mem-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-2); margin-bottom: 6px; }
 .mem-label code { background: none; border: none; padding: 0; font-size: 11px; color: var(--green); }
@@ -365,14 +363,12 @@ code {
     transition: width .4s var(--ease);
 }
 
-/* ── Main content ── */
 .main {
     grid-area: main;
     padding: 32px 36px;
     max-width: 1100px;
 }
 
-/* Section headers */
 .sec-head {
     display: flex;
     align-items: baseline;
@@ -402,7 +398,6 @@ code {
 
 section { margin-bottom: 40px; }
 
-/* ── Cards grid ── */
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -438,7 +433,6 @@ section { margin-bottom: 40px; }
     text-overflow: ellipsis;
 }
 
-/* Tag chips */
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
 .chip {
     font-size: 10px;
@@ -455,7 +449,6 @@ section { margin-bottom: 40px; }
 
 .card-divider { height: 1px; background: var(--border); margin: 12px 0; }
 
-/* Open link */
 .open-link {
     display: inline-flex;
     align-items: center;
@@ -474,7 +467,6 @@ section { margin-bottom: 40px; }
 
 .no-vhost { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
 
-/* ── Stats rows (for System section) ── */
 .stat-group { display: flex; flex-direction: column; gap: 0; }
 .stat-row {
     display: flex;
@@ -496,7 +488,6 @@ section { margin-bottom: 40px; }
 .stat-ok  { color: var(--green) !important; }
 .stat-err { color: var(--red) !important; }
 
-/* ── Issues ── */
 .issue-list { display: flex; flex-direction: column; gap: 8px; }
 .issue {
     display: flex;
@@ -519,7 +510,6 @@ section { margin-bottom: 40px; }
 }
 .issue-msg { color: var(--text); }
 
-/* ── PHP Modules ── */
 .modules { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
 .mod {
     font-family: var(--mono);
@@ -531,14 +521,12 @@ section { margin-bottom: 40px; }
     border-radius: 4px;
 }
 
-/* ── Empty states ── */
 .empty {
     font-size: 13px;
     color: var(--text-3);
     padding: 24px 0;
 }
 
-/* ── Inline pill for conf status ── */
 .inline-pill {
     display: inline-flex;
     align-items: center;
@@ -550,7 +538,6 @@ section { margin-bottom: 40px; }
     font-weight: 500;
 }
 
-/* ── Footer ── */
 .footer {
     grid-area: footer;
     display: flex;
@@ -565,14 +552,12 @@ section { margin-bottom: 40px; }
 }
 .footer-sep { color: var(--border-mid); }
 
-/* ── Responsive ── */
 @media (max-width: 720px) {
     .shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main" "footer"; }
     .sidebar { display: none; }
     .main { padding: 20px 18px; }
 }
 
-/* ── Animations ── */
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -589,7 +574,6 @@ section:nth-child(4) { animation-delay: .26s; }
 <body>
 <div class="shell">
 
-<!-- ── Topbar ── -->
 <header class="topbar">
     <div class="logo">
         <div class="logo-mark">
@@ -633,7 +617,6 @@ section:nth-child(4) { animation-delay: .26s; }
     </div>
 </header>
 
-<!-- ── Sidebar ── -->
 <nav class="sidebar">
     <div class="nav-label">Navigate</div>
     <a href="#projects" class="nav-item">
@@ -689,10 +672,8 @@ section:nth-child(4) { animation-delay: .26s; }
     <?php endif; ?>
 </nav>
 
-<!-- ── Main ── -->
 <main class="main">
 
-    <!-- Projects -->
     <section id="projects">
         <div class="sec-head">
             <div class="sec-title">Projects</div>
@@ -752,7 +733,6 @@ section:nth-child(4) { animation-delay: .26s; }
         <?php endif; ?>
     </section>
 
-    <!-- Virtual Hosts -->
     <section id="vhosts">
         <div class="sec-head">
             <div class="sec-title">Virtual Hosts</div>
@@ -811,7 +791,6 @@ section:nth-child(4) { animation-delay: .26s; }
         <?php endif; ?>
     </section>
 
-    <!-- Issues -->
     <?php if (!empty($issues)): ?>
     <section id="issues">
         <div class="sec-head">
@@ -837,7 +816,6 @@ section:nth-child(4) { animation-delay: .26s; }
     </section>
     <?php endif; ?>
 
-    <!-- System -->
     <section id="system">
         <div class="sec-head">
             <div class="sec-title">System</div>
@@ -845,7 +823,6 @@ section:nth-child(4) { animation-delay: .26s; }
         <div class="sec-sub">PHP runtime, server stats, and loaded extensions.</div>
 
         <div class="grid" style="margin-bottom:14px;">
-            <!-- PHP -->
             <div class="card">
                 <div class="card-name" style="margin-bottom:14px;">PHP Runtime</div>
                 <div class="stat-group">
@@ -858,7 +835,6 @@ section:nth-child(4) { animation-delay: .26s; }
                 </div>
             </div>
 
-            <!-- Server -->
             <div class="card">
                 <div class="card-name" style="margin-bottom:14px;">Server</div>
                 <div class="stat-group">
@@ -876,7 +852,6 @@ section:nth-child(4) { animation-delay: .26s; }
             </div>
         </div>
 
-        <!-- Extensions -->
         <div class="card">
             <div class="card-name">Loaded Extensions <span style="font-weight:400;font-size:12px;color:var(--text-3);font-family:var(--mono);"><?= count($phpModules) ?> modules</span></div>
             <div class="modules">
@@ -889,7 +864,6 @@ section:nth-child(4) { animation-delay: .26s; }
 
 </main>
 
-<!-- ── Footer ── -->
 <footer class="footer">
     <span>DevPanel</span>
     <span class="footer-sep">/</span>
@@ -900,6 +874,6 @@ section:nth-child(4) { animation-delay: .26s; }
     <span><?= htmlspecialchars($hostname ?: 'localhost', ENT_QUOTES, 'UTF-8') ?></span>
 </footer>
 
-</div><!-- .shell -->
+</div>
 </body>
 </html>

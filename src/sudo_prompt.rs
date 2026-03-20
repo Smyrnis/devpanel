@@ -1,7 +1,4 @@
 // src/sudo_prompt.rs
-// Sudo password modal: in-memory session cache + optional encrypted-at-rest storage.
-// Storage is XOR-obfuscated (not true encryption — it just prevents casual plaintext
-// reads). Users who need real security should use sudoers NOPASSWD instead.
 
 use crate::theme::*;
 use crate::Message;
@@ -9,7 +6,6 @@ use iced::widget::{button, checkbox, column, container, row, text, text_input, S
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 use std::path::PathBuf;
 
-// ── Password store ────────────────────────────────────────────────────────
 
 const OBFUSCATION_KEY: &[u8] = b"devpanel_xor_v1_";
 
@@ -55,7 +51,6 @@ pub fn has_saved_password() -> bool {
     config_path().exists()
 }
 
-// ── Validate password by running `sudo -S true` ───────────────────────────
 
 pub async fn validate_sudo_password(password: String) -> bool {
     use tokio::io::AsyncWriteExt;
@@ -80,7 +75,6 @@ pub async fn validate_sudo_password(password: String) -> bool {
     }
 }
 
-// ── Run a sudo command with the given password via stdin ──────────────────
 
 pub async fn sudo_cmd_with_password(
     password: &str,
@@ -135,8 +129,8 @@ pub async fn sudo_tee_append_with_password(
     use tokio::io::AsyncWriteExt;
     use tokio::process::Command;
 
-    // We use a two-step approach:
-    // 1) sudo -S sh -c "tee -a <path>" — lets us pipe content after password
+    // two-step approach:
+    // 1) sudo -S sh -c "tee -a <path>" — pipe content after password
     let script = format!("tee -a {}", shell_escape(path));
 
     let mut child = Command::new("sudo")
@@ -171,7 +165,6 @@ fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-// ── Modal state ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalState {
@@ -197,15 +190,11 @@ pub enum PendingAction {
     RestartAll,
     PhpInstall(String),
     PhpRemove(String),
-    // VHosts — all in devpanel.conf
     VHostAdd  { server_name: String, document_root: String },
     VHostEdit { index: usize, server_name: String, document_root: String },
     VHostDelete { index: usize },
-    // Config file editor
     SaveConfig { path: String, content: String },
-    // Apache modules
     ApacheModToggle { name: String, enable: bool },
-    // Apt package operations (PHP extensions etc)
     AptInstall { package: String },
     AptRemove  { package: String },
 }
@@ -222,7 +211,6 @@ pub struct SudoModal {
 
 impl SudoModal {
     pub fn new() -> Self {
-        // Load saved password on startup if it exists
         let cached = load_saved_password();
         Self {
             state: ModalState::Hidden,
@@ -243,7 +231,6 @@ impl SudoModal {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        // Full-screen backdrop — deeper for Apple-style modal feel
         let overlay_bg = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.72 };
 
         let modal_content = match &self.state {
@@ -378,7 +365,6 @@ impl SudoModal {
             }
         };
 
-        // Modal card — Apple-style elevated sheet
         let card = container(modal_content.padding(30))
             .width(420)
             .style(|_: &iced::Theme| container::Style {
@@ -396,7 +382,6 @@ impl SudoModal {
                 ..Default::default()
             });
 
-        // Overlay
         container(
             container(card)
                 .width(Length::Fill)
@@ -413,8 +398,6 @@ impl SudoModal {
         .into()
     }
 }
-
-// ── Button styles ─────────────────────────────────────────────────────────
 
 fn teal_btn_style() -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
     |_, status| match status {

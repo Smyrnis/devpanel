@@ -8,9 +8,5 @@ packaging-guide.md
 .idea
 
 # Ignore not important files inside the target file.
-#Leaving only the debian packaged application.
-target/debug
-target/devpanel
-target/release
-target/.rustc_info.json
-target/CACHEDIR.TAG
+# Ignore all of the target files no need to have the debian package there.
+target

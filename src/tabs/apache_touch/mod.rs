@@ -7,8 +7,6 @@ pub mod view;
 use iced::Element;
 use crate::Message;
 
-// ── Log entry ─────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 pub enum LogKind { Info, Success, Warning, Error, Cmd }
 
@@ -25,8 +23,6 @@ impl LogEntry {
     pub fn err(msg:  impl Into<String>) -> Self { Self { kind: LogKind::Error,   message: msg.into() } }
     pub fn cmd(msg:  impl Into<String>) -> Self { Self { kind: LogKind::Cmd,     message: msg.into() } }
 }
-
-// ── Tab state ─────────────────────────────────────────────────────────────
 
 pub struct ApacheTouchTab {
     pub project_name:   String,

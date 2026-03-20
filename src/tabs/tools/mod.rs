@@ -11,8 +11,6 @@ pub use backend::{
 use iced::Element;
 use crate::Message;
 
-// ── Data types ────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum PhpStatus { Installed, Available, Unknown }
 
@@ -40,8 +38,6 @@ pub struct PhpExtension {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolSection { Php, ApacheMods, PhpExts, Database }
-
-// ── Tab state ─────────────────────────────────────────────────────────────
 
 pub struct ToolsTab {
     pub php_releases:   Vec<PhpRelease>,
@@ -93,8 +89,6 @@ impl ToolsTab {
             mod_filter: String::new(),
         }
     }
-
-    // ── State update helpers ──────────────────────────────────────────────
 
     pub fn apply_scan(&mut self, results: Vec<(String, PhpStatus, bool, bool, bool)>) {
         self.scanning = false;

@@ -3,8 +3,6 @@
 use super::VHostEntry;
 use tokio::io::AsyncWriteExt;
 
-// ── Public async tasks ────────────────────────────────────────────────────
-
 pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
     let content = tokio::fs::read_to_string(&devpanel_conf).await.unwrap_or_default();
     parse_vhosts_from_content(&content)
@@ -114,7 +112,6 @@ pub async fn delete_vhost(
     (true, format!("VirtualHost '{}' removed", removed))
 }
 
-// ── Parse / Build helpers ─────────────────────────────────────────────────
 
 pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
     let mut entries  = Vec::new();
@@ -161,7 +158,6 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
     out
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────
 
 fn parse_directive(content: &str, directive: &str) -> String {
     for line in content.lines() {

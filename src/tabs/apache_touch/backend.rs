@@ -3,8 +3,6 @@
 
 use super::LogEntry;
 
-// ── Public async task ─────────────────────────────────────────────────────
-
 /// Run the full VirtualHost setup pipeline.
 /// Returns a list of log entries and a final success flag.
 pub async fn run_setup(
@@ -40,7 +38,7 @@ pub async fn run_setup(
         }
     }
 
-    // 3. auth.json (optional)
+    // 3. auth.json
     if !auth_json_path.is_empty() {
         let src = std::path::PathBuf::from(&auth_json_path);
         let dst = project_dir.join("auth.json");
@@ -101,8 +99,6 @@ pub async fn run_setup(
 
     (log, ok)
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────
 
 fn build_vhost_block(server_name: &str, doc_root: &str, slug: &str) -> String {
     format!(

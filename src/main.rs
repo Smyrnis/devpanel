@@ -19,9 +19,8 @@ use theme::*;
 use iced::widget::{button, column, container, row, stack, text, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Task, Theme};
 use std::path::PathBuf;
-use tokio::process::Command;
+//use tokio::process::Command;
 
-// ── Config ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct DevPanelConfig {
@@ -94,7 +93,6 @@ fn default_devpanel_conf() -> String {
     "/etc/apache2/sites-available/devpanel.conf".to_string()
 }
 
-// ── Active tab ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tab {
@@ -105,13 +103,11 @@ pub enum Tab {
     Tools,
 }
 
-// ── Messages ──────────────────────────────────────────────────────────────
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub enum Message {
     SelectTab(Tab),
-    // Dashboard
     StartApache,
     StopApache,
     RestartApache,
@@ -145,7 +141,6 @@ pub enum Message {
         php: Option<String>,
         php_versions: Vec<String>,
     },
-    // SSH Keys
     SSH_EmailChanged(String),
     SSH_KeyNameChanged(String),
     SSH_KeyTypeChanged(KeyType),
@@ -158,7 +153,7 @@ pub enum Message {
     SSH_OpenDir,
     SSH_ListKeys,
     SSH_KeysListed(Vec<KeyEntry>),
-    // Tools
+    
     TOOLS_ScanPhp,
     TOOLS_ScanDone(Vec<(String, tabs::tools::PhpStatus, bool, bool, bool)>),
     TOOLS_InstallPhp(String),
@@ -183,7 +178,7 @@ pub enum Message {
     TOOLS_InstallPhpExt(String),
     TOOLS_RemovePhpExt(String),
     TOOLS_PhpExtDone(bool, String),
-    // Repos
+    
     REPOS_CheckSsh,
     REPOS_SshChecked(bool, String, bool, String),
     REPOS_Fetch,
@@ -197,7 +192,7 @@ pub enum Message {
     REPOS_SearchChanged(String),
     REPOS_SetFilter(tabs::repos::ProviderFilter),
     REPOS_OpenRoot,
-    // VHosts
+    
     VH_Scan,
     VH_ScanDone(Vec<VHostEntry>),
     VH_ShowAddForm,
@@ -215,16 +210,16 @@ pub enum Message {
     VH_DeleteConfirm(usize),
     VH_DeleteCancel,
     VH_DeleteDone(bool, String),
-    // Config Editor
+    
     VH_OpenConfigEditor,
     VH_CloseConfigEditor,
     VH_ConfigLoaded(String),
     VH_ConfigEditorAction(iced::widget::text_editor::Action),
     VH_SaveConfigFile,
     VH_SaveConfigDone(bool, String),
-    // Auto-refresh
+    
     AutoRefreshTick,
-    // Sudo
+    
     Sudo_PasswordChanged(String),
     Sudo_ToggleShow(bool),
     Sudo_ToggleSave(bool),
@@ -232,7 +227,7 @@ pub enum Message {
     Sudo_ValidationResult(bool),
     Sudo_Cancel,
     Sudo_ClearSaved,
-    // ApacheTouch
+    
     AT_ProjectNameChanged(String),
     AT_BaseDirChanged(String),
     AT_ApacheConfChanged(String),
@@ -243,7 +238,6 @@ pub enum Message {
     AT_SetupDone(Vec<tabs::apache_touch::LogEntry>, bool),
 }
 
-// ── App state ─────────────────────────────────────────────────────────────
 
 struct App {
     active_tab: Tab,
@@ -725,8 +719,7 @@ impl App {
                     .map(|r| r.version.clone());
                 Task::perform(tabs::tools::scan_php_extensions(active), Message::TOOLS_ScanPhpExtsDone)
             }
-            // ── Repos ──────────────────────────────────────────────────────
-            // ── SSH Keys ──────────────────────────────────────────────────
+            
             Message::SSH_EmailChanged(v) => {
                 self.ssh_keys.email = v;
                 Task::none()
@@ -798,7 +791,7 @@ impl App {
                 self.ssh_keys.keys_list = keys;
                 Task::none()
             }
-            // ── Repos (remote browser) ────────────────────────────────────
+            
             Message::REPOS_CheckSsh => Task::perform(tabs::repos::check_ssh(), |r| {
                 Message::REPOS_SshChecked(r.github_ok, r.github_msg, r.bb_ok, r.bb_msg)
             }),
@@ -862,7 +855,7 @@ impl App {
                 let _ = xdg_open(&self.repos.repos_root);
                 Task::none()
             }
-            // ── VHosts ────────────────────────────────────────────────────
+            
             Message::VH_Scan => {
                 self.vhosts.scanning = true;
                 let conf = self.vhosts.devpanel_conf.clone();
@@ -957,7 +950,7 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(tabs::vhosts::scan_vhosts(conf), Message::VH_ScanDone)
             }
-            // Config Editor
+            
             Message::VH_OpenConfigEditor => {
                 self.vhosts.view_mode = tabs::vhosts::VHostView::ConfigEditor;
                 self.vhosts.config_loading = true;
@@ -996,7 +989,7 @@ impl App {
                     Task::none()
                 }
             }
-            // Auto-refresh
+            
             Message::AutoRefreshTick => {
                 if self.active_tab == Tab::Dashboard {
                     Task::perform(tabs::dashboard::probe_services(), |r| r)
@@ -1004,7 +997,7 @@ impl App {
                     Task::none()
                 }
             }
-            // ApacheTouch (tab not yet surfaced in nav)
+            
             Message::AT_ProjectNameChanged(_)
             | Message::AT_BaseDirChanged(_)
             | Message::AT_ApacheConfChanged(_)
@@ -1013,8 +1006,8 @@ impl App {
             | Message::AT_RunSetup
             | Message::AT_ClearLog
             | Message::AT_SetupDone(_, _) => Task::none(),
-        } // end match msg
-    } // end fn update
+        } 
+    }
 
     fn view(&self) -> Element<'_, Message> {
         let tab_content: Element<Message> = match &self.active_tab {
@@ -1371,7 +1364,6 @@ fn divider<'a>() -> Element<'a, Message> {
         .into()
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────
 
 static ICON_BYTES: &[u8] = include_bytes!("../icon.png");
 
@@ -1591,7 +1583,7 @@ fn find_terminal() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    // Last resort: check if /usr/bin/xterm exists without `which`
+    // last rezort , if above fails.
     if std::path::Path::new("/usr/bin/xterm").exists() {
         return Some("xterm".to_string());
     }
@@ -1697,6 +1689,5 @@ async fn try_copy_with_xsel(text: &str) -> bool {
     }
 }
 
-
-// ── Scan PHP extensions ────────────────────────────────────────────────────
-
+// The detection of the php version , does not work . The core logic os partioal ready . 
+// Add it here , and make changes here later. 

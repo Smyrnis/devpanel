@@ -6,7 +6,6 @@ use crate::Message;
 use iced::widget::{button, column, container, row, scrollable, text, text_editor, text_input, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Tinted solid backgrounds ──────────────────────────────────────────────
 
 const GREEN_BG:   Color = Color { r: 0.050, g: 0.160, b: 0.090, a: 1.0 };
 const GREEN_HOVER:Color = Color { r: 0.060, g: 0.185, b: 0.100, a: 1.0 };
@@ -19,7 +18,6 @@ const TEAL_BG:    Color = Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 };
 const TEAL_HOVER: Color = Color { r: 0.050, g: 0.185, b: 0.175, a: 1.0 };
 const TEAL_BORDER:Color = Color { r: 0.060, g: 0.210, b: 0.200, a: 1.0 };
 
-// ── Entry point ───────────────────────────────────────────────────────────
 
 pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
     match tab.view_mode {
@@ -27,8 +25,6 @@ pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
         VHostView::ConfigEditor => config_editor_view(tab),
     }
 }
-
-// ── List view ─────────────────────────────────────────────────────────────
 
 fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = column![
@@ -112,8 +108,6 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     ].spacing(0).padding(Padding::from([22, 24]))).into()
 }
 
-// ── Config editor view ────────────────────────────────────────────────────
-
 fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = row![
         column![
@@ -165,8 +159,6 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
         Space::with_height(16),
     ].height(Length::Fill).into()
 }
-
-// ── VHost row (with inline edit) ──────────────────────────────────────────
 
 fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message> {
     let idx = vh.index;
@@ -316,8 +308,6 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
         submit_el,
     ].spacing(0).padding(Padding::from([20, 22]))).width(Length::Fill).style(card_style()).into()
 }
-
-// ── Style helpers ─────────────────────────────────────────────────────────
 
 fn card_style()    -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style { background: Some(BG_CARD.into()),    border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 10.0.into() }, ..Default::default() }

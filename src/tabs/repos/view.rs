@@ -6,8 +6,6 @@ use crate::Message;
 use iced::widget::{button, column, container, row, scrollable, text, text_input, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Tinted solid backgrounds ──────────────────────────────────────────────
-
 const GREEN_BG:     Color = Color { r: 0.071, g: 0.122, b: 0.082, a: 1.0 };
 const GREEN_HOVER:  Color = Color { r: 0.090, g: 0.148, b: 0.100, a: 1.0 };
 const BLUE_BG:      Color = Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 };
@@ -19,12 +17,9 @@ const RED_BG:       Color = Color { r: 0.137, g: 0.071, b: 0.067, a: 1.0 };
 const YELLOW_BG:    Color = Color { r: 0.137, g: 0.122, b: 0.043, a: 1.0 };
 const YELLOW_BORDER:Color = Color { r: 0.180, g: 0.160, b: 0.055, a: 1.0 };
 
-// Provider helpers (replaces impl methods that touched Color)
 fn provider_color(p: &Provider) -> Color  { match p { Provider::GitHub => TEAL, Provider::Bitbucket => BLUE } }
 fn provider_bg(p: &Provider)    -> Color  { match p { Provider::GitHub => TEAL_BG, Provider::Bitbucket => BLUE_BG } }
 fn provider_border(p: &Provider)-> Color  { match p { Provider::GitHub => TEAL_BORDER, Provider::Bitbucket => BLUE_BORDER } }
-
-// ── Entry point ───────────────────────────────────────────────────────────
 
 pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     let header = column![
@@ -134,8 +129,6 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     ].spacing(0).padding(Padding::from([22, 24]))).into()
 }
 
-// ── SSH status pill ───────────────────────────────────────────────────────
-
 fn ssh_pill<'a>(label: &'a str, status: &'a SshStatus) -> Element<'a, Message> {
     let (dot_color, status_text, bg) = match status {
         SshStatus::Unknown     => (TEXT_MUTED, "not checked", BG_SURFACE),
@@ -156,8 +149,6 @@ fn ssh_pill<'a>(label: &'a str, status: &'a SshStatus) -> Element<'a, Message> {
     })
     .into()
 }
-
-// ── Empty state ───────────────────────────────────────────────────────────
 
 fn empty_state<'a>() -> Element<'a, Message> {
     let github_hint = container(column![
@@ -212,8 +203,6 @@ fn empty_state<'a>() -> Element<'a, Message> {
     .width(Length::Fill).padding(Padding::from([8, 0]))
     .into()
 }
-
-// ── Repo card ─────────────────────────────────────────────────────────────
 
 fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
     let p_color  = provider_color(&repo.provider);
@@ -293,8 +282,6 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
     .padding(Padding::from([16, 18])).width(Length::Fill).style(card_style())
     .into()
 }
-
-// ── Style helpers ─────────────────────────────────────────────────────────
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style {

@@ -8,7 +8,6 @@ pub use backend::{detect_php, probe_services, service_active};
 use iced::Element;
 use crate::Message;
 
-// ── State ─────────────────────────────────────────────────────────────────
 
 pub struct DashboardTab {
     pub apache_running:      bool,

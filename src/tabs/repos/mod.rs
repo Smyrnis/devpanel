@@ -9,8 +9,6 @@ pub use backend::{check_ssh, clone_repo, fetch_remote_repos};
 use iced::Element;
 use crate::Message;
 
-// ── Data types ────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Provider {
     GitHub,
@@ -28,9 +26,9 @@ impl Provider {
 
 #[derive(Debug, Clone)]
 pub struct RemoteRepo {
-    pub name:       String,   // e.g. "my-project"
-    pub full_name:  String,   // e.g. "username/my-project"
-    pub ssh_url:    String,   // e.g. "git@github.com:username/my-project.git"
+    pub name:       String,
+    pub full_name:  String,
+    pub ssh_url:    String,
     pub provider:   Provider,
     pub is_cloned:  bool,
     pub is_cloning: bool,
@@ -49,8 +47,6 @@ pub enum ProviderFilter {
     GitHub,
     Bitbucket,
 }
-
-// ── Tab state ─────────────────────────────────────────────────────────────
 
 pub struct ReposTab {
     pub repos_root:       String,

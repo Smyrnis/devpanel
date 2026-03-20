@@ -8,8 +8,6 @@ pub use backend::{generate_key, list_keys};
 use iced::Element;
 use crate::Message;
 
-// ── Data types ────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyType { Ed25519, Rsa4096, Ecdsa }
 
@@ -32,8 +30,6 @@ pub struct KeyEntry {
     pub path:    String,
     pub has_pub: bool,
 }
-
-// ── Tab state ─────────────────────────────────────────────────────────────
 
 pub struct SshKeysTab {
     pub email:           String,

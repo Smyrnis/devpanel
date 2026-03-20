@@ -6,8 +6,6 @@ use crate::Message;
 use iced::widget::{button, column, container, radio, row, scrollable, text, text_input, Space};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-// ── Entry point ───────────────────────────────────────────────────────────
-
 pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
     scrollable(column![
         column![
@@ -27,8 +25,6 @@ pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
     ].spacing(0).padding(Padding::from([22, 24])))
     .into()
 }
-
-// ── Generate panel ────────────────────────────────────────────────────────
 
 fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     let type_row = row![
@@ -93,8 +89,6 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     .into()
 }
 
-// ── Keys list panel ───────────────────────────────────────────────────────
-
 fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     let entries: Vec<Element<Message>> = if tab.keys_list.is_empty() {
         vec![container(text("No keys found. Click Refresh.").size(13).color(TEXT_MUTED))
@@ -147,8 +141,6 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     .into()
 }
 
-// ── Status bar ────────────────────────────────────────────────────────────
-
 fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
     if tab.status_kind == StatusKind::None || tab.status_message.is_empty() {
         return Space::with_height(0).into();
@@ -177,8 +169,6 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
         ..Default::default()
     }).into()
 }
-
-// ── Style helpers ─────────────────────────────────────────────────────────
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_: &iced::Theme| container::Style {

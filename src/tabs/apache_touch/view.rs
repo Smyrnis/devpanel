@@ -11,8 +11,6 @@ const GREEN_BDR: Color = Color { r: 0.070, g: 0.210, b: 0.110, a: 1.0 };
 const RED_BDR:   Color = Color { r: 0.260, g: 0.080, b: 0.070, a: 1.0 };
 const TEAL_BG:   Color = Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 };
 
-// ── Entry point ───────────────────────────────────────────────────────────
-
 pub fn render(tab: &ApacheTouchTab) -> Element<'_, Message> {
     let form   = form_card(tab);
     let banner = status_banner(tab);
@@ -38,8 +36,6 @@ pub fn render(tab: &ApacheTouchTab) -> Element<'_, Message> {
     ].spacing(0).padding(Padding::from([22, 24])))
     .into()
 }
-
-// ── Form card ─────────────────────────────────────────────────────────────
 
 fn form_card(tab: &ApacheTouchTab) -> Element<'_, Message> {
     let divider = || container(Space::with_height(1)).width(Length::Fill).height(1)
@@ -92,7 +88,6 @@ fn form_card(tab: &ApacheTouchTab) -> Element<'_, Message> {
         Space::with_height(22),
         divider(),
         Space::with_height(18),
-        // Action buttons
         row![
             button(text(if tab.running { "Running..." } else { "Run Setup" }).size(13))
                 .on_press_maybe(if tab.running { None } else { Some(Message::AT_RunSetup) })
@@ -113,8 +108,6 @@ fn form_card(tab: &ApacheTouchTab) -> Element<'_, Message> {
     .width(Length::Fill).style(card_style())
     .into()
 }
-
-// ── Status banner ─────────────────────────────────────────────────────────
 
 fn status_banner(tab: &ApacheTouchTab) -> Element<'_, Message> {
     match tab.finished_ok {
@@ -146,8 +139,6 @@ fn status_banner(tab: &ApacheTouchTab) -> Element<'_, Message> {
     }
 }
 
-// ── Log panel ─────────────────────────────────────────────────────────────
-
 fn log_panel(tab: &ApacheTouchTab) -> Element<'_, Message> {
     let content: Element<Message> = if tab.log.is_empty() {
         container(text("Log output will appear here after running setup").size(13).color(TEXT_MUTED))
@@ -171,8 +162,6 @@ fn log_panel(tab: &ApacheTouchTab) -> Element<'_, Message> {
 
     container(content).width(Length::Fill).style(surface_style()).into()
 }
-
-// ── Help card ─────────────────────────────────────────────────────────────
 
 fn help_card<'a>() -> Element<'a, Message> {
     container(column![
@@ -206,8 +195,6 @@ fn help_row<'a>(num: &'a str, desc: &'a str) -> Element<'a, Message> {
         text(desc).size(12).color(TEXT_SECONDARY),
     ].align_y(Alignment::Center).into()
 }
-
-// ── Style helpers ─────────────────────────────────────────────────────────
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_: &iced::Theme| container::Style {

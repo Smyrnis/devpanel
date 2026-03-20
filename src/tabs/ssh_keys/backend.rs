@@ -63,8 +63,6 @@ pub async fn list_keys() -> Vec<KeyEntry> {
     entries
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
 fn ssh_dir() -> std::path::PathBuf {
     std::env::var("HOME")
         .map(std::path::PathBuf::from)

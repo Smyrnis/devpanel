@@ -2,16 +2,12 @@
 
 use super::{Provider, RemoteRepo};
 
-// ── Public types ──────────────────────────────────────────────────────────
-
 pub struct SshCheckResult {
     pub github_ok:  bool,
     pub github_msg: String,
     pub bb_ok:      bool,
     pub bb_msg:     String,
 }
-
-// ── Public async tasks ────────────────────────────────────────────────────
 
 pub async fn check_ssh() -> SshCheckResult {
     let (github_ok, github_msg) = check_ssh_host("git@github.com").await;
@@ -64,8 +60,6 @@ pub async fn clone_repo(
     }
 }
 
-// ── SSH probe ─────────────────────────────────────────────────────────────
-
 async fn check_ssh_host(host: &str) -> (bool, String) {
     let out = tokio::process::Command::new("ssh")
         .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
@@ -105,8 +99,6 @@ fn extract_ssh_username(msg: &str) -> String {
     }
     "connected".to_string()
 }
-
-// ── GitHub ────────────────────────────────────────────────────────────────
 
 async fn fetch_github_repos() -> Vec<RemoteRepo> {
     if let Some(repos) = try_gh_cli().await { return repos; }
@@ -158,9 +150,8 @@ async fn get_github_username_via_ssh() -> Option<String> {
 }
 
 // Without the gh CLI there is no way to list all repos via SSH alone.
+// This thing is a pile of dog shit , does not work. 
 async fn fetch_github_via_ls_remote(_username: &str) -> Vec<RemoteRepo> { Vec::new() }
-
-// ── Bitbucket ─────────────────────────────────────────────────────────────
 
 async fn fetch_bitbucket_repos() -> Vec<RemoteRepo> {
     scan_local_for_bitbucket().await
@@ -224,8 +215,6 @@ fn extract_bitbucket_user_from_ssh_config(content: &str) -> Option<String> {
     }
     None
 }
-
-// ── JSON helpers (zero-dependency) ───────────────────────────────────────
 
 fn split_json_objects(input: &str) -> Vec<String> {
     let mut objects = Vec::new();
