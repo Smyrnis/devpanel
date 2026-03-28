@@ -1,5 +1,3 @@
-// src/tabs/tools/mod.rs — state, data types, public API
-
 pub mod backend;
 pub mod view;
 
@@ -10,6 +8,7 @@ pub use backend::{
 
 use iced::Element;
 use crate::Message;
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PhpStatus { Installed, Available, Unknown }
@@ -39,6 +38,7 @@ pub struct PhpExtension {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolSection { Php, ApacheMods, PhpExts, Database }
 
+
 pub struct ToolsTab {
     pub php_releases:   Vec<PhpRelease>,
     pub apache_mods:    Vec<ApacheModule>,
@@ -56,6 +56,13 @@ impl ToolsTab {
     pub fn new() -> Self {
         Self {
             php_releases: vec![
+                PhpRelease {
+                    version:              "5.6".into(),
+                    status:               PhpStatus::Unknown,
+                    is_active:            false,
+                    apache_mod_available: false,
+                    apache_mod_enabled:   false,
+                },
                 PhpRelease { version: "7.4".into(), status: PhpStatus::Unknown, is_active: false, apache_mod_available: false, apache_mod_enabled: false },
                 PhpRelease { version: "8.0".into(), status: PhpStatus::Unknown, is_active: false, apache_mod_available: false, apache_mod_enabled: false },
                 PhpRelease { version: "8.1".into(), status: PhpStatus::Unknown, is_active: false, apache_mod_available: false, apache_mod_enabled: false },
@@ -80,13 +87,13 @@ impl ToolsTab {
                 PhpExtension { name: "xdebug".into(),   pkg_suffix: "php-xdebug".into(),   installed: false },
                 PhpExtension { name: "sqlite3".into(),  pkg_suffix: "php-sqlite3".into(),  installed: false },
             ],
-            scanning: false,
-            mods_scanning: false,
-            install_log: Vec::new(),
-            db_status: String::new(),
+            scanning:       false,
+            mods_scanning:  false,
+            install_log:    Vec::new(),
+            db_status:      String::new(),
             last_php_error: None,
             active_section: ToolSection::Php,
-            mod_filter: String::new(),
+            mod_filter:     String::new(),
         }
     }
 
@@ -106,7 +113,7 @@ impl ToolsTab {
 
     pub fn apply_mod_scan(&mut self, results: Vec<ApacheModule>) {
         self.mods_scanning = false;
-        self.apache_mods = results;
+        self.apache_mods   = results;
         self.apache_mods.sort_by(|a, b| a.name.cmp(&b.name));
     }
 
@@ -123,7 +130,9 @@ impl ToolsTab {
             if m.name == name { m.enabled = enabled; }
         }
         for r in &mut self.php_releases {
-            if format!("php{}", r.version) == name {
+            let mod_name     = format!("php{}", r.version);
+            let mod_name_alt = if r.version == "5.6" { Some("php5") } else { None };
+            if mod_name == name || mod_name_alt == Some(name) {
                 r.apache_mod_enabled = enabled;
             }
         }

@@ -4,8 +4,9 @@ Cargo.lock
 # Ignore simple documentation.
 packaging-guide.md
 
-# Ignore the .idea.
+# Ignore the .idea , .zed , .code
 .idea
+.zed
 
 # Ignore not important files inside the target file.
 # Ignore all of the target files no need to have the debian package there.

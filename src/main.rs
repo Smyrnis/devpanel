@@ -6,6 +6,7 @@ mod first_run_install;
 mod sudo_prompt;
 mod tabs;
 mod theme;
+mod setup_log;
 
 use sudo_prompt::{
     ModalState, PendingAction, SudoModal, clear_saved_password, save_password,

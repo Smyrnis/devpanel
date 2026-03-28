@@ -1,5 +1,3 @@
-// src/tabs/tools/view.rs — all UI rendering for the Tools tab
-
 use super::{ApacheModule, PhpExtension, PhpRelease, PhpStatus, ToolSection, ToolsTab};
 use crate::theme::*;
 use crate::Message;
@@ -129,53 +127,162 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
         PhpStatus::Available => (TEXT_MUTED, "Available"),
         PhpStatus::Unknown   => (TEXT_MUTED, "Unknown"),
     };
+
+    let is_php56 = r.version == "5.6";
+
     let active_badge: Element<Message> = if r.is_active {
-        container(text("Active").size(10).color(TEAL)).padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style { background: Some(TEAL_BG.into()), border: Border { radius: 20.0.into(), ..Default::default() }, ..Default::default() }).into()
-    } else { Space::with_width(0).into() };
+        container(text("Active").size(10).color(TEAL))
+            .padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(TEAL_BG.into()),
+                border: Border { radius: 20.0.into(), ..Default::default() },
+                ..Default::default()
+            })
+            .into()
+    } else {
+        Space::with_width(0).into()
+    };
+
+    let eol_badge: Element<Message> = if is_php56 {
+        container(text("EOL").size(9).color(YELLOW))
+            .padding(Padding::from([3, 7]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(YELLOW_BG.into()),
+                border: Border {
+                    color: YELLOW_BORDER,
+                    width: 1.0,
+                    radius: 20.0.into(),
+                },
+                ..Default::default()
+            })
+            .into()
+    } else {
+        Space::with_width(0).into()
+    };
 
     let dot = status_dot(status_color);
+
     let apt_btn: Element<Message> = match r.status {
-        PhpStatus::Installed => small_action_btn("Remove",  RED,   RED_BG,   RED_HOVER,   Message::TOOLS_RemovePhp(r.version.clone())),
-        _                    => small_action_btn("Install", GREEN, GREEN_BG, GREEN_HOVER, Message::TOOLS_InstallPhp(r.version.clone())),
+        PhpStatus::Installed => small_action_btn(
+            "Remove", RED, RED_BG, RED_HOVER,
+            Message::TOOLS_RemovePhp(r.version.clone()),
+        ),
+        _ => small_action_btn(
+            "Install", GREEN, GREEN_BG, GREEN_HOVER,
+            Message::TOOLS_InstallPhp(r.version.clone()),
+        ),
     };
 
     let mod_name = format!("php{}", r.version);
     let (mod_dot_color, mod_status_lbl) = if r.apache_mod_available {
         if r.apache_mod_enabled { (GREEN, "enabled") } else { (YELLOW, "disabled") }
-    } else { (BORDER_SUBTLE, "not available") };
+    } else {
+        (BORDER_SUBTLE, "not available")
+    };
     let mod_dot = status_dot(mod_dot_color);
+
     let apache_btn: Element<Message> = if r.apache_mod_available {
         if r.apache_mod_enabled {
-            small_action_btn("Disable mod", RED,  RED_BG,  RED_HOVER,  Message::TOOLS_DisableApacheMod(mod_name))
+            small_action_btn(
+                "Disable mod", RED, RED_BG, RED_HOVER,
+                Message::TOOLS_DisableApacheMod(mod_name),
+            )
         } else {
-            small_action_btn("Enable mod",  BLUE, BLUE_BG, BLUE_HOVER, Message::TOOLS_EnableApacheMod(mod_name))
+            small_action_btn(
+                "Enable mod", BLUE, BLUE_BG, BLUE_HOVER,
+                Message::TOOLS_EnableApacheMod(mod_name),
+            )
         }
     } else {
-        container(text("no apache mod").size(10).color(TEXT_MUTED)).padding(Padding::from([6, 0])).into()
+        container(text("no apache mod").size(10).color(TEXT_MUTED))
+            .padding(Padding::from([6, 0]))
+            .into()
+    };
+    let card: Element<Message> = container(
+        row![
+            dot,
+            Space::with_width(12),
+            column![
+                row![
+                    text(format!("PHP {}", r.version)).size(14).color(TEXT_PRIMARY),
+                    Space::with_width(8),
+                    active_badge,
+                    Space::with_width(4),
+                    eol_badge,
+                ]
+                .align_y(Alignment::Center),
+                Space::with_height(2),
+                text(status_label).size(11).color(status_color),
+            ]
+            .spacing(0)
+            .width(Length::Fill),
+            container(Space::with_width(1)).width(1).height(34)
+                .style(|_: &iced::Theme| container::Style {
+                    background: Some(BORDER_SUBTLE.into()),
+                    ..Default::default()
+                }),
+            Space::with_width(12),
+            column![
+                row![
+                    mod_dot,
+                    Space::with_width(6),
+                    text(mod_status_lbl).size(10).color(TEXT_MUTED),
+                ]
+                .align_y(Alignment::Center),
+                Space::with_height(5),
+                apache_btn,
+            ]
+            .spacing(0)
+            .width(160),
+            Space::with_width(12),
+            apt_btn,
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(Padding::from([12, 14]))
+    .width(Length::Fill)
+    .style(|_: &iced::Theme| container::Style {
+        background: Some(BG_SURFACE.into()),
+        border: Border {
+            color: BORDER_SUBTLE,
+            width: 1.0,
+            radius: 8.0.into(),
+        },
+        ..Default::default()
+    })
+    .into();
+    let ppa_hint: Element<Message> = if is_php56 && r.status != PhpStatus::Installed {
+        column![
+            Space::with_height(4),
+            container(
+                row![
+                    text("!").size(9).color(YELLOW),
+                    Space::with_width(6),
+                    text("Requires ondrej/php PPA:  sudo add-apt-repository ppa:ondrej/php")
+                        .size(10)
+                        .color(TEXT_MUTED),
+                ]
+                .align_y(Alignment::Center),
+            )
+            .padding(Padding::from([6, 14]))
+            .width(Length::Fill)
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(YELLOW_BG.into()),
+                border: Border {
+                    color: YELLOW_BORDER,
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                ..Default::default()
+            }),
+        ]
+        .spacing(0)
+        .into()
+    } else {
+        Space::with_height(0).into()
     };
 
-    container(row![
-        dot, Space::with_width(12),
-        column![
-            row![text(format!("PHP {}", r.version)).size(14).color(TEXT_PRIMARY), Space::with_width(8), active_badge].align_y(Alignment::Center),
-            Space::with_height(2),
-            text(status_label).size(11).color(status_color),
-        ].spacing(0).width(Length::Fill),
-        container(Space::with_width(1)).width(1).height(34)
-            .style(|_: &iced::Theme| container::Style { background: Some(BORDER_SUBTLE.into()), ..Default::default() }),
-        Space::with_width(12),
-        column![
-            row![mod_dot, Space::with_width(6), text(mod_status_lbl).size(10).color(TEXT_MUTED)].align_y(Alignment::Center),
-            Space::with_height(5),
-            apache_btn,
-        ].spacing(0).width(160),
-        Space::with_width(12),
-        apt_btn,
-    ].align_y(Alignment::Center))
-    .padding(Padding::from([12, 14])).width(Length::Fill)
-    .style(|_: &iced::Theme| container::Style { background: Some(BG_SURFACE.into()), border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() }, ..Default::default() })
-    .into()
+    column![card, ppa_hint].spacing(0).into()
 }
 
 fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {

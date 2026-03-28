@@ -1,32 +1,59 @@
 #!/bin/bash
+# scripts/postinst — DevPanel post-install hook
+# Called by dpkg after package installation.
+# Produces NO terminal output — all activity goes to /var/log/devpanel/setup.log
 set -e
-# Core script , this is the script that runs after the installation of the .deb package.
-# And it point to the devpanel-setup.sh 
-# Do not change the file or overwrite it , unless you know what you are doing.
+
 SETUP_SCRIPT="/usr/share/devpanel/devpanel-setup.sh"
+LOG_DIR="/var/log/devpanel"
+LOG_FILE="$LOG_DIR/setup.log"
+
+_ts() { date '+%Y-%m-%d %H:%M:%S'; }
+
+mkdir -p "$LOG_DIR"
+chmod 755 "$LOG_DIR"
+
+log_postinst() {
+    echo "$(_ts) [POSTINST] $1" >> "$LOG_FILE"
+}
+
+log_postinst "postinst triggered — action: ${1:-unknown}"
 
 if [ ! -f "$SETUP_SCRIPT" ]; then
-    echo "DevPanel: setup script not found at $SETUP_SCRIPT — skipping."
-    echo "          Run manually: sudo bash $SETUP_SCRIPT"
+    log_postinst "ERROR: setup script not found at $SETUP_SCRIPT"
+    log_postinst "Run manually: sudo bash $SETUP_SCRIPT"
     exit 0
 fi
 
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     TARGET_USER="$SUDO_USER"
+    log_postinst "Target user from SUDO_USER: $TARGET_USER"
 elif [ -n "$PKEXEC_UID" ]; then
     TARGET_USER=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
+    log_postinst "Target user from PKEXEC_UID ($PKEXEC_UID): $TARGET_USER"
 else
     TARGET_USER=$(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /nologin|false/ {print $1; exit}')
+    log_postinst "Target user from passwd scan: $TARGET_USER"
 fi
 
 if [ -z "$TARGET_USER" ]; then
-    echo "DevPanel: could not determine target user — skipping auto-setup."
-    echo "          Run manually: sudo bash $SETUP_SCRIPT"
+    log_postinst "ERROR: could not determine target user"
+    log_postinst "Run manually: sudo bash $SETUP_SCRIPT"
     exit 0
 fi
 
-echo "DevPanel: running setup for user: $TARGET_USER"
+log_postinst "Running setup script for user: $TARGET_USER"
 
-SUDO_USER="$TARGET_USER" bash "$SETUP_SCRIPT"
+if SUDO_USER="$TARGET_USER" bash "$SETUP_SCRIPT" >> "$LOG_FILE" 2>&1; then
+    log_postinst "Setup script completed successfully"
+else
+    RC=$?
+    log_postinst "Setup script exited with code $RC"
+    log_postinst "Check $LOG_FILE for details"
+fi
+chown "$TARGET_USER" "$LOG_FILE" 2>/dev/null || true
+chmod 644 "$LOG_FILE" 2>/dev/null || true
+
+log_postinst "postinst done — log at $LOG_FILE"
 
 exit 0
