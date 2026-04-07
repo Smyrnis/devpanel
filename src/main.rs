@@ -1,29 +1,16 @@
-// src/main.rs — DevPanel entry point
-//
-// This file is intentionally thin. All application logic lives in:
-//   src/app.rs     — App state, Message enum, update(), view(), sidebar()
-//   src/config.rs  — DevPanelConfig, TOML loading/saving
-//   src/system.rs  — process helpers, terminal, clipboard, path utilities
-
 mod app;
-mod config;
-mod dry_run;
-mod first_run;
-mod first_run_install;
-mod setup_log;
-mod sudo_prompt;
-mod system;
+mod core;
+mod messages;
 mod tabs;
-mod theme;
 
-use app::{App, Message};
+use app::App;
 use iced::Theme;
 
 static ICON_BYTES: &[u8] = include_bytes!("../icon.png");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;
-    let img  = image::load_from_memory(ICON_BYTES).ok()?;
+    let img = image::load_from_memory(ICON_BYTES).ok()?;
     let rgba = img.to_rgba8();
     let (w, h) = img.dimensions();
     iced::window::icon::from_rgba(rgba.into_raw(), w, h).ok()
@@ -31,7 +18,7 @@ fn load_window_icon() -> Option<iced::window::Icon> {
 
 fn make_fallback_icon() -> Option<iced::window::Icon> {
     let size: u32 = 32;
-    let mut rgba  = vec![0u8; (size * size * 4) as usize];
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
     for y in 0..size {
         for x in 0..size {
             let idx = ((y * size + x) * 4) as usize;
@@ -39,7 +26,7 @@ fn make_fallback_icon() -> Option<iced::window::Icon> {
             let dx = x as f32 - 15.5;
             let dy = y as f32 - 15.5;
             if dx * dx + dy * dy <= 13.0 * 13.0 {
-                rgba[idx]     = 0x33;
+                rgba[idx] = 0x33;
                 rgba[idx + 1] = 0xBC;
                 rgba[idx + 2] = 0xAC;
             }
@@ -54,7 +41,7 @@ fn main() -> iced::Result {
         .subscription(App::subscription)
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
-            size:     iced::Size::new(1040.0, 660.0),
+            size: iced::Size::new(1040.0, 660.0),
             min_size: Some(iced::Size::new(860.0, 560.0)),
             icon,
             ..Default::default()

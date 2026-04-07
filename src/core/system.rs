@@ -1,14 +1,9 @@
-// src/system.rs — OS-level helpers: process launch, terminal detection, clipboard
-
 use std::path::PathBuf;
 
-// ── Path helpers ──────────────────────────────────────────────────────────
 
 pub fn get_home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
 }
-
-// ── URL / file openers ────────────────────────────────────────────────────
 
 pub fn xdg_open(path: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(path).spawn()?;
@@ -23,7 +18,7 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
 pub fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
     if let Some(version) = active_php {
         let short = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
-        let cli_ini    = format!("/etc/php/{}/cli/php.ini", short);
+        let cli_ini = format!("/etc/php/{}/cli/php.ini", short);
         let apache_ini = format!("/etc/php/{}/apache2/php.ini", short);
         if std::path::Path::new(&cli_ini).exists() {
             return xdg_open(&cli_ini);
@@ -35,28 +30,36 @@ pub fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
     xdg_open("/etc/php")
 }
 
-// ── Terminal helpers ──────────────────────────────────────────────────────
-
 pub fn open_terminal_at(path: &str) {
     let Some(term) = find_terminal() else { return };
     let cd_cmd = format!("cd {} && exec bash", shell_quote(path));
     let result = match term.as_str() {
         "gnome-terminal" => std::process::Command::new("gnome-terminal")
-            .arg("--working-directory").arg(path).spawn(),
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
         "xfce4-terminal" => std::process::Command::new("xfce4-terminal")
-            .arg("--working-directory").arg(path).spawn(),
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
         "konsole" => std::process::Command::new("konsole")
-            .arg("--workdir").arg(path).spawn(),
+            .arg("--workdir")
+            .arg(path)
+            .spawn(),
         "mate-terminal" => std::process::Command::new("mate-terminal")
-            .arg("--working-directory").arg(path).spawn(),
+            .arg("--working-directory")
+            .arg(path)
+            .spawn(),
         "xterm" => std::process::Command::new("xterm")
-            .args(["-e", "bash", "-c", &cd_cmd]).spawn(),
+            .args(["-e", "bash", "-c", &cd_cmd])
+            .spawn(),
         "lxterminal" | "tilix" => std::process::Command::new(&term)
             .arg("-e")
             .arg(format!("bash -c {}", shell_quote(&cd_cmd)))
             .spawn(),
         _ => std::process::Command::new(&term)
-            .args(["-e", "bash", "-c", &cd_cmd]).spawn(),
+            .args(["-e", "bash", "-c", &cd_cmd])
+            .spawn(),
     };
     let _ = result;
 }
@@ -77,9 +80,11 @@ pub fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, Strin
     })?;
     let result = match term.as_str() {
         "gnome-terminal" | "mate-terminal" => std::process::Command::new(&term)
-            .args(["--", "bash", "-c", &inner]).spawn(),
+            .args(["--", "bash", "-c", &inner])
+            .spawn(),
         "xterm" | "konsole" => std::process::Command::new(&term)
-            .args(["-e", "bash", "-c", &inner]).spawn(),
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
         "xfce4-terminal" => std::process::Command::new("xfce4-terminal")
             .arg("--command")
             .arg(format!("bash -c {}", shell_quote(&inner)))
@@ -93,12 +98,14 @@ pub fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, Strin
             .arg(format!("bash -c {}", shell_quote(&inner)))
             .spawn(),
         "x-terminal-emulator" => std::process::Command::new("x-terminal-emulator")
-            .args(["-e", "bash", "-c", &inner]).spawn(),
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
         _ => std::process::Command::new(&term)
-            .args(["-e", "bash", "-c", &inner]).spawn(),
+            .args(["-e", "bash", "-c", &inner])
+            .spawn(),
     };
     match result {
-        Ok(_)  => Ok(format!("Launched '{}' in {}", mysql_cmd, term)),
+        Ok(_) => Ok(format!("Launched '{}' in {}", mysql_cmd, term)),
         Err(e) => Err(format!("Failed to open {}: {}", term, e)),
     }
 }
@@ -140,42 +147,48 @@ pub fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-// ── Async service command ─────────────────────────────────────────────────
-
 /// Runs `systemctl <action> <service>` via sudo and returns a ServiceResult message.
 /// Takes owned Strings — no Box::leak required.
 pub async fn run_service_cmd(
-    service:  String,
-    action:   String,
+    service: String,
+    action: String,
     password: String,
-) -> crate::app::Message {
-    let result = crate::sudo_prompt::sudo_cmd_with_password(
+) -> crate::messages::Message {
+    let result: Result<String, String> = crate::core::sudo_prompt::sudo_cmd_with_password(
         &password,
         &["systemctl", &action, &service],
     )
     .await;
-    crate::app::Message::ServiceResult {
+    crate::messages::Message::Dashboard(crate::messages::DashboardMessage::ServiceResult {
         service,
         action,
         success: result.is_ok(),
-        output:  result.err().unwrap_or_default(),
-    }
+        output: result.err().unwrap_or_default(),
+    })
 }
 
 pub async fn ssh_add(path: String) -> (bool, String) {
-    match tokio::process::Command::new("ssh-add").arg(&path).output().await {
+    match tokio::process::Command::new("ssh-add")
+        .arg(&path)
+        .output()
+        .await
+    {
         Ok(o) if o.status.success() => (true, format!("Key added: {}", path)),
-        Ok(o)  => (false, String::from_utf8_lossy(&o.stderr).to_string()),
+        Ok(o) => (false, String::from_utf8_lossy(&o.stderr).to_string()),
         Err(e) => (false, e.to_string()),
     }
 }
 
-// ── Clipboard helpers ─────────────────────────────────────────────────────
-
 pub async fn copy_to_clipboard(text: String) {
-    if try_xclip(&text).await   { return; }
-    if try_wl_copy(&text).await { return; }
-    if try_xsel(&text).await    { return; }
+    if try_xclip(&text).await {
+        return;
+    }
+    if try_wl_copy(&text).await {
+        return;
+    }
+    if try_xsel(&text).await {
+        return;
+    }
     fallback_script_file(&text).await;
 }
 
@@ -207,8 +220,7 @@ async fn pipe_to_cmd(mut cmd: tokio::process::Command, text: &str) -> bool {
         return false;
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let ok = stdin.write_all(text.as_bytes()).await.is_ok()
-            && stdin.flush().await.is_ok();
+        let ok = stdin.write_all(text.as_bytes()).await.is_ok() && stdin.flush().await.is_ok();
         drop(stdin);
         let _ = child.wait().await;
         ok

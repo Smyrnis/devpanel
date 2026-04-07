@@ -1,8 +1,9 @@
 # DevPanel 
 <img width="100px" height="100px" src="icon.png" alt="application icon"/> 
+
 A lightweight desktop GUI for managing your local PHP development environment on Ubuntu and Debian. Built with Rust and [Iced](https://github.com/iced-rs/iced).
 
-<p> Current version: <strong> 0.5.7 </strong> </p>
+<p> Current version: <strong> 0.5.11 </strong> </p>
 
 ---
 
@@ -57,7 +58,11 @@ The application is current on development.
 If you encounter problems please open an issue.
 
 ---
+## For the Tests check here
+
+[Tests](tests/TESTS.md)
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+

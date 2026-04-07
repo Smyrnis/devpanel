@@ -1,24 +1,38 @@
 [package]
 name = "devpanel"
-version = "0.5.8"
+version = "0.5.11"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
+
 
 [[bin]]
 name = "devpanel"
 path = "src/main.rs"
 
-#
-#   cargo build                          → dev / dry-run mode (default)
-#   cargo build --features production    → real commands, file writes enabled
-#   cargo deb                            → always builds with production
-#
-# default : is the dry-run mode / dev mode , it runs no command that can ruing the developers system config
-# production : enables real sudo, apt, systemctl, and file writes
+
+[lib]
+name = "devpanel"
+path = "src/lib.rs"
+
+#   cargo build                       → dev / dry-run (default)
+#   cargo build --features production → real sudo / apt / systemctl
+#   cargo deb                         → always passes --features production
+
 [features]
 default    = []
 production = []
+
+[dependencies]
+iced              = { version = "0.13", features = ["tokio", "image"] }
+tokio             = { version = "1",    features = ["full"] }
+rfd               = "0.15"
+image             = "0.25"
+rusqlite          = { version = "0.31", features = ["bundled"] }
+rusqlite_migration = "1.2"
+
+[dev-dependencies]
+tempfile = "3"
 
 [package.metadata.deb]
 maintainer = "Giannis Smyrnis <smyrnisgiannis@gmail.com>"
@@ -39,13 +53,6 @@ assets = [
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
 ]
-# cargo deb always passes and has the production features.
 deb-features = ["production"]
 maintainer-scripts = "scripts/"
 revision = ""
-
-[dependencies]
-iced  = { version = "0.13", features = ["tokio", "image"] }
-tokio = { version = "1",    features = ["full"] }
-rfd   = "0.15"
-image = "0.25"
