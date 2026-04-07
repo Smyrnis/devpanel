@@ -6,9 +6,9 @@
 // In dry-run (dev) mode every sudo command is logged and skipped — nothing
 // on the host system is touched.
 
-use crate::Message;
-use crate::dry_run;
-use crate::theme::*;
+use crate::core::dry_run;
+use crate::core::theme::*;
+use crate::messages::Message;
 use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 use std::path::PathBuf;
@@ -377,15 +377,15 @@ impl SudoModal {
                     },
                     &self.password_input,
                 )
-                .on_input(Message::Sudo_PasswordChanged)
-                .on_submit(Message::Sudo_Submit)
+                .on_input(Message::SudoPasswordChanged)
+                .on_submit(Message::SudoSubmit)
                 .secure(!self.show_password)
                 .padding(11)
                 .size(13);
 
                 let show_btn =
                     button(text(if self.show_password { "Hide" } else { "Show" }).size(12))
-                        .on_press(Message::Sudo_ToggleShow(!self.show_password))
+                        .on_press(Message::SudoToggleShow(!self.show_password))
                         .padding(Padding::from([11, 14]))
                         .style(ghost_btn_style());
 
@@ -394,17 +394,17 @@ impl SudoModal {
                     .align_y(Alignment::Center);
 
                 let save_check = checkbox("Save password for this session", self.save_password)
-                    .on_toggle(Message::Sudo_ToggleSave)
+                    .on_toggle(Message::SudoToggleSave)
                     .size(14)
                     .text_size(13);
 
                 let submit_btn = button(text("Unlock").size(13))
-                    .on_press(Message::Sudo_Submit)
+                    .on_press(Message::SudoSubmit)
                     .padding(Padding::from([10, 28]))
                     .style(teal_btn_style());
 
                 let cancel_btn = button(text("Cancel").size(13))
-                    .on_press(Message::Sudo_Cancel)
+                    .on_press(Message::SudoCancel)
                     .padding(Padding::from([10, 18]))
                     .style(ghost_btn_style());
 

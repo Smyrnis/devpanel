@@ -1,10 +1,6 @@
-// src/first_run.rs
-// First-run welcome modal shown once on startup.
-// Writes ~/.config/devpanel/first_run_done after the user clicks Continue.
-
-use crate::theme::*;
-use crate::Message;
-use iced::widget::{button, column, container, row, text, Space};
+use crate::core::theme::*;
+use crate::messages::Message;
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 fn sentinel_path() -> std::path::PathBuf {
@@ -27,6 +23,8 @@ pub fn mark_done() {
     let _ = std::fs::write(&path, "1");
 }
 
+/// Tracks whether the first-run modal is shown.
+/// Stored on `App` and checked in `App::view()`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FirstRunState {
     Visible,
@@ -49,31 +47,74 @@ struct Item {
 }
 
 const INSTALL_ITEMS: &[Item] = &[
-    Item { package: "apache2",                  purpose: "HTTP server"                         },
-    Item { package: "libapache2-mod-php",        purpose: "PHP module for Apache"               },
-    Item { package: "php8.2",                   purpose: "PHP 8.2 CLI + common extensions"     },
-    Item { package: "php8.2-cli",               purpose: "PHP command-line interface"          },
-    Item { package: "php8.2-common",            purpose: "Shared PHP extensions"               },
-    Item { package: "php8.2-mysql",             purpose: "MySQL / MariaDB driver"              },
-    Item { package: "php8.2-xml",               purpose: "XML / DOM / SimpleXML support"       },
-    Item { package: "php8.2-mbstring",          purpose: "Multibyte string functions"          },
-    Item { package: "mysql-server",             purpose: "MySQL / MariaDB database server"     },
+    Item {
+        package: "apache2",
+        purpose: "HTTP server",
+    },
+    Item {
+        package: "libapache2-mod-php",
+        purpose: "PHP module for Apache",
+    },
+    Item {
+        package: "php8.2",
+        purpose: "PHP 8.2 CLI + common extensions",
+    },
+    Item {
+        package: "php8.2-cli",
+        purpose: "PHP command-line interface",
+    },
+    Item {
+        package: "php8.2-common",
+        purpose: "Shared PHP extensions",
+    },
+    Item {
+        package: "php8.2-mysql",
+        purpose: "MySQL / MariaDB driver",
+    },
+    Item {
+        package: "php8.2-xml",
+        purpose: "XML / DOM / SimpleXML support",
+    },
+    Item {
+        package: "php8.2-mbstring",
+        purpose: "Multibyte string functions",
+    },
+    Item {
+        package: "mysql-server",
+        purpose: "MySQL / MariaDB database server",
+    },
 ];
 
 pub fn view() -> Element<'static, Message> {
-    let overlay_bg = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.78 };
+    use crate::messages::{FirstRunMessage, Message};
+
+    let overlay_bg = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 0.78,
+    };
 
     let header = column![
         row![
-            container(
-                text("NEW").size(9).color(TEAL)
-            )
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 }.into()),
-                border: Border { radius: 6.0.into(), ..Default::default() },
-                ..Default::default()
-            }),
+            container(text("NEW").size(9).color(TEAL))
+                .padding(Padding::from([3, 8]))
+                .style(|_: &iced::Theme| container::Style {
+                    background: Some(
+                        Color {
+                            r: 0.040,
+                            g: 0.160,
+                            b: 0.150,
+                            a: 1.0
+                        }
+                        .into()
+                    ),
+                    border: Border {
+                        radius: 6.0.into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }),
             Space::with_width(10),
             text("Welcome to DevPanel").size(20).color(TEXT_PRIMARY),
         ]
@@ -83,9 +124,11 @@ pub fn view() -> Element<'static, Message> {
             .size(13)
             .color(TEXT_SECONDARY),
         Space::with_height(4),
-        text("This requires your sudo password. You can exit now and install manually if you prefer.")
-            .size(12)
-            .color(TEXT_MUTED),
+        text(
+            "This requires your sudo password. You can exit now and install manually if you prefer."
+        )
+        .size(12)
+        .color(TEXT_MUTED),
     ]
     .spacing(0);
 
@@ -102,23 +145,20 @@ pub fn view() -> Element<'static, Message> {
         .map(|item| {
             container(
                 row![
-                    // Green dot
                     container(Space::with_width(6))
                         .width(6)
                         .height(6)
                         .style(|_: &iced::Theme| container::Style {
                             background: Some(GREEN.into()),
-                            border: Border { radius: 3.0.into(), ..Default::default() },
+                            border: Border {
+                                radius: 3.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         }),
                     Space::with_width(10),
-                    text(item.package)
-                        .size(12)
-                        .color(TEXT_PRIMARY)
-                        .width(220),
-                    text(item.purpose)
-                        .size(11)
-                        .color(TEXT_MUTED),
+                    text(item.package).size(12).color(TEXT_PRIMARY).width(220),
+                    text(item.purpose).size(11).color(TEXT_MUTED),
                 ]
                 .align_y(Alignment::Center),
             )
@@ -136,8 +176,6 @@ pub fn view() -> Element<'static, Message> {
             .into()
         })
         .collect();
-
-    let pkg_list = column(pkg_rows).spacing(5);
 
     let php_note = container(
         row![
@@ -159,9 +197,22 @@ pub fn view() -> Element<'static, Message> {
     .padding(Padding::from([10, 12]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 }.into()),
+        background: Some(
+            Color {
+                r: 0.047,
+                g: 0.090,
+                b: 0.157,
+                a: 1.0,
+            }
+            .into(),
+        ),
         border: Border {
-            color: Color { r: 0.080, g: 0.140, b: 0.260, a: 1.0 },
+            color: Color {
+                r: 0.080,
+                g: 0.140,
+                b: 0.260,
+                a: 1.0,
+            },
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -169,29 +220,50 @@ pub fn view() -> Element<'static, Message> {
     });
 
     let continue_btn = button(text("Continue — Install & Setup").size(13))
-        .on_press(Message::FirstRun_Continue)
+        .on_press(Message::FirstRun(FirstRunMessage::Continue))
         .padding(Padding::from([11, 28]))
         .style(|_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
-                    background: Some(Color { r: 0.060, g: 0.185, b: 0.175, a: 1.0 }.into()),
+                    background: Some(
+                        Color {
+                            r: 0.060,
+                            g: 0.185,
+                            b: 0.175,
+                            a: 1.0,
+                        }
+                        .into(),
+                    ),
                     text_color: TEAL,
-                    border: Border { color: TEAL, width: 1.0, radius: 8.0.into() },
+                    border: Border {
+                        color: TEAL,
+                        width: 1.0,
+                        radius: 8.0.into(),
+                    },
                     ..Default::default()
-                },
+                }
+            }
             _ => iced::widget::button::Style {
                 background: Some(TEAL.into()),
-                text_color: Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
-                border: Border { radius: 8.0.into(), ..Default::default() },
+                text_color: Color {
+                    r: 0.05,
+                    g: 0.05,
+                    b: 0.06,
+                    a: 1.0,
+                },
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         });
 
     let exit_btn = button(text("Exit").size(13))
-        .on_press(Message::FirstRun_Exit)
+        .on_press(Message::FirstRun(FirstRunMessage::Exit))
         .padding(Padding::from([11, 20]))
         .style(|_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
                     background: Some(BG_HOVER.into()),
                     text_color: TEXT_PRIMARY,
@@ -201,7 +273,8 @@ pub fn view() -> Element<'static, Message> {
                         radius: 8.0.into(),
                     },
                     ..Default::default()
-                },
+                }
+            }
             _ => iced::widget::button::Style {
                 background: Some(BG_CARD.into()),
                 text_color: TEXT_SECONDARY,
@@ -222,12 +295,11 @@ pub fn view() -> Element<'static, Message> {
             Space::with_height(16),
             text("Packages to install").size(11).color(TEXT_MUTED),
             Space::with_height(8),
-            pkg_list,
+            column(pkg_rows).spacing(5),
             Space::with_height(14),
             php_note,
             Space::with_height(24),
-            row![continue_btn, Space::with_width(10), exit_btn]
-                .align_y(Alignment::Center),
+            row![continue_btn, Space::with_width(10), exit_btn].align_y(Alignment::Center),
         ]
         .spacing(0)
         .padding(Padding::from([32, 32])),
@@ -241,7 +313,10 @@ pub fn view() -> Element<'static, Message> {
             radius: 16.0.into(),
         },
         shadow: iced::Shadow {
-            color: Color { a: 0.7, ..Color::BLACK },
+            color: Color {
+                a: 0.7,
+                ..Color::BLACK
+            },
             offset: iced::Vector::new(0.0, 16.0),
             blur_radius: 56.0,
         },

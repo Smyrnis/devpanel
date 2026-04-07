@@ -1,5 +1,5 @@
-use crate::dry_run;
-use crate::sudo_prompt::sudo_cmd_with_password;
+use crate::core::dry_run;
+use crate::core::sudo_prompt::sudo_cmd_with_password;
 
 const BASE_PACKAGES: &[&str] = &[
     "apache2",

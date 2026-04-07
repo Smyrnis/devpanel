@@ -218,22 +218,3 @@ sudo dpkg -i devpanel_0.2.0_amd64.deb
 Users who installed via a PPA will get the update automatically via `apt upgrade`.
 
 ---
-
-## Project File Structure (for reference)
-
-```
-devpanel/
-├── Cargo.toml               ← includes [package.metadata.deb]
-├── LICENSE                  ← required by cargo-deb
-├── icon.png                 ← app icon (512x512, embedded + installed)
-├── devpanel.desktop         ← app launcher entry
-└── src/
-    ├── main.rs
-    ├── sudo_prompt.rs
-    ├── theme.rs
-    └── tabs/
-        ├── mod.rs
-        ├── dashboard.rs
-        ├── apache_touch.rs
-        └── ssh_keys.rs
-```
