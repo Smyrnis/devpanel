@@ -2,13 +2,18 @@ pub mod update;
 
 use crate::core::{
     config::DevPanelConfig,
+    db::{DevPanelDb, UserSettings},
     first_run::{self, FirstRunState},
     sudo_prompt::{PendingAction, SudoModal},
     theme::*,
 };
 use crate::messages::{Message, SudoMessage, Tab};
 use crate::tabs::{
-    dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab, tools::ToolsTab,
+    config::ConfigTab,
+    dashboard::DashboardTab,
+    repos::ReposTab,
+    ssh_keys::SshKeysTab,
+    tools::ToolsTab,
     vhosts::VHostsTab,
 };
 
@@ -24,11 +29,13 @@ pub struct Toast {
 pub struct App {
     pub active_tab: Tab,
     pub config: DevPanelConfig,
+    pub db: Option<DevPanelDb>,
     pub dashboard: DashboardTab,
     pub ssh_keys: SshKeysTab,
     pub tools: ToolsTab,
     pub repos: ReposTab,
     pub vhosts: VHostsTab,
+    pub config_tab: ConfigTab,
     pub toast: Option<Toast>,
     pub sudo: SudoModal,
     pub sudo_pending_action: Option<PendingAction>,
@@ -39,14 +46,22 @@ pub struct App {
 impl App {
     pub fn new() -> (Self, Task<Message>) {
         let config = DevPanelConfig::load();
+        let db = DevPanelDb::open().ok();
+        let user_settings = match &db {
+            Some(d) => UserSettings::load(d),
+            None => UserSettings::default(),
+        };
+
         let app = Self {
             repos: ReposTab::new(config.repos_root.clone(), config.repos_root.clone()),
             vhosts: VHostsTab::new(config.devpanel_conf.clone()),
+            config_tab: ConfigTab::new(user_settings),
             active_tab: Tab::Dashboard,
             dashboard: DashboardTab::new(),
             ssh_keys: SshKeysTab::new(),
             tools: ToolsTab::new(),
             config,
+            db,
             toast: None,
             sudo: SudoModal::new(),
             sudo_pending_action: None,
@@ -83,6 +98,7 @@ impl App {
             Tab::Tools => self.tools.view(),
             Tab::Repos => self.repos.view(),
             Tab::VHosts => self.vhosts.view(),
+            Tab::Config => self.config_tab.view(),
         };
 
         let main_body: Element<Message> = if let Some(toast) = &self.toast {
@@ -203,6 +219,7 @@ impl App {
             self.nav_item("VirtualHosts", Tab::VHosts),
             self.nav_item("SSH Keys", Tab::SshKeys),
             self.nav_item("Tools", Tab::Tools),
+            self.nav_item("Config", Tab::Config),
         ]
         .spacing(2)
         .padding(Padding::from([0, 8]));

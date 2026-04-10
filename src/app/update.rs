@@ -2,6 +2,7 @@ use iced::Task;
 
 use crate::app::App;
 use crate::core::{
+    db::{DevPanelDb, UserSettings},
     first_run, setup_log,
     sudo_prompt::{
         ModalState, PendingAction, clear_saved_password, save_password, validate_sudo_password,
@@ -12,8 +13,8 @@ use crate::core::{
     },
 };
 use crate::messages::{
-    DashboardMessage, FirstRunMessage, Message, ReposMessage, SshKeysMessage, SudoMessage, Tab,
-    ToolsMessage, VHostsMessage,
+    ConfigMessage, DashboardMessage, FirstRunMessage, Message, ReposMessage, SshKeysMessage,
+    SudoMessage, Tab, ToolsMessage, VHostsMessage,
 };
 use crate::tabs::repos::SshStatus;
 
@@ -28,11 +29,7 @@ impl App {
             Message::VHosts(m) => self.handle_vhosts(m),
             Message::Sudo(m) => self.handle_sudo(m),
             Message::FirstRun(m) => self.handle_first_run(m),
-            Message::SudoPasswordChanged(v) => self.handle_sudo(SudoMessage::PasswordChanged(v)),
-            Message::SudoToggleShow(v) => self.handle_sudo(SudoMessage::ToggleShow(v)),
-            Message::SudoToggleSave(v) => self.handle_sudo(SudoMessage::ToggleSave(v)),
-            Message::SudoSubmit => self.handle_sudo(SudoMessage::Submit),
-            Message::SudoCancel => self.handle_sudo(SudoMessage::Cancel),
+            Message::Config(m) => self.handle_config(m),
         }
     }
 }
@@ -62,6 +59,7 @@ impl App {
                     Message::VHosts(VHostsMessage::ScanDone(v))
                 })
             }
+            Tab::Config => Task::none(),
         }
     }
 }
@@ -268,15 +266,23 @@ impl App {
                 self.dashboard.set_php_versions(php_versions);
                 if !self.setup_issues_checked {
                     self.setup_issues_checked = true;
-                    let issues = setup_log::read_setup_issues();
-                    if !issues.is_empty() {
-                        let summary = format!(
-                            "{} post-install issue(s) — check /var/log/devpanel/setup.log",
-                            issues.len()
-                        );
-                        return self.show_toast(summary, false);
+                    let show = self.config_tab.settings.ui_show_setup_log;
+                    if show {
+                        let issues = setup_log::read_setup_issues();
+                        if !issues.is_empty() {
+                            let summary = format!(
+                                "{} post-install issue(s) — check /var/log/devpanel/setup.log",
+                                issues.len()
+                            );
+                            return self.show_toast(summary, false);
+                        }
                     }
                 }
+                Task::none()
+            }
+
+            DashboardMessage::ResetIssuesCheck => {
+                self.setup_issues_checked = false;
                 Task::none()
             }
 
@@ -938,6 +944,87 @@ impl App {
                 } else {
                     self.show_toast(msg, ok)
                 }
+            }
+        }
+    }
+}
+
+impl App {
+    fn handle_config(&mut self, msg: ConfigMessage) -> Task<Message> {
+        match msg {
+            ConfigMessage::SetSection(s) => {
+                self.config_tab.active_section = s;
+                Task::none()
+            }
+
+            ConfigMessage::Save => {
+                self.config_tab.saving = true;
+                let settings = self.config_tab.settings.clone();
+                Task::perform(
+                    async move {
+                        match DevPanelDb::open() {
+                            Ok(db) => match settings.save(&db) {
+                                Ok(_) => (true, "Settings saved".to_string()),
+                                Err(e) => (false, format!("Save failed: {}", e)),
+                            },
+                            Err(e) => (false, format!("DB error: {}", e)),
+                        }
+                    },
+                    |(ok, msg)| Message::Config(ConfigMessage::SaveDone(ok, msg)),
+                )
+            }
+
+            ConfigMessage::SaveDone(ok, msg) => {
+                self.config_tab.apply_save_result(ok, msg.clone());
+                if ok {
+                    if let Ok(db) = DevPanelDb::open() {
+                        let loaded = UserSettings::load(&db);
+                        self.config_tab.settings = loaded;
+                        self.db = Some(db);
+                    }
+                }
+                self.show_toast(msg, ok)
+            }
+
+            ConfigMessage::ApacheLogLevelChanged(v) => {
+                self.config_tab.settings.apache_log_level = v;
+                Task::none()
+            }
+            ConfigMessage::ApacheAutoReloadChanged(v) => {
+                self.config_tab.settings.apache_auto_reload = v;
+                Task::none()
+            }
+            ConfigMessage::PhpDefaultVersionChanged(v) => {
+                self.config_tab.settings.php_default_version = v;
+                Task::none()
+            }
+            ConfigMessage::PhpDisplayErrorsChanged(v) => {
+                self.config_tab.settings.php_display_errors = v;
+                Task::none()
+            }
+            ConfigMessage::ProjectsOpenCommandChanged(v) => {
+                self.config_tab.settings.projects_open_command = v;
+                Task::none()
+            }
+            ConfigMessage::UiConfirmDeletesChanged(v) => {
+                self.config_tab.settings.ui_confirm_deletes = v;
+                Task::none()
+            }
+            ConfigMessage::UiToastDurationChanged(v) => {
+                self.config_tab.settings.ui_toast_duration_ms = v;
+                Task::none()
+            }
+            ConfigMessage::UiShowSetupLogChanged(v) => {
+                self.config_tab.settings.ui_show_setup_log = v;
+                Task::none()
+            }
+            ConfigMessage::SshDefaultKeyTypeChanged(v) => {
+                self.config_tab.settings.ssh_default_key_type = v;
+                Task::none()
+            }
+            ConfigMessage::EditorCommandChanged(v) => {
+                self.config_tab.settings.editor_command = v;
+                Task::none()
             }
         }
     }

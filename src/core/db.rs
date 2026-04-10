@@ -245,6 +245,23 @@ pub struct UserSettings {
     pub editor_command: String,
 }
 
+impl Default for UserSettings {
+    fn default() -> Self {
+        UserSettings {
+            apache_log_level: defaults::APACHE_LOG_LEVEL.to_string(),
+            apache_auto_reload: true,
+            php_default_version: defaults::PHP_DEFAULT_VERSION.to_string(),
+            php_display_errors: true,
+            projects_open_command: defaults::PROJECTS_OPEN_COMMAND.to_string(),
+            ui_confirm_deletes: true,
+            ui_toast_duration_ms: 4000,
+            ui_show_setup_log: true,
+            ssh_default_key_type: defaults::SSH_DEFAULT_KEY_TYPE.to_string(),
+            editor_command: defaults::EDITOR_COMMAND.to_string(),
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl UserSettings {
     pub fn load(db: &DevPanelDb) -> Self {

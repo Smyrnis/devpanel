@@ -193,10 +193,10 @@ pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
             let orig = line.trim();
             let lower = orig.to_lowercase();
             if lower.starts_with("servername") {
-                sn = parse_directive(orig, "ServerName");
+                sn = extract_directive_value(orig);
             }
             if lower.starts_with("documentroot") {
-                dr = parse_directive(orig, "DocumentRoot");
+                dr = extract_directive_value(orig);
             }
             if lower.contains("sethandler") && lower.contains("x-httpd-php") {
                 php_ver = extract_php_version_from_sethandler(orig);
@@ -240,23 +240,24 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
     out
 }
 
+fn extract_directive_value(line: &str) -> String {
+    line.split_whitespace()
+        .nth(1)
+        .unwrap_or("")
+        .to_string()
+}
+
+#[allow(dead_code)]
 fn parse_directive(content: &str, directive: &str) -> String {
     for line in content.lines() {
         let t = line.trim();
         if t.to_lowercase().starts_with(&directive.to_lowercase()) {
-            let rest = &t[directive.len()..];
-            return rest
-                .trim()
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_string();
+            return extract_directive_value(t);
         }
     }
     String::new()
 }
 
-/// Extract "8.2" from "SetHandler application/x-httpd-php8.2"
 fn extract_php_version_from_sethandler(line: &str) -> Option<String> {
     let lower = line.to_lowercase();
     let prefix = "x-httpd-php";

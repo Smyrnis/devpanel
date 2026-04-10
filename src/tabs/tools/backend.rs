@@ -3,59 +3,20 @@ use crate::core::sudo_prompt::sudo_cmd_with_password;
 use tokio::process::Command;
 
 struct PhpVersionMeta {
-    /// The version string shown in the UI, e.g. "5.6" or "8.2"
     version: &'static str,
-    /// Binary name(s) to probe under /usr/bin/, in order of preference
     binaries: &'static [&'static str],
-    /// Name passed to a2enmod / a2dismod
     mod_name: &'static str,
-    /// apt package name used for install / remove
     apt_pkg: &'static str,
 }
 
 const PHP_VERSIONS: &[PhpVersionMeta] = &[
-    PhpVersionMeta {
-        version: "5.6",
-        binaries: &["php5.6", "php5"],
-        mod_name: "php5.6",
-        apt_pkg: "php5.6",
-    },
-    PhpVersionMeta {
-        version: "7.4",
-        binaries: &["php7.4"],
-        mod_name: "php7.4",
-        apt_pkg: "php7.4",
-    },
-    PhpVersionMeta {
-        version: "8.0",
-        binaries: &["php8.0"],
-        mod_name: "php8.0",
-        apt_pkg: "php8.0",
-    },
-    PhpVersionMeta {
-        version: "8.1",
-        binaries: &["php8.1"],
-        mod_name: "php8.1",
-        apt_pkg: "php8.1",
-    },
-    PhpVersionMeta {
-        version: "8.2",
-        binaries: &["php8.2"],
-        mod_name: "php8.2",
-        apt_pkg: "php8.2",
-    },
-    PhpVersionMeta {
-        version: "8.3",
-        binaries: &["php8.3"],
-        mod_name: "php8.3",
-        apt_pkg: "php8.3",
-    },
-    PhpVersionMeta {
-        version: "8.4",
-        binaries: &["php8.4"],
-        mod_name: "php8.4",
-        apt_pkg: "php8.4",
-    },
+    PhpVersionMeta { version: "5.6", binaries: &["php5.6", "php5"], mod_name: "php5.6", apt_pkg: "php5.6" },
+    PhpVersionMeta { version: "7.4", binaries: &["php7.4"], mod_name: "php7.4", apt_pkg: "php7.4" },
+    PhpVersionMeta { version: "8.0", binaries: &["php8.0"], mod_name: "php8.0", apt_pkg: "php8.0" },
+    PhpVersionMeta { version: "8.1", binaries: &["php8.1"], mod_name: "php8.1", apt_pkg: "php8.1" },
+    PhpVersionMeta { version: "8.2", binaries: &["php8.2"], mod_name: "php8.2", apt_pkg: "php8.2" },
+    PhpVersionMeta { version: "8.3", binaries: &["php8.3"], mod_name: "php8.3", apt_pkg: "php8.3" },
+    PhpVersionMeta { version: "8.4", binaries: &["php8.4"], mod_name: "php8.4", apt_pkg: "php8.4" },
 ];
 
 pub async fn scan_php_versions(
@@ -71,10 +32,7 @@ pub async fn scan_php_versions(
         let installed = {
             let mut found = false;
             for bin in meta.binaries {
-                if tokio::fs::metadata(format!("/usr/bin/{}", bin))
-                    .await
-                    .is_ok()
-                {
+                if tokio::fs::metadata(format!("/usr/bin/{}", bin)).await.is_ok() {
                     found = true;
                     break;
                 }
@@ -91,11 +49,7 @@ pub async fn scan_php_versions(
                 .await
                 .map(|o| o.status.success())
                 .unwrap_or(false);
-            if avail {
-                PhpStatus::Available
-            } else {
-                PhpStatus::Unknown
-            }
+            if avail { PhpStatus::Available } else { PhpStatus::Unknown }
         };
 
         let is_active = active_short.as_deref() == Some(meta.version);
@@ -103,7 +57,6 @@ pub async fn scan_php_versions(
         let (mod_available, mod_enabled) = {
             let primary_load = format!("/etc/apache2/mods-available/{}.load", meta.mod_name);
             let primary_enable = format!("/etc/apache2/mods-enabled/{}.load", meta.mod_name);
-
             if tokio::fs::metadata(&primary_load).await.is_ok() {
                 let enabled = tokio::fs::metadata(&primary_enable).await.is_ok();
                 (true, enabled)
@@ -118,13 +71,7 @@ pub async fn scan_php_versions(
             }
         };
 
-        results.push((
-            meta.version.to_string(),
-            status,
-            is_active,
-            mod_available,
-            mod_enabled,
-        ));
+        results.push((meta.version.to_string(), status, is_active, mod_available, mod_enabled));
     }
 
     results
@@ -155,8 +102,8 @@ pub async fn scan_apache_modules() -> Vec<ApacheModule> {
 
 pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, bool)> {
     let ext_names = [
-        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql", "redis", "intl", "bcmath",
-        "soap", "imagick", "xdebug", "sqlite3",
+        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql",
+        "redis", "intl", "bcmath", "soap", "imagick", "xdebug", "sqlite3",
     ];
     let mut results = Vec::new();
     for name in &ext_names {
@@ -190,11 +137,7 @@ pub async fn toggle_apache_module(
             let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
             (
                 true,
-                format!(
-                    "mod_{} {} — Apache reloaded",
-                    name,
-                    if enable { "enabled" } else { "disabled" }
-                ),
+                format!("mod_{} {} — Apache reloaded", name, if enable { "enabled" } else { "disabled" }),
                 name,
                 enable,
             )
@@ -212,18 +155,12 @@ pub async fn apt_php_op(version: String, install: bool, password: String) -> (bo
 
     let pkg = if version == "5.6" {
         if install {
-            format!(
-                "php5.6 php5.6-cli php5.6-common php5.6-mysql \
-                 php5.6-xml php5.6-mbstring php5.6-curl"
-            )
+            "php5.6 php5.6-cli php5.6-common php5.6-mysql php5.6-xml php5.6-mbstring php5.6-curl".to_string()
         } else {
-            format!("php5.6 php5.6-*")
+            "php5.6 php5.6-*".to_string()
         }
     } else if install {
-        format!(
-            "php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring",
-            version
-        )
+        format!("php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring", version)
     } else {
         format!("php{0} php{0}-*", version)
     };
@@ -234,15 +171,7 @@ pub async fn apt_php_op(version: String, install: bool, password: String) -> (bo
         Ok(output) => {
             if output.contains("not found") || output.contains("Unable to locate") {
                 if version == "5.6" {
-                    (
-                        false,
-                        format!(
-                            "PHP 5.6 not found in repositories.\n\
-                         Add the ondrej/php PPA first:\n\
-                         sudo add-apt-repository ppa:ondrej/php\n\
-                         sudo apt-get update"
-                        ),
-                    )
+                    (false, "PHP 5.6 not found in repositories.\nAdd the ondrej/php PPA first:\nsudo add-apt-repository ppa:ondrej/php\nsudo apt-get update".to_string())
                 } else {
                     (false, format!("PHP {} not found in repositories.", version))
                 }
@@ -263,11 +192,7 @@ pub async fn apt_package_op(package: String, install: bool, password: String) ->
     match sudo_cmd_with_password(&password, &args).await {
         Ok(_) => (
             true,
-            format!(
-                "{} {}d successfully",
-                package,
-                if install { "installe" } else { "remove" }
-            ),
+            format!("{} {}d successfully", package, if install { "installe" } else { "remove" }),
         ),
         Err(e) => (false, format!("Failed: {}", e)),
     }
