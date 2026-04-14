@@ -6,7 +6,7 @@ mod tabs;
 use app::App;
 use iced::Theme;
 
-static ICON_BYTES: &[u8] = include_bytes!("../icon.png");
+static ICON_BYTES: &[u8] = include_bytes!("../devpanel.jpg");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;
