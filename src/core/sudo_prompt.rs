@@ -1,11 +1,3 @@
-// src/sudo_prompt.rs
-// Sudo password modal: in-memory session cache + optional encrypted-at-rest storage.
-// Storage is XOR-obfuscated (not true encryption — it just prevents casual plaintext
-// reads). Users who need real security should use sudoers NOPASSWD instead.
-//
-// In dry-run (dev) mode every sudo command is logged and skipped — nothing
-// on the host system is touched.
-
 use crate::core::dry_run;
 use crate::core::theme::*;
 use crate::messages::Message;
@@ -94,7 +86,7 @@ pub async fn sudo_cmd_with_password(password: &str, args: &[&str]) -> Result<Str
     if dry_run::active() {
         let cmd_str = args.join(" ");
         dry_run::log(&format!("sudo_cmd_with_password: sudo {}", cmd_str));
-        return dry_run::ok(&format!("sudo {}", cmd_str));
+        return Ok(format!("[dry-run] would run: sudo {}", cmd_str));
     }
 
     use tokio::io::AsyncWriteExt;
@@ -201,42 +193,18 @@ impl Default for ModalState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PendingAction {
-    ServiceControl {
-        service: String,
-        action: String,
-    },
+    ServiceControl { service: String, action: String },
     PhpSwitch(String),
     RestartAll,
     PhpInstall(String),
     PhpRemove(String),
-    VHostAdd {
-        server_name: String,
-        document_root: String,
-        php_version: Option<String>,
-    },
-    VHostEdit {
-        index: usize,
-        server_name: String,
-        document_root: String,
-        php_version: Option<String>,
-    },
-    VHostDelete {
-        index: usize,
-    },
-    SaveConfig {
-        path: String,
-        content: String,
-    },
-    ApacheModToggle {
-        name: String,
-        enable: bool,
-    },
-    AptInstall {
-        package: String,
-    },
-    AptRemove {
-        package: String,
-    },
+    VHostAdd { server_name: String, document_root: String, php_version: Option<String> },
+    VHostEdit { index: usize, server_name: String, document_root: String, php_version: Option<String> },
+    VHostDelete { index: usize },
+    SaveConfig { path: String, content: String },
+    ApacheModToggle { name: String, enable: bool },
+    AptInstall { package: String },
+    AptRemove { package: String },
     FirstRunInstall,
 }
 
@@ -270,12 +238,7 @@ impl SudoModal {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let overlay_bg = Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 0.72,
-        };
+        let overlay_bg = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.72 };
 
         let dev_banner: Element<Message> = if dry_run::active() {
             container(
@@ -291,22 +254,9 @@ impl SudoModal {
             .padding(Padding::from([7, 12]))
             .width(Length::Fill)
             .style(|_: &iced::Theme| container::Style {
-                background: Some(
-                    Color {
-                        r: 0.190,
-                        g: 0.160,
-                        b: 0.040,
-                        a: 1.0,
-                    }
-                    .into(),
-                ),
+                background: Some(Color { r: 0.190, g: 0.160, b: 0.040, a: 1.0 }.into()),
                 border: Border {
-                    color: Color {
-                        r: 0.240,
-                        g: 0.200,
-                        b: 0.050,
-                        a: 1.0,
-                    },
+                    color: Color { r: 0.240, g: 0.200, b: 0.050, a: 1.0 },
                     width: 1.0,
                     radius: 7.0.into(),
                 },
@@ -328,10 +278,7 @@ impl SudoModal {
                                 .padding(Padding::from([3, 6]))
                                 .style(|_: &iced::Theme| container::Style {
                                     background: Some(RED.into()),
-                                    border: Border {
-                                        radius: 20.0.into(),
-                                        ..Default::default()
-                                    },
+                                    border: Border { radius: 20.0.into(), ..Default::default() },
                                     ..Default::default()
                                 }),
                             Space::with_width(10),
@@ -343,22 +290,9 @@ impl SudoModal {
                     )
                     .padding(Padding::from([10, 12]))
                     .style(|_: &iced::Theme| container::Style {
-                        background: Some(
-                            Color {
-                                r: 0.200,
-                                g: 0.060,
-                                b: 0.055,
-                                a: 1.0,
-                            }
-                            .into(),
-                        ),
+                        background: Some(Color { r: 0.200, g: 0.060, b: 0.055, a: 1.0 }.into()),
                         border: Border {
-                            color: Color {
-                                r: 0.300,
-                                g: 0.090,
-                                b: 0.080,
-                                a: 1.0,
-                            },
+                            color: Color { r: 0.300, g: 0.090, b: 0.080, a: 1.0 },
                             width: 1.0,
                             radius: 8.0.into(),
                         },
@@ -369,23 +303,21 @@ impl SudoModal {
                     Space::with_height(0).into()
                 };
 
+                use crate::messages::SudoMessage;
+
                 let pass_input = text_input(
-                    if self.show_password {
-                        "sudo password"
-                    } else {
-                        "(hidden)"
-                    },
+                    if self.show_password { "sudo password" } else { "(hidden)" },
                     &self.password_input,
                 )
-                .on_input(Message::SudoPasswordChanged)
-                .on_submit(Message::SudoSubmit)
+                .on_input(|v| Message::Sudo(SudoMessage::PasswordChanged(v)))
+                .on_submit(Message::Sudo(SudoMessage::Submit))
                 .secure(!self.show_password)
                 .padding(11)
                 .size(13);
 
                 let show_btn =
                     button(text(if self.show_password { "Hide" } else { "Show" }).size(12))
-                        .on_press(Message::SudoToggleShow(!self.show_password))
+                        .on_press(Message::Sudo(SudoMessage::ToggleShow(!self.show_password)))
                         .padding(Padding::from([11, 14]))
                         .style(ghost_btn_style());
 
@@ -394,17 +326,17 @@ impl SudoModal {
                     .align_y(Alignment::Center);
 
                 let save_check = checkbox("Save password for this session", self.save_password)
-                    .on_toggle(Message::SudoToggleSave)
+                    .on_toggle(|v| Message::Sudo(SudoMessage::ToggleSave(v)))
                     .size(14)
                     .text_size(13);
 
                 let submit_btn = button(text("Unlock").size(13))
-                    .on_press(Message::SudoSubmit)
+                    .on_press(Message::Sudo(SudoMessage::Submit))
                     .padding(Padding::from([10, 28]))
                     .style(teal_btn_style());
 
                 let cancel_btn = button(text("Cancel").size(13))
-                    .on_press(Message::SudoCancel)
+                    .on_press(Message::Sudo(SudoMessage::Cancel))
                     .padding(Padding::from([10, 18]))
                     .style(ghost_btn_style());
 
@@ -422,19 +354,8 @@ impl SudoModal {
                             container(text("sudo").size(10).color(TEAL))
                                 .padding(Padding::from([3, 8]))
                                 .style(|_: &iced::Theme| container::Style {
-                                    background: Some(
-                                        Color {
-                                            r: 0.040,
-                                            g: 0.160,
-                                            b: 0.150,
-                                            a: 1.0
-                                        }
-                                        .into()
-                                    ),
-                                    border: Border {
-                                        radius: 6.0.into(),
-                                        ..Default::default()
-                                    },
+                                    background: Some(Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 }.into()),
+                                    border: Border { radius: 6.0.into(), ..Default::default() },
                                     ..Default::default()
                                 }),
                             Space::with_width(10),
@@ -452,11 +373,7 @@ impl SudoModal {
                     divider,
                     Space::with_height(16),
                     error_msg,
-                    Space::with_height(if self.state == ModalState::Failed {
-                        12
-                    } else {
-                        0
-                    }),
+                    Space::with_height(if self.state == ModalState::Failed { 12 } else { 0 }),
                     text("Password").size(11).color(TEXT_MUTED),
                     Space::with_height(6),
                     input_row,
@@ -480,16 +397,9 @@ impl SudoModal {
             .width(420)
             .style(|_: &iced::Theme| container::Style {
                 background: Some(BG_ELEVATED.into()),
-                border: Border {
-                    color: BORDER_MED,
-                    width: 1.0,
-                    radius: 16.0.into(),
-                },
+                border: Border { color: BORDER_MED, width: 1.0, radius: 16.0.into() },
                 shadow: iced::Shadow {
-                    color: Color {
-                        a: 0.7,
-                        ..Color::BLACK
-                    },
+                    color: Color { a: 0.7, ..Color::BLACK },
                     offset: iced::Vector::new(0.0, 12.0),
                     blur_radius: 48.0,
                 },
@@ -520,25 +430,14 @@ fn teal_btn_style()
             iced::widget::button::Style {
                 background: Some(TEAL_DIM.into()),
                 text_color: Color::WHITE,
-                border: Border {
-                    radius: 8.0.into(),
-                    ..Default::default()
-                },
+                border: Border { radius: 8.0.into(), ..Default::default() },
                 ..Default::default()
             }
         }
         _ => iced::widget::button::Style {
             background: Some(TEAL.into()),
-            text_color: Color {
-                r: 0.05,
-                g: 0.05,
-                b: 0.06,
-                a: 1.0,
-            },
-            border: Border {
-                radius: 8.0.into(),
-                ..Default::default()
-            },
+            text_color: Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
+            border: Border { radius: 8.0.into(), ..Default::default() },
             ..Default::default()
         },
     }
@@ -551,22 +450,14 @@ fn ghost_btn_style()
             iced::widget::button::Style {
                 background: Some(BG_HOVER.into()),
                 text_color: TEXT_PRIMARY,
-                border: Border {
-                    color: BORDER_MED,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
+                border: Border { color: BORDER_MED, width: 1.0, radius: 8.0.into() },
                 ..Default::default()
             }
         }
         _ => iced::widget::button::Style {
             background: Some(BG_CARD.into()),
             text_color: TEXT_SECONDARY,
-            border: Border {
-                color: BORDER_SUBTLE,
-                width: 1.0,
-                radius: 8.0.into(),
-            },
+            border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() },
             ..Default::default()
         },
     }

@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.5.11"
+version = "0.6.1"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -36,7 +36,7 @@ tempfile = "3"
 
 [package.metadata.deb]
 maintainer = "Giannis Smyrnis <smyrnisgiannis@gmail.com>"
-copyright = "2025 Giannis Smyrnis"
+copyright = "2026 Giannis Smyrnis"
 license-file = ["LICENSE"]
 extended-description = """
 DevPanel is a desktop GUI for managing your local development environment.
@@ -48,7 +48,7 @@ section = "devel"
 priority = "optional"
 assets = [
   ["target/release/devpanel",          "usr/bin/",                        "755"],
-  ["icon.png",                         "usr/share/pixmaps/devpanel.png",  "644"],
+  ["devpanel.jpg",                         "usr/share/pixmaps/devpanel.png",  "644"],
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],

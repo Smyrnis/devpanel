@@ -23,8 +23,6 @@ pub fn mark_done() {
     let _ = std::fs::write(&path, "1");
 }
 
-/// Tracks whether the first-run modal is shown.
-/// Stored on `App` and checked in `App::view()`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FirstRunState {
     Visible,
@@ -47,72 +45,29 @@ struct Item {
 }
 
 const INSTALL_ITEMS: &[Item] = &[
-    Item {
-        package: "apache2",
-        purpose: "HTTP server",
-    },
-    Item {
-        package: "libapache2-mod-php",
-        purpose: "PHP module for Apache",
-    },
-    Item {
-        package: "php8.2",
-        purpose: "PHP 8.2 CLI + common extensions",
-    },
-    Item {
-        package: "php8.2-cli",
-        purpose: "PHP command-line interface",
-    },
-    Item {
-        package: "php8.2-common",
-        purpose: "Shared PHP extensions",
-    },
-    Item {
-        package: "php8.2-mysql",
-        purpose: "MySQL / MariaDB driver",
-    },
-    Item {
-        package: "php8.2-xml",
-        purpose: "XML / DOM / SimpleXML support",
-    },
-    Item {
-        package: "php8.2-mbstring",
-        purpose: "Multibyte string functions",
-    },
-    Item {
-        package: "mysql-server",
-        purpose: "MySQL / MariaDB database server",
-    },
+    Item { package: "apache2",              purpose: "HTTP server" },
+    Item { package: "libapache2-mod-php",   purpose: "PHP module for Apache" },
+    Item { package: "php8.2",               purpose: "PHP 8.2 CLI + common extensions" },
+    Item { package: "php8.2-cli",           purpose: "PHP command-line interface" },
+    Item { package: "php8.2-common",        purpose: "Shared PHP extensions" },
+    Item { package: "php8.2-mysql",         purpose: "MySQL / MariaDB driver" },
+    Item { package: "php8.2-xml",           purpose: "XML / DOM / SimpleXML support" },
+    Item { package: "php8.2-mbstring",      purpose: "Multibyte string functions" },
+    Item { package: "mysql-server",         purpose: "MySQL / MariaDB database server" },
 ];
 
 pub fn view() -> Element<'static, Message> {
     use crate::messages::{FirstRunMessage, Message};
 
-    let overlay_bg = Color {
-        r: 0.0,
-        g: 0.0,
-        b: 0.0,
-        a: 0.78,
-    };
+    let overlay_bg = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.78 };
 
     let header = column![
         row![
             container(text("NEW").size(9).color(TEAL))
                 .padding(Padding::from([3, 8]))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(
-                        Color {
-                            r: 0.040,
-                            g: 0.160,
-                            b: 0.150,
-                            a: 1.0
-                        }
-                        .into()
-                    ),
-                    border: Border {
-                        radius: 6.0.into(),
-                        ..Default::default()
-                    },
+                    background: Some(Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 }.into()),
+                    border: Border { radius: 6.0.into(), ..Default::default() },
                     ..Default::default()
                 }),
             Space::with_width(10),
@@ -124,11 +79,9 @@ pub fn view() -> Element<'static, Message> {
             .size(13)
             .color(TEXT_SECONDARY),
         Space::with_height(4),
-        text(
-            "This requires your sudo password. You can exit now and install manually if you prefer."
-        )
-        .size(12)
-        .color(TEXT_MUTED),
+        text("This requires your sudo password. You can exit now and install manually if you prefer.")
+            .size(12)
+            .color(TEXT_MUTED),
     ]
     .spacing(0);
 
@@ -150,10 +103,7 @@ pub fn view() -> Element<'static, Message> {
                         .height(6)
                         .style(|_: &iced::Theme| container::Style {
                             background: Some(GREEN.into()),
-                            border: Border {
-                                radius: 3.0.into(),
-                                ..Default::default()
-                            },
+                            border: Border { radius: 3.0.into(), ..Default::default() },
                             ..Default::default()
                         }),
                     Space::with_width(10),
@@ -166,11 +116,7 @@ pub fn view() -> Element<'static, Message> {
             .width(Length::Fill)
             .style(|_: &iced::Theme| container::Style {
                 background: Some(BG_SURFACE.into()),
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 7.0.into(),
-                },
+                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 7.0.into() },
                 ..Default::default()
             })
             .into()
@@ -183,12 +129,10 @@ pub fn view() -> Element<'static, Message> {
             Space::with_width(8),
             column![
                 text("PHP mod_phpX.Y modules will also be enabled for Apache.")
-                    .size(11)
-                    .color(TEXT_MUTED),
+                    .size(11).color(TEXT_MUTED),
                 Space::with_height(2),
                 text("This allows you to pin individual VirtualHosts to a specific PHP version.")
-                    .size(11)
-                    .color(TEXT_MUTED),
+                    .size(11).color(TEXT_MUTED),
             ]
             .spacing(0),
         ]
@@ -197,22 +141,9 @@ pub fn view() -> Element<'static, Message> {
     .padding(Padding::from([10, 12]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(
-            Color {
-                r: 0.047,
-                g: 0.090,
-                b: 0.157,
-                a: 1.0,
-            }
-            .into(),
-        ),
+        background: Some(Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 }.into()),
         border: Border {
-            color: Color {
-                r: 0.080,
-                g: 0.140,
-                b: 0.260,
-                a: 1.0,
-            },
+            color: Color { r: 0.080, g: 0.140, b: 0.260, a: 1.0 },
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -225,36 +156,16 @@ pub fn view() -> Element<'static, Message> {
         .style(|_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
-                    background: Some(
-                        Color {
-                            r: 0.060,
-                            g: 0.185,
-                            b: 0.175,
-                            a: 1.0,
-                        }
-                        .into(),
-                    ),
+                    background: Some(Color { r: 0.060, g: 0.185, b: 0.175, a: 1.0 }.into()),
                     text_color: TEAL,
-                    border: Border {
-                        color: TEAL,
-                        width: 1.0,
-                        radius: 8.0.into(),
-                    },
+                    border: Border { color: TEAL, width: 1.0, radius: 8.0.into() },
                     ..Default::default()
                 }
             }
             _ => iced::widget::button::Style {
                 background: Some(TEAL.into()),
-                text_color: Color {
-                    r: 0.05,
-                    g: 0.05,
-                    b: 0.06,
-                    a: 1.0,
-                },
-                border: Border {
-                    radius: 8.0.into(),
-                    ..Default::default()
-                },
+                text_color: Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
+                border: Border { radius: 8.0.into(), ..Default::default() },
                 ..Default::default()
             },
         });
@@ -267,22 +178,14 @@ pub fn view() -> Element<'static, Message> {
                 iced::widget::button::Style {
                     background: Some(BG_HOVER.into()),
                     text_color: TEXT_PRIMARY,
-                    border: Border {
-                        color: BORDER_MED,
-                        width: 1.0,
-                        radius: 8.0.into(),
-                    },
+                    border: Border { color: BORDER_MED, width: 1.0, radius: 8.0.into() },
                     ..Default::default()
                 }
             }
             _ => iced::widget::button::Style {
                 background: Some(BG_CARD.into()),
                 text_color: TEXT_SECONDARY,
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
+                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() },
                 ..Default::default()
             },
         });
@@ -307,16 +210,9 @@ pub fn view() -> Element<'static, Message> {
     .width(560)
     .style(|_: &iced::Theme| container::Style {
         background: Some(BG_ELEVATED.into()),
-        border: Border {
-            color: BORDER_MED,
-            width: 1.0,
-            radius: 16.0.into(),
-        },
+        border: Border { color: BORDER_MED, width: 1.0, radius: 16.0.into() },
         shadow: iced::Shadow {
-            color: Color {
-                a: 0.7,
-                ..Color::BLACK
-            },
+            color: Color { a: 0.7, ..Color::BLACK },
             offset: iced::Vector::new(0.0, 16.0),
             blur_radius: 56.0,
         },

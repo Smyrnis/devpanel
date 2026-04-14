@@ -29,7 +29,6 @@ impl DevPanelConfig {
         }
     }
 
-    #[allow(dead_code)]
     pub fn save(&self) {
         let dir = get_home().join(".config/devpanel");
         let _ = std::fs::create_dir_all(&dir);
@@ -42,8 +41,6 @@ impl DevPanelConfig {
         );
     }
 }
-
-// Helpers
 
 fn parse_toml_str(content: &str, key: &str) -> Option<String> {
     for line in content.lines() {

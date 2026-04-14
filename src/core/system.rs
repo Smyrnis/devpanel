@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-
 pub fn get_home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
 }
@@ -110,8 +109,6 @@ pub fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, Strin
     }
 }
 
-/// Finds an available terminal emulator by walking $PATH directly,
-/// avoiding the overhead of spawning a `which` subprocess per candidate.
 fn find_terminal() -> Option<String> {
     const CANDIDATES: &[&str] = &[
         "gnome-terminal",
@@ -128,27 +125,22 @@ fn find_terminal() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    // Last resort: absolute path check
     if std::path::Path::new("/usr/bin/xterm").exists() {
         return Some("xterm".to_string());
     }
     None
 }
 
-/// Checks whether a binary exists on PATH without spawning a subprocess.
 fn binary_exists(name: &str) -> bool {
     std::env::var_os("PATH")
         .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
         .unwrap_or(false)
 }
 
-/// Wraps a string in single quotes for shell, escaping any embedded single quotes.
 pub fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-/// Runs `systemctl <action> <service>` via sudo and returns a ServiceResult message.
-/// Takes owned Strings — no Box::leak required.
 pub async fn run_service_cmd(
     service: String,
     action: String,
@@ -180,15 +172,9 @@ pub async fn ssh_add(path: String) -> (bool, String) {
 }
 
 pub async fn copy_to_clipboard(text: String) {
-    if try_xclip(&text).await {
-        return;
-    }
-    if try_wl_copy(&text).await {
-        return;
-    }
-    if try_xsel(&text).await {
-        return;
-    }
+    if try_xclip(&text).await { return; }
+    if try_wl_copy(&text).await { return; }
+    if try_xsel(&text).await { return; }
     fallback_script_file(&text).await;
 }
 
@@ -208,7 +194,6 @@ async fn try_xsel(text: &str) -> bool {
     pipe_to_cmd(cmd, text).await
 }
 
-/// Shared stdin-pipe logic for all clipboard tools.
 async fn pipe_to_cmd(mut cmd: tokio::process::Command, text: &str) -> bool {
     use tokio::io::AsyncWriteExt;
     let Ok(mut child) = cmd
@@ -220,7 +205,8 @@ async fn pipe_to_cmd(mut cmd: tokio::process::Command, text: &str) -> bool {
         return false;
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let ok = stdin.write_all(text.as_bytes()).await.is_ok() && stdin.flush().await.is_ok();
+        let ok = stdin.write_all(text.as_bytes()).await.is_ok()
+            && stdin.flush().await.is_ok();
         drop(stdin);
         let _ = child.wait().await;
         ok

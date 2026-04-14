@@ -14,8 +14,8 @@ const BASE_PACKAGES: &[&str] = &[
 ];
 
 const PHP_VERSION_MODS: &[(&str, &str)] = &[
-    ("5.6", "php5.6"), // ondrej/php PPA name
-    ("5.6", "php5"),   // legacy Debian/Ubuntu name (a2enmod will pick whichever exists)
+    ("5.6", "php5.6"),
+    ("5.6", "php5"),
     ("7.4", "php7.4"),
     ("8.0", "php8.0"),
     ("8.1", "php8.1"),

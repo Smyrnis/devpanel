@@ -7,6 +7,7 @@ pub enum Tab {
     VHosts,
     SshKeys,
     Tools,
+    Config,
 }
 
 #[derive(Debug, Clone)]
@@ -19,11 +20,7 @@ pub enum Message {
     VHosts(VHostsMessage),
     Sudo(SudoMessage),
     FirstRun(FirstRunMessage),
-    SudoPasswordChanged(String),
-    SudoToggleShow(bool),
-    SudoToggleSave(bool),
-    SudoSubmit,
-    SudoCancel,
+    Config(ConfigMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +33,7 @@ pub enum DashboardMessage {
         php_versions: Vec<String>,
     },
     AutoRefreshTick,
+    ResetIssuesCheck,
     StartApache,
     StopApache,
     RestartApache,
@@ -166,4 +164,21 @@ pub enum FirstRunMessage {
     Continue,
     Exit,
     InstallDone(bool, String),
+}
+
+#[derive(Debug, Clone)]
+pub enum ConfigMessage {
+    SetSection(crate::tabs::config::ConfigSection),
+    Save,
+    SaveDone(bool, String),
+    ApacheLogLevelChanged(String),
+    ApacheAutoReloadChanged(bool),
+    PhpDefaultVersionChanged(String),
+    PhpDisplayErrorsChanged(bool),
+    ProjectsOpenCommandChanged(String),
+    UiConfirmDeletesChanged(bool),
+    UiToastDurationChanged(u32),
+    UiShowSetupLogChanged(bool),
+    SshDefaultKeyTypeChanged(String),
+    EditorCommandChanged(String),
 }

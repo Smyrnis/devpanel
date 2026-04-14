@@ -9,7 +9,7 @@ use crate::messages::Message;
 use iced::Element;
 use iced::widget::text_editor;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VHostEntry {
     pub server_name: String,
     pub document_root: String,

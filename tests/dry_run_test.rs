@@ -2,7 +2,6 @@ use devpanel::core::dry_run;
 
 #[test]
 fn active_is_true_without_production_feature() {
-    // Tests are built without --features production by default.
     assert!(dry_run::active());
 }
 
@@ -18,7 +17,6 @@ fn mode_label_dev_without_production_feature() {
 
 #[test]
 fn log_does_not_panic() {
-    // log() writes to stderr; it must not panic regardless of message content.
     dry_run::log("test log message");
     dry_run::log("");
     dry_run::log("message with special chars: <>&\"'");

@@ -20,7 +20,7 @@ impl Provider {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RemoteRepo {
     pub name: String,
     pub full_name: String,
