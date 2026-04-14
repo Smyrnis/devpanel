@@ -53,6 +53,6 @@ assets = [
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
 ]
-deb-features = ["production"]
+features = ["production"]
 maintainer-scripts = "scripts/"
 revision = ""
