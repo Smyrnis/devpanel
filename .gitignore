@@ -18,3 +18,6 @@ target
 
 # Ignore the Roadmap folder it is intendent for changes to come and new ideas.
 Roadmap
+
+# Ignore images
+images
