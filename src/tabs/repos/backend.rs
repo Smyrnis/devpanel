@@ -27,6 +27,7 @@ pub async fn fetch_remote_repos(repos_root: String) -> Vec<RemoteRepo> {
     for repo in &mut repos {
         let local = std::path::PathBuf::from(&repos_root).join(&repo.name);
         repo.is_cloned = local.exists();
+        repo.is_dirty = repo.is_cloned && repo_dirty(&local).await;
     }
 
     repos.sort_by(|a, b| match (a.is_cloned, b.is_cloned) {
@@ -161,7 +162,7 @@ async fn try_gh_cli() -> Option<Vec<RemoteRepo>> {
             "--json",
             "name,sshUrl,nameWithOwner",
             "--limit",
-            "200",
+            "1000",
         ])
         .output()
         .await
@@ -198,6 +199,7 @@ pub fn parse_gh_json(json: &str) -> Vec<RemoteRepo> {
             provider: Provider::GitHub,
             is_cloned: false,
             is_cloning: false,
+            is_dirty: false,
         });
     }
     repos
@@ -233,12 +235,11 @@ async fn fetch_bitbucket_repos() -> Vec<RemoteRepo> {
 async fn scan_local_for_bitbucket() -> Vec<RemoteRepo> {
     let home = home_dir();
     let ssh_cfg = home.join(".ssh").join("config");
-    if let Ok(content) = tokio::fs::read_to_string(&ssh_cfg).await {
-        if let Some(user) = extract_bitbucket_user_from_ssh_config(&content) {
-            if let Some(repos) = try_bitbucket_api(&user).await {
-                return repos;
-            }
-        }
+    if let Ok(content) = tokio::fs::read_to_string(&ssh_cfg).await
+        && let Some(user) = extract_bitbucket_user_from_ssh_config(&content)
+        && let Some(repos) = try_bitbucket_api(&user).await
+    {
+        return repos;
     }
     Vec::new()
 }
@@ -282,10 +283,22 @@ pub(crate) fn parse_bitbucket_json(json: &str, username: &str) -> Vec<RemoteRepo
                 provider: Provider::Bitbucket,
                 is_cloned: false,
                 is_cloning: false,
+                is_dirty: false,
             });
         }
     }
     repos
+}
+
+async fn repo_dirty(path: &std::path::Path) -> bool {
+    tokio::process::Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(["status", "--short"])
+        .output()
+        .await
+        .map(|out| out.status.success() && !out.stdout.is_empty())
+        .unwrap_or(false)
 }
 
 pub fn extract_bitbucket_user_from_ssh_config(content: &str) -> Option<String> {
@@ -321,11 +334,11 @@ pub fn split_json_objects(input: &str) -> Vec<String> {
             }
             '}' => {
                 depth -= 1;
-                if depth == 0 {
-                    if let Some(s) = start {
-                        objects.push(input[s..=i].to_string());
-                        start = None;
-                    }
+                if depth == 0
+                    && let Some(s) = start
+                {
+                    objects.push(input[s..=i].to_string());
+                    start = None;
                 }
             }
             '"' => {

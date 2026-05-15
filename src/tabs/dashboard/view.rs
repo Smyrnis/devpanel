@@ -40,16 +40,20 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
 
     let services = row![
         service_card(
-            "Apache", "HTTP Server", tab.apache_running, GREEN,
-            Message::Dashboard(DashboardMessage::StartApache),
-            Message::Dashboard(DashboardMessage::StopApache),
-            Message::Dashboard(DashboardMessage::RestartApache),
+            "Apache", "HTTP Server", tab.apache_uptime.as_deref(), tab.apache_running, GREEN,
+            ServiceActions {
+                start: Message::Dashboard(DashboardMessage::StartApache),
+                stop: Message::Dashboard(DashboardMessage::StopApache),
+                restart: Message::Dashboard(DashboardMessage::RestartApache),
+            },
         ),
         service_card(
-            "MySQL", "Database", tab.mysql_running, BLUE,
-            Message::Dashboard(DashboardMessage::StartMySQL),
-            Message::Dashboard(DashboardMessage::StopMySQL),
-            Message::Dashboard(DashboardMessage::RestartMySQL),
+            "MySQL", "Database", tab.mysql_uptime.as_deref(), tab.mysql_running, BLUE,
+            ServiceActions {
+                start: Message::Dashboard(DashboardMessage::StartMySQL),
+                stop: Message::Dashboard(DashboardMessage::StopMySQL),
+                restart: Message::Dashboard(DashboardMessage::RestartMySQL),
+            },
         ),
         php_card(tab),
     ]
@@ -79,11 +83,30 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     ]
     .spacing(8);
 
-    scrollable(
+    let failures: Element<Message> = if tab.recent_failures.is_empty() {
+        Space::with_height(0).into()
+    } else {
+        let rows: Vec<Element<Message>> = tab.recent_failures.iter()
+            .map(|line| text(line.as_str()).size(11).color(TEXT_MUTED).into())
+            .collect();
+        container(column![
+            text("Recent Apache Failures").size(13).color(TEXT_SECONDARY),
+            Space::with_height(8),
+            column(rows).spacing(4),
+        ].spacing(0))
+        .padding(Padding::from([14, 16]))
+        .width(Length::Fill)
+        .style(card_style(BTN_DANGER))
+        .into()
+    };
+
+    let content = scrollable(
         column![
             info_bar,
             Space::with_height(20),
             services,
+            Space::with_height(if tab.recent_failures.is_empty() { 0 } else { 16 }),
+            failures,
             Space::with_height(28),
             text("Quick Actions").size(13).color(TEXT_SECONDARY),
             Space::with_height(12),
@@ -92,18 +115,46 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
         ]
         .spacing(0)
         .padding(Padding::from([20, 22])),
-    )
-    .into()
+    );
+
+    if tab.php_info_loading || tab.php_info.is_some() {
+        let body = tab.php_info.as_deref().unwrap_or("Loading PHP info...");
+        column![
+            content,
+            container(column![
+                row![
+                    text("PHP Info").size(18).color(TEXT_PRIMARY),
+                    Space::with_width(Length::Fill),
+                    button(text("Close").size(12).color(TEXT_MUTED))
+                        .on_press(Message::Dashboard(DashboardMessage::ClosePhpInfo))
+                        .padding(Padding::from([6, 12]))
+                        .style(ghost_btn_style()),
+                ].align_y(Alignment::Center),
+                Space::with_height(10),
+                scrollable(text(body).size(12).color(TEXT_SECONDARY)).height(Length::Fixed(240.0)),
+            ].spacing(0))
+            .padding(Padding::from([16, 18]))
+            .width(Length::Fill)
+            .style(card_style(PURPLE_BDR)),
+        ].spacing(0).into()
+    } else {
+        content.into()
+    }
+}
+
+struct ServiceActions {
+    start: Message,
+    stop: Message,
+    restart: Message,
 }
 
 fn service_card<'a>(
     name: &'a str,
     subtitle: &'a str,
+    uptime: Option<&'a str>,
     running: bool,
     accent: Color,
-    start: Message,
-    stop: Message,
-    restart: Message,
+    actions: ServiceActions,
 ) -> Element<'a, Message> {
     let status_color = if running { GREEN } else { STATUS_STOP };
     let status_label = if running { "Running" } else { "Stopped" };
@@ -138,13 +189,13 @@ fn service_card<'a>(
 
     let btn_row = row![
         button(text("Start").size(13).width(Length::Fill).center())
-            .on_press(start).padding(Padding::from([7, 0]))
+            .on_press(actions.start).padding(Padding::from([7, 0]))
             .width(Length::FillPortion(1)).style(btn_style(BTN_SUCCESS)),
         button(text("Stop").size(13).width(Length::Fill).center())
-            .on_press(stop).padding(Padding::from([7, 0]))
+            .on_press(actions.stop).padding(Padding::from([7, 0]))
             .width(Length::FillPortion(1)).style(btn_style(BTN_DANGER)),
         button(text("Restart").size(13).width(Length::Fill).center())
-            .on_press(restart).padding(Padding::from([7, 0]))
+            .on_press(actions.restart).padding(Padding::from([7, 0]))
             .width(Length::FillPortion(1)).style(btn_style(BTN_WARN)),
     ]
     .spacing(7);
@@ -158,6 +209,9 @@ fn service_card<'a>(
             text(name).size(19).color(TEXT_PRIMARY),
             Space::with_height(3),
             text(subtitle).size(12).color(TEXT_MUTED),
+            Space::with_height(6),
+            text(uptime.map(|u| format!("Up {}", u)).unwrap_or_else(|| "Uptime n/a".into()))
+                .size(11).color(TEXT_MUTED),
             Space::with_height(16),
             thin_line(),
             Space::with_height(14),

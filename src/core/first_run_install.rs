@@ -64,7 +64,7 @@ pub async fn run_first_run_install(password: String) -> (bool, String) {
 
     let _ = sudo_cmd_with_password(&password, &["a2enmod", "rewrite"]).await;
 
-    if let Err(_) = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await {
+    if sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await.is_err() {
         let _ = sudo_cmd_with_password(&password, &["systemctl", "start", "apache2"]).await;
     }
 

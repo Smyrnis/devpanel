@@ -177,18 +177,13 @@ fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ModalState {
+    #[default]
     Hidden,
     Asking { pending_action: PendingAction },
     Validating,
     Failed,
-}
-
-impl Default for ModalState {
-    fn default() -> Self {
-        Self::Hidden
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -198,9 +193,11 @@ pub enum PendingAction {
     RestartAll,
     PhpInstall(String),
     PhpRemove(String),
-    VHostAdd { server_name: String, document_root: String, php_version: Option<String> },
-    VHostEdit { index: usize, server_name: String, document_root: String, php_version: Option<String> },
+    VHostAdd { server_name: String, document_root: String, php_version: Option<String>, https_enabled: bool },
+    VHostEdit { index: usize, server_name: String, document_root: String, php_version: Option<String>, https_enabled: bool },
     VHostDelete { index: usize },
+    VHostBulkDelete { indexes: Vec<usize> },
+    VHostToggleHttps { index: usize },
     SaveConfig { path: String, content: String },
     ApacheModToggle { name: String, enable: bool },
     AptInstall { package: String },
