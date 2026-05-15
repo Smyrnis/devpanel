@@ -4,10 +4,12 @@ pub const fn active() -> bool {
 }
 
 #[inline(always)]
+#[allow(dead_code)]
 pub const fn is_production() -> bool {
     cfg!(feature = "production")
 }
 
+#[allow(dead_code)]
 pub fn mode_label() -> &'static str {
     if active() {
         "DEV (dry-run)"

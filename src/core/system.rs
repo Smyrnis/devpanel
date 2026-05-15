@@ -63,6 +63,19 @@ pub fn open_terminal_at(path: &str) {
     let _ = result;
 }
 
+pub fn open_in_editor(editor_command: &str, path: &str) -> Result<(), String> {
+    let command = editor_command.trim();
+    if command.is_empty() {
+        return Err("Editor command is empty. Set it in Config.".into());
+    }
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("{} {}", command, shell_quote(path)))
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open editor: {}", e))
+}
+
 pub fn open_db_terminal(binary: &str, socket_auth: bool) -> Result<String, String> {
     let mysql_cmd = if socket_auth {
         format!("sudo {} -u root", binary)

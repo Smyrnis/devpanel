@@ -111,10 +111,26 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
             container(text("No repos match your filter").size(14).color(TEXT_MUTED))
                 .width(Length::Fill).padding(Padding::from([40, 0])).center_x(Length::Fill).into()
         } else {
-            let count = text(format!("{} repo{}", filtered.len(), if filtered.len() == 1 { "" } else { "s" }))
+            let total_pages = filtered.len().saturating_sub(1) / tab.page_size + 1;
+            let page = tab.page.min(total_pages.saturating_sub(1));
+            let start = page * tab.page_size;
+            let end = (start + tab.page_size).min(filtered.len());
+            let page_slice = &filtered[start..end];
+            let count = text(format!(
+                "{} repo{} - page {}/{}",
+                filtered.len(),
+                if filtered.len() == 1 { "" } else { "s" },
+                page + 1,
+                total_pages,
+            ))
                 .size(11).color(TEXT_MUTED);
-            let cards: Vec<Element<Message>> = filtered.iter().map(|r| repo_card(r)).collect();
-            column![count, Space::with_height(10), column(cards).spacing(8)].spacing(0).into()
+            let pager = row![
+                small_nav("Prev", if page > 0 { Some(Message::Repos(ReposMessage::PrevPage)) } else { None }),
+                Space::with_width(6),
+                small_nav("Next", if page + 1 < total_pages { Some(Message::Repos(ReposMessage::NextPage)) } else { None }),
+            ].align_y(Alignment::Center);
+            let cards: Vec<Element<Message>> = page_slice.iter().map(|r| repo_card(r)).collect();
+            column![row![count, Space::with_width(Length::Fill), pager].align_y(Alignment::Center), Space::with_height(10), column(cards).spacing(8)].spacing(0).into()
         }
     };
 
@@ -215,10 +231,19 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                 ..Default::default()
             }).into()
     } else { Space::with_width(0).into() };
+    let dirty_badge: Element<Message> = if repo.is_dirty {
+        container(text("M").size(10).color(YELLOW))
+            .padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(YELLOW_BG.into()),
+                border: Border { color: YELLOW_BORDER, width: 1.0, radius: 20.0.into() },
+                ..Default::default()
+            }).into()
+    } else { Space::with_width(0).into() };
 
     let name_row = row![
         text(repo.name.as_str()).size(14).color(TEXT_PRIMARY),
-        Space::with_width(8), provider_badge, Space::with_width(6), cloned_badge,
+        Space::with_width(8), provider_badge, Space::with_width(6), cloned_badge, Space::with_width(6), dirty_badge,
         Space::with_width(Length::Fill),
     ].align_y(Alignment::Center);
 
@@ -236,7 +261,8 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                 ..Default::default()
             }).into()
     } else if repo.is_cloned {
-        button(text("Open").size(12).color(TEAL))
+        row![
+        button(text("Terminal").size(12).color(TEAL))
             .on_press(Message::Repos(ReposMessage::OpenCloned(repo.name.clone())))
             .padding(Padding::from([7, 16]))
             .style(|_, status| match status {
@@ -245,7 +271,19 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                         border: Border { color: TEAL_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() },
                 _ => iced::widget::button::Style { background: Some(TEAL_BG.into()), text_color: TEAL,
                     border: Border { color: TEAL_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() },
-            }).into()
+            }),
+        Space::with_width(6),
+        button(text("Editor").size(12).color(BLUE))
+            .on_press(Message::Repos(ReposMessage::OpenEditor(repo.name.clone())))
+            .padding(Padding::from([7, 16]))
+            .style(|_, status| match status {
+                iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+                    iced::widget::button::Style { background: Some(BLUE_BG.into()), text_color: BLUE,
+                        border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() },
+                _ => iced::widget::button::Style { background: Some(BG_SURFACE.into()), text_color: BLUE,
+                    border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() },
+            }),
+        ].align_y(Alignment::Center).into()
     } else {
         let url = repo.ssh_url.clone();
         let name = repo.name.clone();
@@ -268,6 +306,10 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
         thin_line(), Space::with_height(12),
         row![Space::with_width(Length::Fill), action_btn].align_y(Alignment::Center),
     ].spacing(0)).padding(Padding::from([16, 18])).width(Length::Fill).style(card_style()).into()
+}
+
+fn small_nav<'a>(label: &'a str, on_press: Option<Message>) -> Element<'a, Message> {
+    icon_btn(label, TEXT_SECONDARY, BG_HOVER, BG_ELEVATED, BORDER_SUBTLE, on_press)
 }
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {

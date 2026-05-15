@@ -28,6 +28,7 @@ pub struct RemoteRepo {
     pub provider: Provider,
     pub is_cloned: bool,
     pub is_cloning: bool,
+    pub is_dirty: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +54,8 @@ pub struct ReposTab {
     pub search_query: String,
     pub status_msg: Option<(bool, String)>,
     pub active_filter: ProviderFilter,
+    pub page: usize,
+    pub page_size: usize,
 }
 
 impl ReposTab {
@@ -66,12 +69,15 @@ impl ReposTab {
             search_query: String::new(),
             status_msg: None,
             active_filter: ProviderFilter::All,
+            page: 0,
+            page_size: 50,
         }
     }
 
     pub fn set_repos(&mut self, repos: Vec<RemoteRepo>) {
         self.fetching = false;
         self.remote_repos = repos;
+        self.page = 0;
     }
 
     pub fn mark_cloning(&mut self, ssh_url: &str, cloning: bool) {

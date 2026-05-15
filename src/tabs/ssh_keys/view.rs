@@ -169,7 +169,6 @@ fn btn_style(bg: Color) -> impl Fn(&iced::Theme, iced::widget::button::Status) -
                 text_color: Color::WHITE,
                 border: Border { radius: 8.0.into(), ..Default::default() },
                 shadow: iced::Shadow { color: Color { a: 0.3, ..bg }, offset: iced::Vector::new(0.0, 2.0), blur_radius: 8.0 },
-                ..Default::default()
             },
         _ => iced::widget::button::Style {
             background: Some(bg.into()), text_color: Color::WHITE,

@@ -68,3 +68,9 @@ impl SshKeysTab {
         view::render(self)
     }
 }
+
+impl Default for SshKeysTab {
+    fn default() -> Self {
+        Self::new()
+    }
+}

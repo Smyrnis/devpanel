@@ -5,7 +5,15 @@ pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
     let content = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
-    parse_vhosts_from_content(&content)
+    let mut entries = parse_vhosts_from_content(&content);
+    if let Ok(db) = crate::core::db::DevPanelDb::open() {
+        for entry in &mut entries {
+            if let Ok(Some((tag, _))) = db.get_vhost_meta(&entry.server_name) {
+                entry.tag = tag;
+            }
+        }
+    }
+    entries
 }
 
 pub async fn load_config_file(path: String) -> String {
@@ -31,6 +39,7 @@ pub async fn add_vhost(
     server_name: String,
     document_root: String,
     php_version: Option<String>,
+    https_enabled: bool,
     password: String,
 ) -> (bool, String) {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
@@ -47,8 +56,16 @@ pub async fn add_vhost(
         server_name: sn.clone(),
         document_root: dr,
         php_version: php_version.clone(),
+        https_enabled,
+        tag: String::new(),
         index: entries.len(),
     });
+
+    if https_enabled
+        && let Err(e) = ensure_mkcert_cert(&sn).await
+    {
+        return (false, e);
+    }
 
     if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
         return (false, format!("Write failed: {}", e));
@@ -89,6 +106,7 @@ pub async fn edit_vhost(
     server_name: String,
     document_root: String,
     php_version: Option<String>,
+    https_enabled: bool,
     password: String,
 ) -> (bool, String) {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
@@ -104,6 +122,13 @@ pub async fn edit_vhost(
     entries[index].server_name = new_sn.clone();
     entries[index].document_root = document_root.trim().to_string();
     entries[index].php_version = php_version.clone();
+    entries[index].https_enabled = https_enabled;
+
+    if https_enabled
+        && let Err(e) = ensure_mkcert_cert(&new_sn).await
+    {
+        return (false, e);
+    }
 
     if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
         return (false, format!("Write failed: {}", e));
@@ -163,10 +188,70 @@ pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String)
     (true, format!("VirtualHost '{}' removed", removed))
 }
 
+pub async fn bulk_delete_vhosts(
+    devpanel_conf: String,
+    indexes: Vec<usize>,
+    password: String,
+) -> (bool, String) {
+    let existing = tokio::fs::read_to_string(&devpanel_conf)
+        .await
+        .unwrap_or_default();
+    let mut entries = parse_vhosts_from_content(&existing);
+    let mut sorted = indexes;
+    sorted.sort_unstable();
+    sorted.dedup();
+    if sorted.iter().any(|idx| *idx >= entries.len()) {
+        return (false, "One or more selected VirtualHosts no longer exist".into());
+    }
+    for idx in sorted.iter().rev() {
+        entries.remove(*idx);
+    }
+    for (i, e) in entries.iter_mut().enumerate() {
+        e.index = i;
+    }
+    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
+        return (false, format!("Write failed: {}", e));
+    }
+    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
+        &password,
+        &["systemctl", "reload", "apache2"],
+    )
+    .await;
+    (true, format!("Removed {} VirtualHost(s)", sorted.len()))
+}
+
+pub async fn toggle_https(devpanel_conf: String, index: usize, password: String) -> (bool, String) {
+    let existing = tokio::fs::read_to_string(&devpanel_conf)
+        .await
+        .unwrap_or_default();
+    let mut entries = parse_vhosts_from_content(&existing);
+    if index >= entries.len() {
+        return (false, "Index out of range".into());
+    }
+    entries[index].https_enabled = !entries[index].https_enabled;
+    let server_name = entries[index].server_name.clone();
+    if entries[index].https_enabled
+        && let Err(e) = ensure_mkcert_cert(&server_name).await
+    {
+        return (false, e);
+    }
+    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
+        return (false, format!("Write failed: {}", e));
+    }
+    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
+        &password,
+        &["systemctl", "reload", "apache2"],
+    )
+    .await;
+    let state = if entries[index].https_enabled { "enabled" } else { "disabled" };
+    (true, format!("HTTPS {} for {}", state, server_name))
+}
+
 pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
     let mut entries = Vec::new();
     let mut idx = 0usize;
     let mut in_block = false;
+    let mut block_is_https = false;
     let mut sn = String::new();
     let mut dr = String::new();
     let mut php_ver: Option<String> = None;
@@ -175,15 +260,20 @@ pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
         let t = line.trim().to_lowercase();
         if t.starts_with("<virtualhost") {
             in_block = true;
+            block_is_https = t.contains(":443");
             sn.clear();
             dr.clear();
             php_ver = None;
         } else if t.starts_with("</virtualhost>") && in_block {
-            if !sn.is_empty() {
+            if !sn.is_empty() && !block_is_https {
+                let https_enabled = content.to_lowercase().contains(&format!("servername {}", sn.to_lowercase()))
+                    && content.to_lowercase().contains("<virtualhost *:443>");
                 entries.push(VHostEntry {
                     server_name: sn.clone(),
                     document_root: dr.clone(),
                     php_version: php_ver.clone(),
+                    https_enabled,
+                    tag: String::new(),
                     index: idx,
                 });
                 idx += 1;
@@ -213,6 +303,9 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
     for e in entries {
         let sn = e.server_name.trim_end_matches('/');
         let slug = sn.replace('.', "_");
+        let cert_base = cert_base_dir();
+        let cert_file = cert_base.join(format!("{}.pem", slug));
+        let key_file = cert_base.join(format!("{}-key.pem", slug));
         let set_handler = match &e.php_version {
             Some(ver) => format!("\n        SetHandler application/x-httpd-php{}", ver),
             None => String::new(),
@@ -236,8 +329,71 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
             slug = slug,
             set_handler = set_handler,
         ));
+        if e.https_enabled {
+            out.push_str(&format!(
+                "<VirtualHost *:443>\n\
+                 \tServerName {sn}\n\
+                 \tServerAlias www.{sn}\n\
+                 \tDocumentRoot {dr}\n\n\
+                 \tSSLEngine on\n\
+                 \tSSLCertificateFile {cert}\n\
+                 \tSSLCertificateKeyFile {key}\n\n\
+                 \t<Directory {dr}>\n\
+                 \t\tOptions Indexes FollowSymLinks\n\
+                 \t\tAllowOverride All\n\
+                 \t\tRequire all granted{set_handler}\n\
+                 \t</Directory>\n\n\
+                 \tErrorLog ${{APACHE_LOG_DIR}}/{slug}_ssl_error.log\n\
+                 \tCustomLog ${{APACHE_LOG_DIR}}/{slug}_ssl_access.log combined\n\
+                 </VirtualHost>\n\n",
+                sn = sn,
+                dr = e.document_root,
+                slug = slug,
+                cert = cert_file.display(),
+                key = key_file.display(),
+                set_handler = set_handler,
+            ));
+        }
     }
     out
+}
+
+fn cert_base_dir() -> std::path::PathBuf {
+    crate::core::system::get_home()
+        .join(".local")
+        .join("share")
+        .join("devpanel")
+        .join("certs")
+}
+
+async fn ensure_mkcert_cert(server_name: &str) -> Result<(), String> {
+    let base = cert_base_dir();
+    tokio::fs::create_dir_all(&base)
+        .await
+        .map_err(|e| format!("Could not create certificate directory: {}", e))?;
+    let slug = server_name.trim_end_matches('/').replace('.', "_");
+    let cert = base.join(format!("{}.pem", slug));
+    let key = base.join(format!("{}-key.pem", slug));
+    if cert.exists() && key.exists() {
+        return Ok(());
+    }
+    let out = tokio::process::Command::new("mkcert")
+        .args([
+            "-cert-file",
+            cert.to_string_lossy().as_ref(),
+            "-key-file",
+            key.to_string_lossy().as_ref(),
+            server_name,
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("mkcert is required for HTTPS: {}", e))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Err(format!("mkcert failed: {}", if stderr.is_empty() { "unknown error" } else { &stderr }))
+    }
 }
 
 fn extract_directive_value(line: &str) -> String {

@@ -179,6 +179,7 @@ impl App {
                 server_name,
                 document_root,
                 php_version,
+                https_enabled,
             } => {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(
@@ -187,6 +188,7 @@ impl App {
                         server_name,
                         document_root,
                         php_version,
+                        https_enabled,
                         password,
                     ),
                     |(ok, msg)| Message::VHosts(VHostsMessage::CreateDone(ok, msg)),
@@ -198,6 +200,7 @@ impl App {
                 server_name,
                 document_root,
                 php_version,
+                https_enabled,
             } => {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::perform(
@@ -207,6 +210,7 @@ impl App {
                         server_name,
                         document_root,
                         php_version,
+                        https_enabled,
                         password,
                     ),
                     |(ok, msg)| Message::VHosts(VHostsMessage::SaveEditDone(ok, msg)),
@@ -218,6 +222,22 @@ impl App {
                 Task::perform(
                     crate::tabs::vhosts::delete_vhost(conf, index, password),
                     |(ok, msg)| Message::VHosts(VHostsMessage::DeleteDone(ok, msg)),
+                )
+            }
+
+            PendingAction::VHostBulkDelete { indexes } => {
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(
+                    crate::tabs::vhosts::bulk_delete_vhosts(conf, indexes, password),
+                    |(ok, msg)| Message::VHosts(VHostsMessage::DeleteDone(ok, msg)),
+                )
+            }
+
+            PendingAction::VHostToggleHttps { index } => {
+                let conf = self.vhosts.devpanel_conf.clone();
+                Task::perform(
+                    crate::tabs::vhosts::toggle_https(conf, index, password),
+                    |(ok, msg)| Message::VHosts(VHostsMessage::SaveEditDone(ok, msg)),
                 )
             }
 
@@ -261,8 +281,18 @@ impl App {
                 mysql,
                 php,
                 php_versions,
+                apache_uptime,
+                mysql_uptime,
+                recent_failures,
             } => {
-                self.dashboard.update_status(apache, mysql, php);
+                self.dashboard.update_status(
+                    apache,
+                    mysql,
+                    php,
+                    apache_uptime,
+                    mysql_uptime,
+                    recent_failures,
+                );
                 self.dashboard.set_php_versions(php_versions);
                 if !self.setup_issues_checked {
                     self.setup_issues_checked = true;
@@ -345,7 +375,20 @@ impl App {
             ]),
 
             DashboardMessage::ShowPhpInfo => {
-                let _ = open_url("http://localhost/phpinfo.php");
+                self.dashboard.php_info_loading = true;
+                self.dashboard.php_info = None;
+                Task::perform(crate::tabs::dashboard::backend::php_info_summary(), |text| {
+                    Message::Dashboard(DashboardMessage::PhpInfoLoaded(text))
+                })
+            }
+            DashboardMessage::PhpInfoLoaded(text) => {
+                self.dashboard.php_info_loading = false;
+                self.dashboard.php_info = Some(text);
+                Task::none()
+            }
+            DashboardMessage::ClosePhpInfo => {
+                self.dashboard.php_info_loading = false;
+                self.dashboard.php_info = None;
                 Task::none()
             }
             DashboardMessage::OpenLocalhost => {
@@ -420,7 +463,7 @@ impl App {
                 let (email, name, ktype, pass) = (
                     self.ssh_keys.email.clone(),
                     self.ssh_keys.key_name.clone(),
-                    self.ssh_keys.key_type.clone(),
+                    self.ssh_keys.key_type,
                     self.ssh_keys.passphrase.clone(),
                 );
                 Task::perform(
@@ -719,6 +762,15 @@ impl App {
                 self.repos.set_repos(repos);
                 Task::none()
             }
+            ReposMessage::NextPage => {
+                let pages = self.repos.remote_repos.len().saturating_sub(1) / self.repos.page_size;
+                self.repos.page = (self.repos.page + 1).min(pages);
+                Task::none()
+            }
+            ReposMessage::PrevPage => {
+                self.repos.page = self.repos.page.saturating_sub(1);
+                Task::none()
+            }
 
             ReposMessage::Clone { ssh_url, name } => {
                 self.repos.mark_cloning(&ssh_url, true);
@@ -742,6 +794,14 @@ impl App {
             ReposMessage::OpenCloned(name) => {
                 open_terminal_at(&format!("{}/{}", self.repos.repos_root, name));
                 Task::none()
+            }
+            ReposMessage::OpenEditor(name) => {
+                let path = format!("{}/{}", self.repos.repos_root, name);
+                let cmd = self.config_tab.settings.editor_command.clone();
+                match crate::core::system::open_in_editor(&cmd, &path) {
+                    Ok(_) => Task::none(),
+                    Err(e) => self.show_toast(e, false),
+                }
             }
 
             ReposMessage::SearchChanged(v) => {
@@ -796,15 +856,21 @@ impl App {
                 self.vhosts.form.php_version = v;
                 Task::none()
             }
+            VHostsMessage::FormHttpsChanged(v) => {
+                self.vhosts.form.https_enabled = v;
+                Task::none()
+            }
 
             VHostsMessage::Create => {
                 let sn = self.vhosts.form.server_name.trim().to_string();
                 let dr = self.vhosts.form.document_root.trim().to_string();
                 let php = self.vhosts.form.php_version.clone();
+                let https_enabled = self.vhosts.form.https_enabled;
                 self.trigger_sudo(PendingAction::VHostAdd {
                     server_name: sn,
                     document_root: dr,
                     php_version: php,
+                    https_enabled,
                 })
             }
 
@@ -831,6 +897,7 @@ impl App {
                 let sn = self.vhosts.form.server_name.trim().to_string();
                 let dr = self.vhosts.form.document_root.trim().to_string();
                 let php = self.vhosts.form.php_version.clone();
+                let https_enabled = self.vhosts.form.https_enabled;
                 let idx = match self.vhosts.form.mode {
                     crate::tabs::vhosts::FormMode::Edit(i) => i,
                     _ => return Task::none(),
@@ -840,6 +907,7 @@ impl App {
                     server_name: sn,
                     document_root: dr,
                     php_version: php,
+                    https_enabled,
                 })
             }
 
@@ -878,7 +946,19 @@ impl App {
                 self.trigger_sudo(PendingAction::VHostDelete { index: idx })
             }
 
+            VHostsMessage::BulkDeleteConfirm => {
+                let indexes = self.vhosts.selected.clone();
+                if indexes.is_empty() {
+                    return Task::none();
+                }
+                self.vhosts.confirm_delete = None;
+                self.trigger_sudo(PendingAction::VHostBulkDelete { indexes })
+            }
+
             VHostsMessage::DeleteDone(ok, msg) => {
+                if ok {
+                    self.vhosts.selected.clear();
+                }
                 self.vhosts.status_msg = Some((ok, msg.clone()));
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::batch([
@@ -887,6 +967,57 @@ impl App {
                         Message::VHosts(VHostsMessage::ScanDone(v))
                     }),
                 ])
+            }
+
+            VHostsMessage::ToggleSelected(idx) => {
+                if self.vhosts.selected.contains(&idx) {
+                    self.vhosts.selected.retain(|i| *i != idx);
+                } else {
+                    self.vhosts.selected.push(idx);
+                }
+                Task::none()
+            }
+            VHostsMessage::SelectAll => {
+                self.vhosts.selected = self.vhosts.vhosts.iter().map(|v| v.index).collect();
+                Task::none()
+            }
+            VHostsMessage::ClearSelection => {
+                self.vhosts.selected.clear();
+                Task::none()
+            }
+            VHostsMessage::BulkTagChanged(v) => {
+                self.vhosts.bulk_tag = v;
+                Task::none()
+            }
+            VHostsMessage::ApplyBulkTag => {
+                let tag = self.vhosts.bulk_tag.trim().to_string();
+                if tag.is_empty() || self.vhosts.selected.is_empty() {
+                    return Task::none();
+                }
+                if let Some(db) = &self.db {
+                    for idx in &self.vhosts.selected {
+                        if let Some(vh) = self.vhosts.vhosts.iter_mut().find(|v| v.index == *idx) {
+                            let _ = db.set_vhost_meta(&vh.server_name, &tag, "");
+                            vh.tag = tag.clone();
+                        }
+                    }
+                }
+                self.vhosts.status_msg = Some((true, format!("Tagged {} VirtualHost(s)", self.vhosts.selected.len())));
+                self.vhosts.bulk_tag.clear();
+                Task::none()
+            }
+            VHostsMessage::ToggleHttps(idx) => {
+                self.trigger_sudo(PendingAction::VHostToggleHttps { index: idx })
+            }
+            VHostsMessage::DuplicateRequest(idx) => {
+                if let Some(entry) = self.vhosts.vhosts.iter().find(|e| e.index == idx).cloned() {
+                    self.vhosts.form.open_add();
+                    self.vhosts.form.server_name = format!("copy-of-{}", entry.server_name);
+                    self.vhosts.form.document_root = entry.document_root;
+                    self.vhosts.form.php_version = entry.php_version;
+                    self.vhosts.form.https_enabled = entry.https_enabled;
+                }
+                Task::none()
             }
 
             VHostsMessage::OpenConfigEditor => {
@@ -976,12 +1107,12 @@ impl App {
 
             ConfigMessage::SaveDone(ok, msg) => {
                 self.config_tab.apply_save_result(ok, msg.clone());
-                if ok {
-                    if let Ok(db) = DevPanelDb::open() {
-                        let loaded = UserSettings::load(&db);
-                        self.config_tab.settings = loaded;
-                        self.db = Some(db);
-                    }
+                if ok
+                    && let Ok(db) = DevPanelDb::open()
+                {
+                    let loaded = UserSettings::load(&db);
+                    self.config_tab.settings = loaded;
+                    self.db = Some(db);
                 }
                 self.show_toast(msg, ok)
             }

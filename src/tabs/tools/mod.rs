@@ -152,3 +152,9 @@ impl ToolsTab {
         view::render(self)
     }
 }
+
+impl Default for ToolsTab {
+    fn default() -> Self {
+        Self::new()
+    }
+}
