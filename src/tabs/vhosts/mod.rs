@@ -117,7 +117,8 @@ impl VHostsTab {
     pub fn set_vhosts(&mut self, v: Vec<VHostEntry>) {
         self.scanning = false;
         self.vhosts = v;
-        self.selected.retain(|idx| self.vhosts.iter().any(|e| e.index == *idx));
+        self.selected
+            .retain(|idx| self.vhosts.iter().any(|e| e.index == *idx));
     }
 
     /// Called whenever a PHP scan completes in ToolsTab.

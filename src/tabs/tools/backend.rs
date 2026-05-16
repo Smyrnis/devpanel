@@ -1,4 +1,4 @@
-use super::{ApacheModule, PhpStatus};
+use super::{ApacheModule, InstalledTools, PhpStatus};
 use crate::core::sudo_prompt::sudo_cmd_with_password;
 use tokio::process::Command;
 
@@ -10,13 +10,48 @@ struct PhpVersionMeta {
 }
 
 const PHP_VERSIONS: &[PhpVersionMeta] = &[
-    PhpVersionMeta { version: "5.6", binaries: &["php5.6", "php5"], mod_name: "php5.6", apt_pkg: "php5.6" },
-    PhpVersionMeta { version: "7.4", binaries: &["php7.4"], mod_name: "php7.4", apt_pkg: "php7.4" },
-    PhpVersionMeta { version: "8.0", binaries: &["php8.0"], mod_name: "php8.0", apt_pkg: "php8.0" },
-    PhpVersionMeta { version: "8.1", binaries: &["php8.1"], mod_name: "php8.1", apt_pkg: "php8.1" },
-    PhpVersionMeta { version: "8.2", binaries: &["php8.2"], mod_name: "php8.2", apt_pkg: "php8.2" },
-    PhpVersionMeta { version: "8.3", binaries: &["php8.3"], mod_name: "php8.3", apt_pkg: "php8.3" },
-    PhpVersionMeta { version: "8.4", binaries: &["php8.4"], mod_name: "php8.4", apt_pkg: "php8.4" },
+    PhpVersionMeta {
+        version: "5.6",
+        binaries: &["php5.6", "php5"],
+        mod_name: "php5.6",
+        apt_pkg: "php5.6",
+    },
+    PhpVersionMeta {
+        version: "7.4",
+        binaries: &["php7.4"],
+        mod_name: "php7.4",
+        apt_pkg: "php7.4",
+    },
+    PhpVersionMeta {
+        version: "8.0",
+        binaries: &["php8.0"],
+        mod_name: "php8.0",
+        apt_pkg: "php8.0",
+    },
+    PhpVersionMeta {
+        version: "8.1",
+        binaries: &["php8.1"],
+        mod_name: "php8.1",
+        apt_pkg: "php8.1",
+    },
+    PhpVersionMeta {
+        version: "8.2",
+        binaries: &["php8.2"],
+        mod_name: "php8.2",
+        apt_pkg: "php8.2",
+    },
+    PhpVersionMeta {
+        version: "8.3",
+        binaries: &["php8.3"],
+        mod_name: "php8.3",
+        apt_pkg: "php8.3",
+    },
+    PhpVersionMeta {
+        version: "8.4",
+        binaries: &["php8.4"],
+        mod_name: "php8.4",
+        apt_pkg: "php8.4",
+    },
 ];
 
 pub async fn scan_php_versions(
@@ -32,7 +67,10 @@ pub async fn scan_php_versions(
         let installed = {
             let mut found = false;
             for bin in meta.binaries {
-                if tokio::fs::metadata(format!("/usr/bin/{}", bin)).await.is_ok() {
+                if tokio::fs::metadata(format!("/usr/bin/{}", bin))
+                    .await
+                    .is_ok()
+                {
                     found = true;
                     break;
                 }
@@ -49,7 +87,11 @@ pub async fn scan_php_versions(
                 .await
                 .map(|o| o.status.success())
                 .unwrap_or(false);
-            if avail { PhpStatus::Available } else { PhpStatus::Unknown }
+            if avail {
+                PhpStatus::Available
+            } else {
+                PhpStatus::Unknown
+            }
         };
 
         let is_active = active_short.as_deref() == Some(meta.version);
@@ -71,7 +113,13 @@ pub async fn scan_php_versions(
             }
         };
 
-        results.push((meta.version.to_string(), status, is_active, mod_available, mod_enabled));
+        results.push((
+            meta.version.to_string(),
+            status,
+            is_active,
+            mod_available,
+            mod_enabled,
+        ));
     }
 
     results
@@ -102,8 +150,8 @@ pub async fn scan_apache_modules() -> Vec<ApacheModule> {
 
 pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, bool)> {
     let ext_names = [
-        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql",
-        "redis", "intl", "bcmath", "soap", "imagick", "xdebug", "sqlite3",
+        "curl", "gd", "mbstring", "xml", "zip", "mysql", "pgsql", "redis", "intl", "bcmath",
+        "soap", "imagick", "xdebug", "sqlite3",
     ];
     let mut results = Vec::new();
     for name in &ext_names {
@@ -137,7 +185,11 @@ pub async fn toggle_apache_module(
             let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
             (
                 true,
-                format!("mod_{} {} — Apache reloaded", name, if enable { "enabled" } else { "disabled" }),
+                format!(
+                    "mod_{} {} — Apache reloaded",
+                    name,
+                    if enable { "enabled" } else { "disabled" }
+                ),
                 name,
                 enable,
             )
@@ -155,12 +207,16 @@ pub async fn apt_php_op(version: String, install: bool, password: String) -> (bo
 
     let pkg = if version == "5.6" {
         if install {
-            "php5.6 php5.6-cli php5.6-common php5.6-mysql php5.6-xml php5.6-mbstring php5.6-curl".to_string()
+            "php5.6 php5.6-cli php5.6-common php5.6-mysql php5.6-xml php5.6-mbstring php5.6-curl"
+                .to_string()
         } else {
             "php5.6 php5.6-*".to_string()
         }
     } else if install {
-        format!("php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring", version)
+        format!(
+            "php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring",
+            version
+        )
     } else {
         format!("php{0} php{0}-*", version)
     };
@@ -192,7 +248,11 @@ pub async fn apt_package_op(package: String, install: bool, password: String) ->
     match sudo_cmd_with_password(&password, &args).await {
         Ok(_) => (
             true,
-            format!("{} {}d successfully", package, if install { "installe" } else { "remove" }),
+            format!(
+                "{} {}d successfully",
+                package,
+                if install { "installe" } else { "remove" }
+            ),
         ),
         Err(e) => (false, format!("Failed: {}", e)),
     }
@@ -213,4 +273,108 @@ pub async fn switch_php(version: String, password: String) -> (bool, String) {
         Ok(_) => (true, format!("Switched to PHP {}", version)),
         Err(e) => (false, e),
     }
+}
+
+pub async fn scan_installed_tools() -> InstalledTools {
+    let composer_version = command_first_line("composer", &["--version"]).await;
+    let node_version = command_first_line("node", &["--version"]).await;
+    let npm_version = command_first_line("npm", &["--version"]).await;
+    let nvm_available = std::env::var("HOME")
+        .map(|home| std::path::Path::new(&home).join(".nvm/nvm.sh").exists())
+        .unwrap_or(false);
+    let redis_installed = command_first_line("redis-server", &["--version"])
+        .await
+        .is_some();
+    let redis_running = service_active("redis-server").await || service_active("redis").await;
+    let redis_memory = if redis_installed {
+        redis_memory_usage().await
+    } else {
+        None
+    };
+
+    InstalledTools {
+        composer_version,
+        node_version,
+        npm_version,
+        nvm_available,
+        redis_installed,
+        redis_running,
+        redis_memory,
+    }
+}
+
+pub async fn composer_op(update: bool, password: String) -> (bool, String) {
+    if update {
+        return match sudo_cmd_with_password(&password, &["composer", "self-update"]).await {
+            Ok(_) => (true, "Composer updated".into()),
+            Err(e) => (false, format!("Composer update failed: {}", e)),
+        };
+    }
+
+    let cmd = "php -r \"copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');\" \
+               && php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer \
+               && rm -f /tmp/composer-setup.php";
+    match sudo_cmd_with_password(&password, &["sh", "-c", cmd]).await {
+        Ok(_) => (true, "Composer installed globally".into()),
+        Err(e) => (false, format!("Composer install failed: {}", e)),
+    }
+}
+
+pub async fn redis_service_op(action: String, password: String) -> (bool, String) {
+    let service = if service_active("redis-server").await || service_exists("redis-server").await {
+        "redis-server"
+    } else {
+        "redis"
+    };
+    match sudo_cmd_with_password(&password, &["systemctl", &action, service]).await {
+        Ok(_) => (true, format!("Redis {}ed", action)),
+        Err(e) => (false, format!("Redis {} failed: {}", action, e)),
+    }
+}
+
+async fn command_first_line(cmd: &str, args: &[&str]) -> Option<String> {
+    let out = Command::new(cmd).args(args).output().await.ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .next()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+async fn service_active(name: &str) -> bool {
+    Command::new("systemctl")
+        .args(["is-active", "--quiet", name])
+        .status()
+        .await
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+async fn service_exists(name: &str) -> bool {
+    Command::new("systemctl")
+        .args(["status", name, "--no-pager"])
+        .status()
+        .await
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+async fn redis_memory_usage() -> Option<String> {
+    let out = Command::new("redis-cli")
+        .args(["info", "memory"])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("used_memory_human:")
+                .map(|s| s.trim().to_string())
+        })
 }

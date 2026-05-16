@@ -61,9 +61,7 @@ pub async fn add_vhost(
         index: entries.len(),
     });
 
-    if https_enabled
-        && let Err(e) = ensure_mkcert_cert(&sn).await
-    {
+    if https_enabled && let Err(e) = ensure_mkcert_cert(&sn).await {
         return (false, e);
     }
 
@@ -124,9 +122,7 @@ pub async fn edit_vhost(
     entries[index].php_version = php_version.clone();
     entries[index].https_enabled = https_enabled;
 
-    if https_enabled
-        && let Err(e) = ensure_mkcert_cert(&new_sn).await
-    {
+    if https_enabled && let Err(e) = ensure_mkcert_cert(&new_sn).await {
         return (false, e);
     }
 
@@ -201,7 +197,10 @@ pub async fn bulk_delete_vhosts(
     sorted.sort_unstable();
     sorted.dedup();
     if sorted.iter().any(|idx| *idx >= entries.len()) {
-        return (false, "One or more selected VirtualHosts no longer exist".into());
+        return (
+            false,
+            "One or more selected VirtualHosts no longer exist".into(),
+        );
     }
     for idx in sorted.iter().rev() {
         entries.remove(*idx);
@@ -243,7 +242,11 @@ pub async fn toggle_https(devpanel_conf: String, index: usize, password: String)
         &["systemctl", "reload", "apache2"],
     )
     .await;
-    let state = if entries[index].https_enabled { "enabled" } else { "disabled" };
+    let state = if entries[index].https_enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
     (true, format!("HTTPS {} for {}", state, server_name))
 }
 
@@ -266,7 +269,9 @@ pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
             php_ver = None;
         } else if t.starts_with("</virtualhost>") && in_block {
             if !sn.is_empty() && !block_is_https {
-                let https_enabled = content.to_lowercase().contains(&format!("servername {}", sn.to_lowercase()))
+                let https_enabled = content
+                    .to_lowercase()
+                    .contains(&format!("servername {}", sn.to_lowercase()))
                     && content.to_lowercase().contains("<virtualhost *:443>");
                 entries.push(VHostEntry {
                     server_name: sn.clone(),
@@ -392,15 +397,19 @@ async fn ensure_mkcert_cert(server_name: &str) -> Result<(), String> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        Err(format!("mkcert failed: {}", if stderr.is_empty() { "unknown error" } else { &stderr }))
+        Err(format!(
+            "mkcert failed: {}",
+            if stderr.is_empty() {
+                "unknown error"
+            } else {
+                &stderr
+            }
+        ))
     }
 }
 
 fn extract_directive_value(line: &str) -> String {
-    line.split_whitespace()
-        .nth(1)
-        .unwrap_or("")
-        .to_string()
+    line.split_whitespace().nth(1).unwrap_or("").to_string()
 }
 
 #[allow(dead_code)]

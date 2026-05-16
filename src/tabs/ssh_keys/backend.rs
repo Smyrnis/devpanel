@@ -82,6 +82,7 @@ pub async fn list_keys() -> Vec<KeyEntry> {
     while let Ok(Some(entry)) = dir_reader.next_entry().await {
         files.push(entry.file_name().to_string_lossy().to_string());
     }
+    let loaded_fingerprints = loaded_agent_fingerprints().await;
     for fname in &files {
         if fname.ends_with(".pub")
             || matches!(
@@ -94,14 +95,30 @@ pub async fn list_keys() -> Vec<KeyEntry> {
         }
         let path = dir.join(fname);
         let has_pub = files.contains(&format!("{}.pub", fname));
+        let fingerprint = key_fingerprint(&path).await;
+        let loaded_in_agent = fingerprint
+            .as_deref()
+            .map(|fp| loaded_fingerprints.iter().any(|loaded| loaded == fp))
+            .unwrap_or(false);
         entries.push(KeyEntry {
             name: fname.clone(),
             path: path.to_string_lossy().to_string(),
             has_pub,
+            fingerprint,
+            created: key_created_label(&path).await,
+            loaded_in_agent,
         });
     }
     entries.sort_by(|a, b| a.name.cmp(&b.name));
     entries
+}
+
+pub async fn read_public_key(path: String) -> Result<String, String> {
+    let pub_path = format!("{}.pub", path);
+    tokio::fs::read_to_string(&pub_path)
+        .await
+        .map(|s| s.trim().to_string())
+        .map_err(|e| format!("Could not read {}: {}", pub_path, e))
 }
 
 fn ssh_dir() -> std::path::PathBuf {
@@ -117,4 +134,73 @@ fn default_key_name(key_type: KeyType) -> String {
         KeyType::Rsa4096 => "id_rsa".to_string(),
         KeyType::Ecdsa => "id_ecdsa".to_string(),
     }
+}
+
+async fn key_fingerprint(path: &std::path::Path) -> Option<String> {
+    let out = Command::new("ssh-keygen")
+        .args(["-l", "-f", path.to_string_lossy().as_ref()])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    stdout.split_whitespace().nth(1).map(|s| s.to_string())
+}
+
+async fn loaded_agent_fingerprints() -> Vec<String> {
+    let out = Command::new("ssh-add").arg("-l").output().await;
+    let Ok(out) = out else { return Vec::new() };
+    if !out.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|line| line.split_whitespace().nth(1).map(|s| s.to_string()))
+        .collect()
+}
+
+async fn key_created_label(path: &std::path::Path) -> Option<String> {
+    let metadata = tokio::fs::metadata(path).await.ok()?;
+    let time = metadata.created().or_else(|_| metadata.modified()).ok()?;
+    let secs = time.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+    Some(format_unix_day(secs))
+}
+
+fn format_unix_day(secs: u64) -> String {
+    let days = secs / 86_400;
+    let (year, day_of_year) = year_and_day(days);
+    let (month, day) = month_day(year, day_of_year);
+    format!("{:04}-{:02}-{:02}", year, month, day)
+}
+
+fn year_and_day(mut days: u64) -> (i32, u64) {
+    let mut year = 1970;
+    loop {
+        let year_days = if is_leap(year) { 366 } else { 365 };
+        if days < year_days {
+            return (year, days);
+        }
+        days -= year_days;
+        year += 1;
+    }
+}
+
+fn month_day(year: i32, mut day_of_year: u64) -> (u64, u64) {
+    let mut days_per_month = [31_u64, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if is_leap(year) {
+        days_per_month[1] = 29;
+    }
+    for (idx, month_days) in days_per_month.iter().enumerate() {
+        if day_of_year < *month_days {
+            return ((idx + 1) as u64, day_of_year + 1);
+        }
+        day_of_year -= month_days;
+    }
+    (12, 31)
+}
+
+fn is_leap(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }

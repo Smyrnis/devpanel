@@ -6,7 +6,9 @@ pub async fn probe_services() -> Message {
     let mysql = service_active("mysql").await || service_active("mariadb").await;
     let (php, php_versions) = detect_php().await;
     let apache_uptime = service_uptime("apache2").await;
-    let mysql_uptime = service_uptime("mysql").await.or(service_uptime("mariadb").await);
+    let mysql_uptime = service_uptime("mysql")
+        .await
+        .or(service_uptime("mariadb").await);
     let recent_failures = recent_service_failures("apache2").await;
     Message::Dashboard(DashboardMessage::StatusRefreshed {
         apache,
@@ -73,7 +75,9 @@ pub fn detect_distro() -> String {
 
 pub async fn php_info_summary() -> String {
     let out = Command::new("php").arg("-i").output().await;
-    let Ok(out) = out else { return "php -i could not be executed".into() };
+    let Ok(out) = out else {
+        return "php -i could not be executed".into();
+    };
     if !out.status.success() {
         return String::from_utf8_lossy(&out.stderr).trim().to_string();
     }
@@ -99,14 +103,24 @@ pub async fn php_info_summary() -> String {
             lines.push(line.replace(" => ", ": "));
         }
     }
-    if lines.is_empty() { "No PHP info fields found".into() } else { lines.join("\n") }
+    if lines.is_empty() {
+        "No PHP info fields found".into()
+    } else {
+        lines.join("\n")
+    }
 }
 
 async fn service_uptime(service: &str) -> Option<String> {
     let uptime = tokio::fs::read_to_string("/proc/uptime").await.ok()?;
     let system_uptime_secs: f64 = uptime.split_whitespace().next()?.parse().ok()?;
     let out = Command::new("systemctl")
-        .args(["show", service, "-p", "ActiveEnterTimestampMonotonic", "--value"])
+        .args([
+            "show",
+            service,
+            "-p",
+            "ActiveEnterTimestampMonotonic",
+            "--value",
+        ])
         .output()
         .await
         .ok()?;

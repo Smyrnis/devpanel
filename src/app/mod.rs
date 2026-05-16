@@ -9,12 +9,8 @@ use crate::core::{
 };
 use crate::messages::{Message, SudoMessage, Tab};
 use crate::tabs::{
-    config::ConfigTab,
-    dashboard::DashboardTab,
-    repos::ReposTab,
-    ssh_keys::SshKeysTab,
-    tools::ToolsTab,
-    vhosts::VHostsTab,
+    config::ConfigTab, dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab,
+    tools::ToolsTab, vhosts::VHostsTab,
 };
 
 use iced::widget::{Space, button, column, container, row, stack, text};
@@ -24,6 +20,7 @@ use iced::{Alignment, Border, Color, Element, Length, Padding, Task};
 pub struct Toast {
     pub message: String,
     pub ok: bool,
+    pub remaining_ms: u32,
 }
 
 pub struct App {
@@ -36,10 +33,13 @@ pub struct App {
     pub repos: ReposTab,
     pub vhosts: VHostsTab,
     pub config_tab: ConfigTab,
-    pub toast: Option<Toast>,
+    pub notifications: Vec<Toast>,
     pub sudo: SudoModal,
     pub sudo_pending_action: Option<PendingAction>,
     pub first_run_state: FirstRunState,
+    pub first_run_options: crate::core::first_run_install::FirstRunInstallOptions,
+    pub first_run_installing: bool,
+    pub first_run_log_lines: Vec<String>,
     pub setup_issues_checked: bool,
 }
 
@@ -62,10 +62,13 @@ impl App {
             tools: ToolsTab::new(),
             config,
             db,
-            toast: None,
+            notifications: Vec::new(),
             sudo: SudoModal::new(),
             sudo_pending_action: None,
             first_run_state: FirstRunState::default(),
+            first_run_options: crate::core::first_run_install::FirstRunInstallOptions::default(),
+            first_run_installing: false,
+            first_run_log_lines: Vec::new(),
             setup_issues_checked: false,
         };
         (
@@ -75,21 +78,35 @@ impl App {
     }
 
     pub fn show_toast(&mut self, message: String, ok: bool) -> Task<Message> {
-        self.toast = Some(Toast { message, ok });
-        Task::perform(
-            async { tokio::time::sleep(tokio::time::Duration::from_secs(4)).await },
-            |_| Message::Tools(crate::messages::ToolsMessage::ClearToast),
-        )
+        let remaining_ms = self.config_tab.settings.ui_toast_duration_ms.max(1000);
+        if let Some(db) = &self.db {
+            let _ = db.add_notification(ok, &message);
+        }
+        self.notifications.push(Toast {
+            message,
+            ok,
+            remaining_ms,
+        });
+        Task::none()
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        iced::time::every(std::time::Duration::from_secs(5))
-            .map(|_| Message::Dashboard(crate::messages::DashboardMessage::AutoRefreshTick))
+        iced::Subscription::batch([
+            iced::time::every(std::time::Duration::from_secs(5))
+                .map(|_| Message::Dashboard(crate::messages::DashboardMessage::AutoRefreshTick)),
+            iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::NotificationTick),
+            iced::time::every(std::time::Duration::from_secs(1))
+                .map(|_| Message::FirstRun(crate::messages::FirstRunMessage::ProgressTick)),
+        ])
     }
 
     pub fn view(&self) -> Element<'_, Message> {
         if self.first_run_state == FirstRunState::Visible {
-            return first_run::view();
+            return first_run::view(
+                self.first_run_options,
+                self.first_run_installing,
+                &self.first_run_log_lines,
+            );
         }
 
         let tab_content: Element<Message> = match &self.active_tab {
@@ -101,68 +118,9 @@ impl App {
             Tab::Config => self.config_tab.view(),
         };
 
-        let main_body: Element<Message> = if let Some(toast) = &self.toast {
-            let (accent, border_color) = if toast.ok {
-                (
-                    GREEN,
-                    Color {
-                        r: 0.070,
-                        g: 0.210,
-                        b: 0.110,
-                        a: 1.0,
-                    },
-                )
-            } else {
-                (
-                    RED,
-                    Color {
-                        r: 0.300,
-                        g: 0.090,
-                        b: 0.080,
-                        a: 1.0,
-                    },
-                )
-            };
-            let banner = container(
-                row![
-                    container(
-                        text(if toast.ok { "+" } else { "x" })
-                            .size(11)
-                            .color(Color::WHITE)
-                    )
-                    .padding(Padding::from([3, 7]))
-                    .style(move |_: &iced::Theme| container::Style {
-                        background: Some(accent.into()),
-                        border: Border {
-                            radius: 20.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    }),
-                    Space::with_width(10),
-                    text(toast.message.as_str()).size(13).color(TEXT_PRIMARY),
-                ]
-                .align_y(Alignment::Center),
-            )
-            .padding(Padding::from([10, 18]))
-            .width(Length::Fill)
-            .style(move |_: &iced::Theme| container::Style {
-                background: Some(BG_SURFACE.into()),
-                border: Border {
-                    color: border_color,
-                    width: 1.0,
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-            column![banner, tab_content].into()
-        } else {
-            tab_content
-        };
-
         let app_area = row![
             self.sidebar(),
-            container(main_body)
+            container(tab_content)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(|_: &iced::Theme| container::Style {
@@ -171,18 +129,72 @@ impl App {
                 }),
         ];
 
+        let base = stack![
+            container(app_area).width(Length::Fill).height(Length::Fill),
+            self.notification_overlay(),
+        ];
+
         if self.sudo.is_visible() {
-            stack![
-                container(app_area).width(Length::Fill).height(Length::Fill),
-                self.sudo.view(),
-            ]
-            .into()
+            stack![base, self.sudo.view()].into()
         } else {
-            container(app_area)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
+            base.into()
         }
+    }
+
+    fn notification_overlay(&self) -> Element<'_, Message> {
+        if self.notifications.is_empty() {
+            return Space::with_height(0).into();
+        }
+
+        let mut cards: Vec<Element<Message>> = self
+            .notifications
+            .iter()
+            .rev()
+            .take(3)
+            .map(notification_card)
+            .collect();
+        cards.insert(
+            0,
+            button(text("Dismiss all").size(11).color(TEXT_MUTED))
+                .on_press(Message::DismissAllNotifications)
+                .padding(Padding::from([6, 12]))
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(BG_HOVER.into()),
+                        text_color: TEXT_PRIMARY,
+                        border: Border {
+                            radius: 6.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(BG_SURFACE.into()),
+                        text_color: TEXT_MUTED,
+                        border: Border {
+                            color: BORDER_SUBTLE,
+                            width: 1.0,
+                            radius: 6.0.into(),
+                        },
+                        ..Default::default()
+                    },
+                })
+                .into(),
+        );
+
+        container(
+            column![
+                Space::with_height(Length::Fill),
+                row![
+                    Space::with_width(Length::Fill),
+                    column(cards).spacing(8).width(340),
+                ],
+            ]
+            .padding(Padding::from([20, 20])),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 
     fn sidebar(&self) -> Element<'_, Message> {
@@ -444,4 +456,74 @@ fn divider<'a>() -> Element<'a, Message> {
             ..Default::default()
         })
         .into()
+}
+
+fn notification_card(toast: &Toast) -> Element<'_, Message> {
+    let (accent, border_color) = if toast.ok {
+        (
+            GREEN,
+            Color {
+                r: 0.070,
+                g: 0.210,
+                b: 0.110,
+                a: 1.0,
+            },
+        )
+    } else {
+        (
+            RED,
+            Color {
+                r: 0.300,
+                g: 0.090,
+                b: 0.080,
+                a: 1.0,
+            },
+        )
+    };
+    let seconds = (toast.remaining_ms / 1000).max(1);
+    container(
+        row![
+            container(
+                text(if toast.ok { "+" } else { "x" })
+                    .size(11)
+                    .color(Color::WHITE)
+            )
+            .padding(Padding::from([3, 7]))
+            .style(move |_: &iced::Theme| container::Style {
+                background: Some(accent.into()),
+                border: Border {
+                    radius: 20.0.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            Space::with_width(10),
+            text(toast.message.as_str())
+                .size(13)
+                .color(TEXT_PRIMARY)
+                .width(Length::Fill),
+            text(format!("{}s", seconds)).size(10).color(TEXT_MUTED),
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(Padding::from([10, 14]))
+    .width(Length::Fill)
+    .style(move |_: &iced::Theme| container::Style {
+        background: Some(BG_SURFACE.into()),
+        border: Border {
+            color: border_color,
+            width: 1.0,
+            radius: 8.0.into(),
+        },
+        shadow: iced::Shadow {
+            color: Color {
+                a: 0.4,
+                ..Color::BLACK
+            },
+            offset: iced::Vector::new(0.0, 8.0),
+            blur_radius: 24.0,
+        },
+        ..Default::default()
+    })
+    .into()
 }

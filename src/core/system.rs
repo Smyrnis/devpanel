@@ -185,9 +185,15 @@ pub async fn ssh_add(path: String) -> (bool, String) {
 }
 
 pub async fn copy_to_clipboard(text: String) {
-    if try_xclip(&text).await { return; }
-    if try_wl_copy(&text).await { return; }
-    if try_xsel(&text).await { return; }
+    if try_xclip(&text).await {
+        return;
+    }
+    if try_wl_copy(&text).await {
+        return;
+    }
+    if try_xsel(&text).await {
+        return;
+    }
     fallback_script_file(&text).await;
 }
 
@@ -218,8 +224,7 @@ async fn pipe_to_cmd(mut cmd: tokio::process::Command, text: &str) -> bool {
         return false;
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let ok = stdin.write_all(text.as_bytes()).await.is_ok()
-            && stdin.flush().await.is_ok();
+        let ok = stdin.write_all(text.as_bytes()).await.is_ok() && stdin.flush().await.is_ok();
         drop(stdin);
         let _ = child.wait().await;
         ok

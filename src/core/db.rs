@@ -3,8 +3,9 @@
 // SQLite-backed persistent settings store.
 //
 // Schema (v1):
-//   settings   — key/value table for all user preferences
-//   vhost_tags — optional user-defined labels on virtual hosts
+//   settings      — key/value table for all user preferences
+//   vhost_tags    — optional user-defined labels on virtual hosts
+//   notifications — recent notification history
 //
 // Usage:
 //   let db = DevPanelDb::open()?;
@@ -19,6 +20,14 @@
 use rusqlite::{Connection, Result as SqlResult, params};
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotificationRecord {
+    pub id: i64,
+    pub created_at: i64,
+    pub ok: bool,
+    pub message: String,
+}
+
 // ── Schema ────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
@@ -32,6 +41,13 @@ CREATE TABLE IF NOT EXISTS vhost_tags (
     server_name TEXT PRIMARY KEY NOT NULL,
     tag         TEXT NOT NULL DEFAULT '',
     notes       TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at INTEGER NOT NULL,
+    ok         INTEGER NOT NULL,
+    message    TEXT NOT NULL
 );
 "#;
 
@@ -209,6 +225,40 @@ impl DevPanelDb {
             .conn
             .prepare("SELECT server_name, tag, notes FROM vhost_tags ORDER BY server_name")?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+        rows.collect()
+    }
+
+    // ── Notifications ────────────────────────────────────────────────────
+
+    pub fn add_notification(&self, ok: bool, message: &str) -> SqlResult<()> {
+        let created_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_default();
+        self.conn.execute(
+            "INSERT INTO notifications (created_at, ok, message) VALUES (?1, ?2, ?3)",
+            params![created_at, if ok { 1 } else { 0 }, message],
+        )?;
+        self.conn.execute(
+            "DELETE FROM notifications
+             WHERE id NOT IN (SELECT id FROM notifications ORDER BY id DESC LIMIT 100)",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn recent_notifications(&self, limit: usize) -> SqlResult<Vec<NotificationRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, created_at, ok, message FROM notifications ORDER BY id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(NotificationRecord {
+                id: row.get(0)?,
+                created_at: row.get(1)?,
+                ok: row.get::<_, i64>(2)? != 0,
+                message: row.get(3)?,
+            })
+        })?;
         rows.collect()
     }
 }
