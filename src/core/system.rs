@@ -1,3 +1,4 @@
+use crate::core::paths;
 use std::path::PathBuf;
 
 pub fn get_home() -> PathBuf {
@@ -17,8 +18,8 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
 pub fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
     if let Some(version) = active_php {
         let short = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
-        let cli_ini = format!("/etc/php/{}/cli/php.ini", short);
-        let apache_ini = format!("/etc/php/{}/apache2/php.ini", short);
+        let cli_ini = paths::php_cli_ini(&short);
+        let apache_ini = paths::php_apache_ini(&short);
         if std::path::Path::new(&cli_ini).exists() {
             return xdg_open(&cli_ini);
         }
@@ -26,7 +27,7 @@ pub fn open_php_ini(active_php: &Option<String>) -> std::io::Result<()> {
             return xdg_open(&apache_ini);
         }
     }
-    xdg_open("/etc/php")
+    xdg_open(paths::PHP_ETC_DIR)
 }
 
 pub fn open_terminal_at(path: &str) {
@@ -138,7 +139,7 @@ fn find_terminal() -> Option<String> {
             return Some(t.to_string());
         }
     }
-    if std::path::Path::new("/usr/bin/xterm").exists() {
+    if std::path::Path::new(paths::XTERM_BIN).exists() {
         return Some("xterm".to_string());
     }
     None

@@ -1,4 +1,5 @@
 use crate::core::dry_run;
+use crate::core::paths;
 use crate::core::sudo_prompt::sudo_cmd_with_password;
 
 const BASE_PACKAGES: &[&str] = &[
@@ -81,7 +82,7 @@ pub async fn run_first_run_install(
         if enabled_mods.contains(*mod_name) {
             continue;
         }
-        let mod_load = format!("/etc/apache2/mods-available/{}.load", mod_name);
+        let mod_load = paths::apache_mod_available(mod_name);
         if std::path::Path::new(&mod_load).exists() {
             let _ = sudo_cmd_with_password(&password, &["a2enmod", mod_name]).await;
             enabled_mods.insert(mod_name.to_string());

@@ -142,3 +142,100 @@ pub const TEAL_DIM: Color = GREEN_DIM;
 pub const BTN_SUCCESS: Color = GREEN;
 pub const BTN_DANGER: Color = RED;
 pub const BTN_WARN: Color = ORANGE;
+
+pub const GREEN_BG: Color = Color {
+    r: 0.050,
+    g: 0.160,
+    b: 0.090,
+    a: 1.0,
+};
+pub const GREEN_HOVER: Color = Color {
+    r: 0.060,
+    g: 0.185,
+    b: 0.100,
+    a: 1.0,
+};
+pub const RED_BG: Color = Color {
+    r: 0.200,
+    g: 0.060,
+    b: 0.055,
+    a: 1.0,
+};
+pub const RED_HOVER: Color = Color {
+    r: 0.230,
+    g: 0.070,
+    b: 0.063,
+    a: 1.0,
+};
+pub const BLUE_BG: Color = Color {
+    r: 0.050,
+    g: 0.090,
+    b: 0.180,
+    a: 1.0,
+};
+pub const BLUE_HOVER: Color = Color {
+    r: 0.070,
+    g: 0.120,
+    b: 0.230,
+    a: 1.0,
+};
+pub const BLUE_BORDER: Color = Color {
+    r: 0.080,
+    g: 0.140,
+    b: 0.260,
+    a: 1.0,
+};
+pub const TEAL_BG: Color = Color {
+    r: 0.040,
+    g: 0.160,
+    b: 0.150,
+    a: 1.0,
+};
+pub const TEAL_HOVER: Color = Color {
+    r: 0.050,
+    g: 0.185,
+    b: 0.175,
+    a: 1.0,
+};
+pub const TEAL_BORDER: Color = Color {
+    r: 0.060,
+    g: 0.210,
+    b: 0.200,
+    a: 1.0,
+};
+pub const PURPLE_BG: Color = Color {
+    r: 0.110,
+    g: 0.055,
+    b: 0.165,
+    a: 1.0,
+};
+pub const PURPLE_HOVER: Color = Color {
+    r: 0.140,
+    g: 0.070,
+    b: 0.200,
+    a: 1.0,
+};
+pub const PURPLE_BORDER: Color = Color {
+    r: 0.170,
+    g: 0.085,
+    b: 0.240,
+    a: 1.0,
+};
+pub const YELLOW_BG: Color = Color {
+    r: 0.190,
+    g: 0.160,
+    b: 0.040,
+    a: 1.0,
+};
+pub const YELLOW_BORDER: Color = Color {
+    r: 0.240,
+    g: 0.200,
+    b: 0.050,
+    a: 1.0,
+};
+pub const STOPPED_BG: Color = Color {
+    r: 0.110,
+    g: 0.110,
+    b: 0.110,
+    a: 1.0,
+};

@@ -1,75 +1,5 @@
 # DevPanel — Roadmap
 
-## Medium-term features (v0.7)
-
-### Notification system
-
-Replace the current single-slot toast with a proper notification queue.
-
-- Stack multiple toasts (max 3 visible at once)
-- Each toast has its own 4-second countdown (configurable)
-- "Dismiss all" button
-- Persist the last N notifications in the SQLite `notifications` table so the user can review them later
-
-Implementation: add a `Vec<Toast>` to `App`, render each as an absolutely-positioned card in a `stack![]`, use `iced::time::every` to tick them down.
-
----
-
-### First-run improvements
-
-- Detect whether Apache/MySQL are already installed before offering to install them
-- Show a progress log in real time during installation (stream setup.log via async file watcher)
-- Allow the user to skip individual packages, if there are not core packages that the app actually functions upon.
-
----
-
-### SSH Keys tab enhancements
-
-- **Key expiry** — show the creation date of each key (read from `ssh-keygen -l -f <key>`)
-- **Copy public key** — one-click copy of `~/.ssh/<name>.pub` to clipboard
-- **SSH agent status** — show which keys are currently loaded in `ssh-agent`
-
----
-
-### Tools tab enhancements
-
-- **Composer** — install/update Composer globally; show current version
-- **Node.js** — detect installed Node/npm versions; offer nvm integration
-- **Redis** — detect, start/stop, and show memory usage
-- **Search across all modules** — add a filter input that searches php extensions, apache modules, and installed tools simultaneously
-
----
-
-## Long-term features (v0.8)
-
-## Scripts
-
-- Rename `/script` to `/installation` as it is the installation scripts but keep the `/script` dir.
-- Clean the `devpanel-script.sh` , there is no needs for echo only for error handlng.
-- Split the `devpanel-script.sh` into a better stracture:
-```
-/installation/dependencies
-      install_apache.sh
-      install_php.sh
-      install_mysql.sh
-      setup_vhost.sh
-      install_tools.sh
-      common.sh
-```
-
-- In `/script` move the sudo running commands that are used accross the application, into a split architecture:
-```
-apache_sudo.sh
-php_sudo.sh
-mysql_sudo.sh
-vhost_sudo.sh
-tools_sudo.sh
-common_sudo.sh
-
-```
-
----
-
 ### Version (v0.9)
 
 ## UI / UX modernisation
@@ -108,13 +38,6 @@ common_sudo.sh
 - Hovering an icon shows a tooltip with the tab name
 - Below 750 px: sidebar hides entirely; a hamburger button at the top-left opens it as a drawer overlay
 - Add proper icons with the help of new rust crate.
-
-### Version (v0.9.1)
-
-### Small Architectural improvements
-
-- Remove the styling colors that are spread into the views , and make all of the view to take colors from the `themes.rs` file. Further color additions will be added there.
-- Remove the hardcoded paths from all files and move them inside `/core/paths/<folders for each distro>` .
 
 ### Version (v0.9.2)
 

@@ -4,57 +4,6 @@ use crate::messages::{Message, ReposMessage};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-const GREEN_BG: Color = Color {
-    r: 0.071,
-    g: 0.122,
-    b: 0.082,
-    a: 1.0,
-};
-const GREEN_HOVER: Color = Color {
-    r: 0.090,
-    g: 0.148,
-    b: 0.100,
-    a: 1.0,
-};
-const BLUE_BG: Color = Color {
-    r: 0.047,
-    g: 0.090,
-    b: 0.157,
-    a: 1.0,
-};
-const BLUE_BORDER: Color = Color {
-    r: 0.070,
-    g: 0.130,
-    b: 0.220,
-    a: 1.0,
-};
-const TEAL_BG: Color = GREEN_BG;
-const TEAL_HOVER: Color = GREEN_HOVER;
-const TEAL_BORDER: Color = Color {
-    r: 0.100,
-    g: 0.200,
-    b: 0.118,
-    a: 1.0,
-};
-const RED_BG: Color = Color {
-    r: 0.137,
-    g: 0.071,
-    b: 0.067,
-    a: 1.0,
-};
-const YELLOW_BG: Color = Color {
-    r: 0.137,
-    g: 0.122,
-    b: 0.043,
-    a: 1.0,
-};
-const YELLOW_BORDER: Color = Color {
-    r: 0.180,
-    g: 0.160,
-    b: 0.055,
-    a: 1.0,
-};
-
 fn provider_color(p: &Provider) -> Color {
     match p {
         Provider::GitHub => TEAL,

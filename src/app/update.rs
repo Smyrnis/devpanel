@@ -3,7 +3,7 @@ use iced::Task;
 use crate::app::App;
 use crate::core::{
     db::{DevPanelDb, UserSettings},
-    first_run, setup_log,
+    first_run, paths, setup_log,
     sudo_prompt::{
         ModalState, PendingAction, clear_saved_password, save_password, validate_sudo_password,
     },
@@ -334,8 +334,9 @@ impl App {
                         let issues = setup_log::read_setup_issues();
                         if !issues.is_empty() {
                             let summary = format!(
-                                "{} post-install issue(s) — check /var/log/devpanel/setup.log",
-                                issues.len()
+                                "{} post-install issue(s) - check {}",
+                                issues.len(),
+                                paths::SETUP_LOG,
                             );
                             return self.show_toast(summary, false);
                         }
@@ -442,23 +443,23 @@ impl App {
                 Task::none()
             }
             DashboardMessage::NavigateApache2Conf => {
-                let _ = xdg_open("/etc/apache2/apache2.conf");
+                let _ = xdg_open(paths::APACHE_CONF_FILE);
                 Task::none()
             }
             DashboardMessage::NavigateApache2Sites => {
-                let _ = xdg_open("/etc/apache2/sites-available");
+                let _ = xdg_open(paths::APACHE_SITES_AVAILABLE);
                 Task::none()
             }
             DashboardMessage::NavigatePhpDir => {
-                let _ = xdg_open("/etc/php");
+                let _ = xdg_open(paths::PHP_ETC_DIR);
                 Task::none()
             }
             DashboardMessage::NavigateMysqlDir => {
-                let _ = xdg_open("/etc/mysql");
+                let _ = xdg_open(paths::MYSQL_ETC_DIR);
                 Task::none()
             }
             DashboardMessage::NavigateHostsFile => {
-                let _ = xdg_open("/etc/hosts");
+                let _ = xdg_open(paths::HOSTS_FILE);
                 Task::none()
             }
             DashboardMessage::OpenPhpIni => {

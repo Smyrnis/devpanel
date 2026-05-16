@@ -1,47 +1,10 @@
 use super::DashboardTab;
+use crate::core::paths;
 use crate::core::theme::*;
 use crate::messages::DashboardMessage;
 use crate::messages::Message;
 use iced::widget::{Space, button, column, container, pick_list, row, scrollable, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
-
-const GREEN_BG: Color = Color {
-    r: 0.071,
-    g: 0.122,
-    b: 0.082,
-    a: 1.0,
-};
-const PURPLE_BG: Color = Color {
-    r: 0.110,
-    g: 0.055,
-    b: 0.165,
-    a: 1.0,
-};
-const PURPLE_BG2: Color = Color {
-    r: 0.140,
-    g: 0.070,
-    b: 0.200,
-    a: 1.0,
-};
-const PURPLE_BDR: Color = Color {
-    r: 0.170,
-    g: 0.085,
-    b: 0.240,
-    a: 1.0,
-};
-const BLUE_BG: Color = Color {
-    r: 0.047,
-    g: 0.090,
-    b: 0.157,
-    a: 1.0,
-};
-const STOPPED_BG: Color = Color {
-    r: 0.110,
-    g: 0.110,
-    b: 0.110,
-    a: 1.0,
-};
-const STATUS_STOP: Color = TEXT_MUTED;
 
 pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     let info_bar = container(
@@ -128,15 +91,15 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
         ]),
         quick_row(&[
             (
-                "/etc/php",
+                paths::PHP_ETC_DIR,
                 Message::Dashboard(DashboardMessage::NavigatePhpDir)
             ),
             (
-                "/etc/mysql",
+                paths::MYSQL_ETC_DIR,
                 Message::Dashboard(DashboardMessage::NavigateMysqlDir)
             ),
             (
-                "/etc/hosts",
+                paths::HOSTS_FILE,
                 Message::Dashboard(DashboardMessage::NavigateHostsFile)
             ),
         ]),
@@ -222,7 +185,7 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
             )
             .padding(Padding::from([16, 18]))
             .width(Length::Fill)
-            .style(card_style(PURPLE_BDR)),
+            .style(card_style(PURPLE_BORDER)),
         ]
         .spacing(0)
         .into()
@@ -245,7 +208,7 @@ fn service_card<'a>(
     accent: Color,
     actions: ServiceActions,
 ) -> Element<'a, Message> {
-    let status_color = if running { GREEN } else { STATUS_STOP };
+    let status_color = if running { GREEN } else { TEXT_MUTED };
     let status_label = if running { "Running" } else { "Stopped" };
     let status_bg = if running { GREEN_BG } else { STOPPED_BG };
     let accent_pill_bg = if accent == GREEN { GREEN_BG } else { BLUE_BG };
@@ -383,12 +346,12 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
         .style(|_theme, status| {
             use iced::widget::pick_list;
             let is_open = matches!(status, pick_list::Status::Opened);
-            let border_color = if is_open { PURPLE } else { PURPLE_BDR };
+            let border_color = if is_open { PURPLE } else { PURPLE_BORDER };
             pick_list::Style {
                 text_color: PURPLE,
                 placeholder_color: TEXT_MUTED,
                 handle_color: PURPLE,
-                background: iced::Background::Color(if is_open { PURPLE_BG2 } else { PURPLE_BG }),
+                background: iced::Background::Color(if is_open { PURPLE_HOVER } else { PURPLE_BG }),
                 border: Border {
                     color: border_color,
                     width: 1.0,
@@ -419,10 +382,10 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
         .style(|_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
-                    background: Some(PURPLE_BG2.into()),
+                    background: Some(PURPLE_HOVER.into()),
                     text_color: PURPLE,
                     border: Border {
-                        color: PURPLE_BDR,
+                        color: PURPLE_BORDER,
                         width: 1.0,
                         radius: 7.0.into(),
                     },

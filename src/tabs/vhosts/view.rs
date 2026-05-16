@@ -7,91 +7,6 @@ use iced::widget::{
 };
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-const GREEN_BG: Color = Color {
-    r: 0.050,
-    g: 0.160,
-    b: 0.090,
-    a: 1.0,
-};
-const GREEN_HOVER: Color = Color {
-    r: 0.060,
-    g: 0.185,
-    b: 0.100,
-    a: 1.0,
-};
-const RED_BG: Color = Color {
-    r: 0.200,
-    g: 0.060,
-    b: 0.055,
-    a: 1.0,
-};
-const RED_HOVER: Color = Color {
-    r: 0.230,
-    g: 0.070,
-    b: 0.063,
-    a: 1.0,
-};
-const BLUE_BG: Color = Color {
-    r: 0.050,
-    g: 0.090,
-    b: 0.180,
-    a: 1.0,
-};
-const BLUE_HOVER: Color = Color {
-    r: 0.070,
-    g: 0.120,
-    b: 0.230,
-    a: 1.0,
-};
-const BLUE_BORDER: Color = Color {
-    r: 0.080,
-    g: 0.140,
-    b: 0.260,
-    a: 1.0,
-};
-const TEAL_BG: Color = Color {
-    r: 0.040,
-    g: 0.160,
-    b: 0.150,
-    a: 1.0,
-};
-const TEAL_HOVER: Color = Color {
-    r: 0.050,
-    g: 0.185,
-    b: 0.175,
-    a: 1.0,
-};
-const TEAL_BORDER: Color = Color {
-    r: 0.060,
-    g: 0.210,
-    b: 0.200,
-    a: 1.0,
-};
-const PURPLE_BG: Color = Color {
-    r: 0.110,
-    g: 0.055,
-    b: 0.165,
-    a: 1.0,
-};
-const PURPLE_BG2: Color = Color {
-    r: 0.140,
-    g: 0.070,
-    b: 0.200,
-    a: 1.0,
-};
-const PURPLE_BDR: Color = Color {
-    r: 0.170,
-    g: 0.085,
-    b: 0.240,
-    a: 1.0,
-};
-const PURPLE: Color = Color {
-    r: 0.749,
-    g: 0.353,
-    b: 0.949,
-    a: 1.0,
-};
-
 const PHP_GLOBAL: &str = "Use global";
 
 fn php_options(available: &[String]) -> Vec<String> {
@@ -541,7 +456,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
         .style(|_: &iced::Theme| container::Style {
             background: Some(PURPLE_BG.into()),
             border: Border {
-                color: PURPLE_BDR,
+                color: PURPLE_BORDER,
                 width: 1.0,
                 radius: 20.0.into(),
             },
@@ -683,8 +598,8 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
                     "Duplicate",
                     PURPLE,
                     PURPLE_BG,
-                    PURPLE_BG2,
-                    PURPLE_BDR,
+                    PURPLE_HOVER,
+                    PURPLE_BORDER,
                     Some(Message::VHosts(VHostsMessage::DuplicateRequest(idx)))
                 ),
                 Space::with_width(6),
@@ -996,9 +911,9 @@ where
                 text_color: PURPLE,
                 placeholder_color: TEXT_MUTED,
                 handle_color: PURPLE,
-                background: iced::Background::Color(if open { PURPLE_BG2 } else { PURPLE_BG }),
+                background: iced::Background::Color(if open { PURPLE_HOVER } else { PURPLE_BG }),
                 border: Border {
-                    color: if open { PURPLE } else { PURPLE_BDR },
+                    color: if open { PURPLE } else { PURPLE_BORDER },
                     width: 1.0,
                     radius: 8.0.into(),
                 },

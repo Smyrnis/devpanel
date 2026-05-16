@@ -1,4 +1,5 @@
 use super::{ApacheModule, InstalledTools, PhpStatus};
+use crate::core::paths;
 use crate::core::sudo_prompt::sudo_cmd_with_password;
 use tokio::process::Command;
 
@@ -67,7 +68,7 @@ pub async fn scan_php_versions(
         let installed = {
             let mut found = false;
             for bin in meta.binaries {
-                if tokio::fs::metadata(format!("/usr/bin/{}", bin))
+                if tokio::fs::metadata(format!("{}/{}", paths::PHP_BIN_DIR, bin))
                     .await
                     .is_ok()
                 {
@@ -97,14 +98,14 @@ pub async fn scan_php_versions(
         let is_active = active_short.as_deref() == Some(meta.version);
 
         let (mod_available, mod_enabled) = {
-            let primary_load = format!("/etc/apache2/mods-available/{}.load", meta.mod_name);
-            let primary_enable = format!("/etc/apache2/mods-enabled/{}.load", meta.mod_name);
+            let primary_load = paths::apache_mod_available(meta.mod_name);
+            let primary_enable = paths::apache_mod_enabled(meta.mod_name);
             if tokio::fs::metadata(&primary_load).await.is_ok() {
                 let enabled = tokio::fs::metadata(&primary_enable).await.is_ok();
                 (true, enabled)
             } else if meta.version == "5.6" {
-                let legacy_load = "/etc/apache2/mods-available/php5.load";
-                let legacy_enable = "/etc/apache2/mods-enabled/php5.load";
+                let legacy_load = paths::apache_mod_available("php5");
+                let legacy_enable = paths::apache_mod_enabled("php5");
                 let avail = tokio::fs::metadata(legacy_load).await.is_ok();
                 let enabled = tokio::fs::metadata(legacy_enable).await.is_ok();
                 (avail, enabled)
@@ -126,8 +127,8 @@ pub async fn scan_php_versions(
 }
 
 pub async fn scan_apache_modules() -> Vec<ApacheModule> {
-    let avail_dir = "/etc/apache2/mods-available";
-    let enabled_dir = "/etc/apache2/mods-enabled";
+    let avail_dir = paths::APACHE_MODS_AVAILABLE;
+    let enabled_dir = paths::APACHE_MODS_ENABLED;
     let mut names: Vec<String> = Vec::new();
     if let Ok(mut dir) = tokio::fs::read_dir(avail_dir).await {
         while let Ok(Some(entry)) = dir.next_entry().await {
@@ -260,13 +261,13 @@ pub async fn apt_package_op(package: String, install: bool, password: String) ->
 
 pub async fn switch_php(version: String, password: String) -> (bool, String) {
     let bin = if version == "5.6" {
-        if std::path::Path::new("/usr/bin/php5.6").exists() {
-            "/usr/bin/php5.6".to_string()
+        if std::path::Path::new(&paths::php_binary("5.6")).exists() {
+            paths::php_binary("5.6")
         } else {
-            "/usr/bin/php5".to_string()
+            paths::php_binary("5")
         }
     } else {
-        format!("/usr/bin/php{}", version.trim_start_matches("php"))
+        paths::php_binary(&version)
     };
 
     match sudo_cmd_with_password(&password, &["update-alternatives", "--set", "php", &bin]).await {
@@ -311,10 +312,13 @@ pub async fn composer_op(update: bool, password: String) -> (bool, String) {
         };
     }
 
-    let cmd = "php -r \"copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');\" \
-               && php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer \
-               && rm -f /tmp/composer-setup.php";
-    match sudo_cmd_with_password(&password, &["sh", "-c", cmd]).await {
+    let cmd = format!(
+        "php -r \"copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');\" \
+         && php /tmp/composer-setup.php --install-dir={} --filename=composer \
+         && rm -f /tmp/composer-setup.php",
+        paths::COMPOSER_INSTALL_DIR,
+    );
+    match sudo_cmd_with_password(&password, &["sh", "-c", &cmd]).await {
         Ok(_) => (true, "Composer installed globally".into()),
         Err(e) => (false, format!("Composer install failed: {}", e)),
     }

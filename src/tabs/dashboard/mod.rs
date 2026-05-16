@@ -3,6 +3,7 @@ pub mod view;
 
 pub use backend::probe_services;
 
+use crate::core::paths;
 use crate::messages::Message;
 use iced::Element;
 
@@ -29,8 +30,8 @@ impl DashboardTab {
             php_versions: Vec::new(),
             active_php_version: None,
             distro: backend::detect_distro(),
-            web_root: "/var/www/html".into(),
-            apache_conf_dir: "/etc/apache2".into(),
+            web_root: paths::WEB_ROOT.into(),
+            apache_conf_dir: paths::APACHE_CONF_DIR.into(),
             apache_uptime: None,
             mysql_uptime: None,
             recent_failures: Vec::new(),

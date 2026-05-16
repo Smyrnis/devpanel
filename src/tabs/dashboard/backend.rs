@@ -1,3 +1,4 @@
+use crate::core::paths;
 use crate::messages::{DashboardMessage, Message};
 use tokio::process::Command;
 
@@ -32,7 +33,7 @@ pub async fn service_active(name: &str) -> bool {
 
 pub async fn detect_php() -> (Option<String>, Vec<String>) {
     let mut versions = Vec::new();
-    if let Ok(mut dir) = tokio::fs::read_dir("/usr/bin").await {
+    if let Ok(mut dir) = tokio::fs::read_dir(paths::PHP_BIN_DIR).await {
         while let Ok(Some(entry)) = dir.next_entry().await {
             let name = entry.file_name().to_string_lossy().to_string();
             if let Some(rest) = name.strip_prefix("php") {
@@ -60,7 +61,7 @@ pub async fn detect_php() -> (Option<String>, Vec<String>) {
 }
 
 pub fn detect_distro() -> String {
-    if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+    if let Ok(content) = std::fs::read_to_string(paths::OS_RELEASE) {
         for line in content.lines() {
             if line.starts_with("PRETTY_NAME=") {
                 return line

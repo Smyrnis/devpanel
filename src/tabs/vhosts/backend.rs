@@ -1,4 +1,5 @@
 use super::VHostEntry;
+use crate::core::paths;
 use tokio::io::AsyncWriteExt;
 
 pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
@@ -69,13 +70,13 @@ pub async fn add_vhost(
         return (false, format!("Write failed: {}", e));
     }
 
-    let hosts = tokio::fs::read_to_string("/etc/hosts")
+    let hosts = tokio::fs::read_to_string(paths::HOSTS_FILE)
         .await
         .unwrap_or_default();
     if !hosts.contains(&sn) {
         let _ = crate::core::sudo_prompt::sudo_tee_append_with_password(
             &password,
-            "/etc/hosts",
+            paths::HOSTS_FILE,
             &format!("127.0.0.1    {}\n", sn),
         )
         .await;
@@ -131,13 +132,13 @@ pub async fn edit_vhost(
     }
 
     if old_sn != new_sn {
-        let hosts = tokio::fs::read_to_string("/etc/hosts")
+        let hosts = tokio::fs::read_to_string(paths::HOSTS_FILE)
             .await
             .unwrap_or_default();
         if !hosts.contains(&new_sn) {
             let _ = crate::core::sudo_prompt::sudo_tee_append_with_password(
                 &password,
-                "/etc/hosts",
+                paths::HOSTS_FILE,
                 &format!("127.0.0.1    {}\n", new_sn),
             )
             .await;

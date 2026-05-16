@@ -1,101 +1,11 @@
 use super::{
     ApacheModule, InstalledTools, PhpExtension, PhpRelease, PhpStatus, ToolSection, ToolsTab,
 };
+use crate::core::paths;
 use crate::core::theme::*;
 use crate::messages::{Message, ToolsMessage};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
-
-const BLUE_BG: Color = Color {
-    r: 0.050,
-    g: 0.090,
-    b: 0.180,
-    a: 1.0,
-};
-const BLUE_BORDER: Color = Color {
-    r: 0.080,
-    g: 0.140,
-    b: 0.260,
-    a: 1.0,
-};
-const BLUE_HOVER: Color = Color {
-    r: 0.070,
-    g: 0.120,
-    b: 0.230,
-    a: 1.0,
-};
-const GREEN_BG: Color = Color {
-    r: 0.050,
-    g: 0.160,
-    b: 0.090,
-    a: 1.0,
-};
-const GREEN_HOVER: Color = Color {
-    r: 0.060,
-    g: 0.185,
-    b: 0.100,
-    a: 1.0,
-};
-const RED_BG: Color = Color {
-    r: 0.200,
-    g: 0.060,
-    b: 0.055,
-    a: 1.0,
-};
-const RED_HOVER: Color = Color {
-    r: 0.230,
-    g: 0.070,
-    b: 0.063,
-    a: 1.0,
-};
-const YELLOW_BG: Color = Color {
-    r: 0.190,
-    g: 0.160,
-    b: 0.040,
-    a: 1.0,
-};
-const YELLOW_BORDER: Color = Color {
-    r: 0.240,
-    g: 0.200,
-    b: 0.050,
-    a: 1.0,
-};
-const TEAL_BG: Color = Color {
-    r: 0.040,
-    g: 0.160,
-    b: 0.150,
-    a: 1.0,
-};
-const TEAL_BORDER: Color = Color {
-    r: 0.060,
-    g: 0.210,
-    b: 0.200,
-    a: 1.0,
-};
-const TEAL_HOVER: Color = Color {
-    r: 0.050,
-    g: 0.185,
-    b: 0.175,
-    a: 1.0,
-};
-const PURPLE_BG: Color = Color {
-    r: 0.140,
-    g: 0.060,
-    b: 0.180,
-    a: 1.0,
-};
-const PURPLE_BORDER: Color = Color {
-    r: 0.180,
-    g: 0.080,
-    b: 0.230,
-    a: 1.0,
-};
-const PURPLE_HOVER: Color = Color {
-    r: 0.160,
-    g: 0.070,
-    b: 0.205,
-    a: 1.0,
-};
 
 pub fn render(tab: &ToolsTab) -> Element<'_, Message> {
     scrollable(
@@ -496,19 +406,45 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             text("Apache Modules").size(14).color(TEXT_SECONDARY),
             Space::with_height(3),
-            text("All modules in /etc/apache2/mods-available/ — enable or disable via a2enmod / a2dismod").size(11).color(TEXT_MUTED),
-        ].spacing(0).width(Length::Fill),
+            text(format!(
+                "All modules in {} - enable or disable via a2enmod / a2dismod",
+                paths::APACHE_MODS_AVAILABLE
+            ))
+            .size(11)
+            .color(TEXT_MUTED),
+        ]
+        .spacing(0)
+        .width(Length::Fill),
         button(text(scan_lbl).size(12).color(TEAL))
-            .on_press_maybe(if tab.mods_scanning { None } else { Some(Message::Tools(ToolsMessage::ScanApacheMods)) })
+            .on_press_maybe(if tab.mods_scanning {
+                None
+            } else {
+                Some(Message::Tools(ToolsMessage::ScanApacheMods))
+            })
             .padding(Padding::from([7, 14]))
             .style(|_, status| match status {
                 iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                    iced::widget::button::Style { background: Some(TEAL_HOVER.into()), text_color: TEAL,
-                        border: Border { radius: 8.0.into(), ..Default::default() }, ..Default::default() },
-                _ => iced::widget::button::Style { background: Some(TEAL_BG.into()), text_color: TEAL,
-                    border: Border { radius: 8.0.into(), ..Default::default() }, ..Default::default() },
+                    iced::widget::button::Style {
+                        background: Some(TEAL_HOVER.into()),
+                        text_color: TEAL,
+                        border: Border {
+                            radius: 8.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                _ => iced::widget::button::Style {
+                    background: Some(TEAL_BG.into()),
+                    text_color: TEAL,
+                    border: Border {
+                        radius: 8.0.into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
             }),
-    ].align_y(Alignment::Center);
+    ]
+    .align_y(Alignment::Center);
 
     let total = tab.apache_mods.len();
     let enabled = tab.apache_mods.iter().filter(|m| m.enabled).count();
@@ -549,9 +485,12 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             column![
                 text("No modules found.").size(13).color(TEXT_MUTED),
                 Space::with_height(6),
-                text("Click Scan to read /etc/apache2/mods-available/")
-                    .size(11)
-                    .color(TEXT_MUTED),
+                text(format!(
+                    "Click Scan to read {}",
+                    paths::APACHE_MODS_AVAILABLE
+                ))
+                .size(11)
+                .color(TEXT_MUTED),
             ]
             .spacing(0),
         )

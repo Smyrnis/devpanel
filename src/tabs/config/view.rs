@@ -4,37 +4,6 @@ use crate::messages::{ConfigMessage, Message};
 use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-const TEAL_BG: Color = Color {
-    r: 0.040,
-    g: 0.160,
-    b: 0.150,
-    a: 1.0,
-};
-const TEAL_BDR: Color = Color {
-    r: 0.060,
-    g: 0.210,
-    b: 0.200,
-    a: 1.0,
-};
-const TEAL_HOVER: Color = Color {
-    r: 0.050,
-    g: 0.185,
-    b: 0.175,
-    a: 1.0,
-};
-const GREEN_BG: Color = Color {
-    r: 0.050,
-    g: 0.160,
-    b: 0.090,
-    a: 1.0,
-};
-const RED_BG: Color = Color {
-    r: 0.200,
-    g: 0.060,
-    b: 0.055,
-    a: 1.0,
-};
-
 pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     let header = column![
         text("Configuration").size(22).color(TEXT_PRIMARY),
@@ -85,7 +54,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
                 background: Some(TEAL_HOVER.into()),
                 text_color: TEAL,
                 border: Border {
-                    color: TEAL_BDR,
+                    color: TEAL_BORDER,
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -96,7 +65,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             background: Some(TEAL_BG.into()),
             text_color: TEAL,
             border: Border {
-                color: TEAL_BDR,
+                color: TEAL_BORDER,
                 width: 1.0,
                 radius: 8.0.into(),
             },
@@ -241,7 +210,7 @@ fn section_ui(tab: &ConfigTab) -> Element<'_, Message> {
             Space::with_height(16),
             setting_toggle(
                 "Show setup log warnings on startup",
-                "Surfaces post-install WARN/ERROR entries from /var/log/devpanel/setup.log.",
+                "Surfaces post-install WARN/ERROR entries from the DevPanel setup log.",
                 tab.settings.ui_show_setup_log,
                 |v| Message::Config(ConfigMessage::UiShowSetupLogChanged(v)),
             ),
@@ -323,7 +292,7 @@ fn section_pill<'a>(
 ) -> Element<'a, Message> {
     let is_active = &section == active;
     let (color, bg, border) = if is_active {
-        (TEAL, TEAL_BG, TEAL_BDR)
+        (TEAL, TEAL_BG, TEAL_BORDER)
     } else {
         (TEXT_MUTED, BG_SURFACE, BORDER_SUBTLE)
     };
@@ -336,7 +305,7 @@ fn section_pill<'a>(
                     background: Some(TEAL_HOVER.into()),
                     text_color: TEAL,
                     border: Border {
-                        color: TEAL_BDR,
+                        color: TEAL_BORDER,
                         width: 1.0,
                         radius: 8.0.into(),
                     },

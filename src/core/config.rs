@@ -1,3 +1,4 @@
+use crate::core::paths;
 use crate::core::system::get_home;
 
 #[derive(Debug, Clone)]
@@ -18,13 +19,13 @@ impl DevPanelConfig {
                 devpanel_conf: parse_toml_str(&content, "devpanel_conf")
                     .unwrap_or_else(default_devpanel_conf),
                 hosts_file: parse_toml_str(&content, "hosts_file")
-                    .unwrap_or_else(|| "/etc/hosts".to_string()),
+                    .unwrap_or_else(|| paths::HOSTS_FILE.to_string()),
             }
         } else {
             DevPanelConfig {
                 repos_root: default_repos_root(),
                 devpanel_conf: default_devpanel_conf(),
-                hosts_file: "/etc/hosts".to_string(),
+                hosts_file: paths::HOSTS_FILE.to_string(),
             }
         }
     }
@@ -64,10 +65,10 @@ fn default_repos_root() -> String {
     if candidate.exists() {
         candidate.to_string_lossy().to_string()
     } else {
-        "/var/www/html".to_string()
+        paths::WEB_ROOT.to_string()
     }
 }
 
 fn default_devpanel_conf() -> String {
-    "/etc/apache2/sites-available/devpanel.conf".to_string()
+    paths::DEVPANEL_CONF.to_string()
 }
