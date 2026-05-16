@@ -2,7 +2,7 @@ use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::core::theme::*;
 use crate::messages::{Message, VHostsMessage};
 use iced::widget::{
-    Space, button, column, container, pick_list, row, scrollable, text, text_editor, text_input,
+    Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor, text_input,
 };
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
@@ -110,6 +110,31 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
             border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() }).into()
     } else { Space::with_height(0).into() };
 
+    let bulk_bar: Element<Message> = if tab.vhosts.is_empty() {
+        Space::with_height(0).into()
+    } else {
+        container(row![
+            text(format!("{} selected", tab.selected.len())).size(11).color(TEXT_MUTED),
+            Space::with_width(8),
+            small_btn("Select All", TEAL, TEAL_BG, TEAL_HOVER, TEAL_BORDER,
+                Some(Message::VHosts(VHostsMessage::SelectAll))),
+            Space::with_width(6),
+            small_btn("Clear", TEXT_MUTED, BG_SURFACE, BG_HOVER, BORDER_SUBTLE,
+                Some(Message::VHosts(VHostsMessage::ClearSelection))),
+            Space::with_width(14),
+            text_input("Tag selected...", &tab.bulk_tag)
+                .on_input(|v| Message::VHosts(VHostsMessage::BulkTagChanged(v)))
+                .size(12).padding(Padding::from([6, 10])).width(Length::FillPortion(1)),
+            Space::with_width(6),
+            small_btn("Apply Tag", BLUE, BLUE_BG, BLUE_HOVER, BLUE_BORDER,
+                if tab.selected.is_empty() || tab.bulk_tag.trim().is_empty() { None } else { Some(Message::VHosts(VHostsMessage::ApplyBulkTag)) }),
+            Space::with_width(6),
+            small_btn("Delete Selected", RED, RED_BG, RED_HOVER, RED_BG,
+                if tab.selected.is_empty() { None } else { Some(Message::VHosts(VHostsMessage::BulkDeleteConfirm)) }),
+        ].align_y(Alignment::Center))
+        .padding(Padding::from([10, 14])).width(Length::Fill).style(surface_style()).into()
+    };
+
     let body: Element<Message> = if tab.vhosts.is_empty() && !tab.scanning {
         container(column![
             text("No virtual hosts found in devpanel.conf").size(15).color(TEXT_SECONDARY),
@@ -128,6 +153,8 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
         path_bar, Space::with_height(10),
         php_info,
         if tab.available_php_versions.is_empty() { Space::with_height(10) } else { Space::with_height(0) },
+        bulk_bar,
+        if tab.vhosts.is_empty() { Space::with_height(0) } else { Space::with_height(10) },
         form_el,
         if tab.form.mode != FormMode::Hidden { Space::with_height(10) } else { Space::with_height(0) },
         status,
@@ -186,8 +213,12 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
     }
 
     let sn = vh.server_name.clone();
+    let selected = tab.selected.contains(&idx);
 
     let name_row = row![
+        checkbox("", selected)
+            .on_toggle(move |_| Message::VHosts(VHostsMessage::ToggleSelected(idx))),
+        Space::with_width(8),
         text(vh.server_name.as_str()).size(14).color(TEXT_PRIMARY),
         Space::with_width(Length::Fill),
         container(text("active").size(10).color(GREEN)).padding(Padding::from([3, 8]))
@@ -212,6 +243,22 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             .style(|_: &iced::Theme| container::Style { background: Some(BG_SURFACE.into()),
                 border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 20.0.into() }, ..Default::default() }).into(),
     };
+    let https_badge: Element<Message> = if vh.https_enabled {
+        container(text("HTTPS").size(9).color(TEAL)).padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style { background: Some(TEAL_BG.into()),
+                border: Border { color: TEAL_BORDER, width: 1.0, radius: 20.0.into() }, ..Default::default() }).into()
+    } else {
+        container(text("HTTP only").size(9).color(TEXT_MUTED)).padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style { background: Some(BG_SURFACE.into()),
+                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 20.0.into() }, ..Default::default() }).into()
+    };
+    let tag_badge: Element<Message> = if vh.tag.trim().is_empty() {
+        Space::with_width(0).into()
+    } else {
+        container(text(vh.tag.as_str()).size(9).color(YELLOW)).padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style { background: Some(Color { r: 0.19, g: 0.16, b: 0.04, a: 1.0 }.into()),
+                border: Border { color: Color { r: 0.24, g: 0.20, b: 0.05, a: 1.0 }, width: 1.0, radius: 20.0.into() }, ..Default::default() }).into()
+    };
 
     let is_confirming = tab.confirm_delete == Some(idx);
     let del_btn: Element<Message> = if is_confirming {
@@ -229,10 +276,17 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
 
     container(column![
         name_row, Space::with_height(4), info_row, Space::with_height(6),
-        php_badge, Space::with_height(14), thin_line(), Space::with_height(12),
+        row![php_badge, Space::with_width(6), https_badge, Space::with_width(6), tag_badge].align_y(Alignment::Center),
+        Space::with_height(14), thin_line(), Space::with_height(12),
         row![
             small_btn("Edit", BLUE, BLUE_BG, BLUE_HOVER, BLUE_BORDER,
                 Some(Message::VHosts(VHostsMessage::EditRequest(idx)))),
+            Space::with_width(6),
+            small_btn("Duplicate", PURPLE, PURPLE_BG, PURPLE_BG2, PURPLE_BDR,
+                Some(Message::VHosts(VHostsMessage::DuplicateRequest(idx)))),
+            Space::with_width(6),
+            small_btn(if vh.https_enabled { "HTTPS Off" } else { "HTTPS On" }, TEAL, TEAL_BG, TEAL_HOVER, TEAL_BORDER,
+                Some(Message::VHosts(VHostsMessage::ToggleHttps(idx)))),
             Space::with_width(6),
             small_btn("Browser", TEAL, TEAL_BG, TEAL_HOVER, TEAL_BORDER,
                 Some(Message::VHosts(VHostsMessage::OpenBrowser(sn)))),
@@ -263,6 +317,9 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
     let php_picker = php_version_picker(&tab.available_php_versions, &tab.form.php_version, |sel| {
         Message::VHosts(VHostsMessage::FormPhpVersionChanged(selection_to_php(&sel)))
     });
+    let https_toggle = checkbox("Enable HTTPS with mkcert", tab.form.https_enabled)
+        .on_toggle(|v| Message::VHosts(VHostsMessage::FormHttpsChanged(v)))
+        .size(13);
 
     container(column![
         row![
@@ -290,6 +347,8 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
         column![
             text("PHP Version (optional)").size(11).color(TEXT_MUTED), Space::with_height(5), php_picker,
         ].spacing(0),
+        Space::with_height(10),
+        https_toggle,
         Space::with_height(14), submit_el,
     ].spacing(0).padding(Padding::from([16, 18]))).width(Length::Fill)
     .style(|_: &iced::Theme| container::Style { background: Some(BG_CARD.into()),
@@ -318,6 +377,9 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
     let php_picker = php_version_picker(&tab.available_php_versions, &tab.form.php_version, |sel| {
         Message::VHosts(VHostsMessage::FormPhpVersionChanged(selection_to_php(&sel)))
     });
+    let https_toggle = checkbox("Enable HTTPS with mkcert", tab.form.https_enabled)
+        .on_toggle(|v| Message::VHosts(VHostsMessage::FormHttpsChanged(v)))
+        .size(13);
 
     container(column![
         row![
@@ -349,6 +411,8 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             ].align_y(Alignment::Center),
             Space::with_height(5), php_picker,
         ].spacing(0),
+        Space::with_height(10),
+        https_toggle,
         Space::with_height(18), submit_el,
     ].spacing(0).padding(Padding::from([20, 22]))).width(Length::Fill).style(card_style()).into()
 }

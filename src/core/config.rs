@@ -29,6 +29,7 @@ impl DevPanelConfig {
         }
     }
 
+    #[allow(dead_code)]
     pub fn save(&self) {
         let dir = get_home().join(".config/devpanel");
         let _ = std::fs::create_dir_all(&dir);

@@ -2,7 +2,14 @@ use devpanel::tabs::vhosts::backend::{build_conf_content, parse_vhosts_from_cont
 use devpanel::tabs::vhosts::VHostEntry;
 
 fn entry(server_name: &str, document_root: &str, php: Option<&str>, idx: usize) -> VHostEntry {
-    VHostEntry { server_name: server_name.into(), document_root: document_root.into(), php_version: php.map(|s| s.to_string()), index: idx }
+    VHostEntry {
+        server_name: server_name.into(),
+        document_root: document_root.into(),
+        php_version: php.map(|s| s.to_string()),
+        https_enabled: false,
+        tag: String::new(),
+        index: idx,
+    }
 }
 
 #[test] fn parse_empty_string_returns_empty() { assert!(parse_vhosts_from_content("").is_empty()); }
@@ -14,6 +21,7 @@ fn entry(server_name: &str, document_root: &str, php: Option<&str>, idx: usize) 
     assert_eq!(entries[0].server_name, "myproject.local");
     assert_eq!(entries[0].document_root, "/home/user/projects/myproject/public");
     assert!(entries[0].php_version.is_none());
+    assert!(!entries[0].https_enabled);
     assert_eq!(entries[0].index, 0);
 }
 #[test] fn parse_single_vhost_with_php_pinned() {
@@ -55,6 +63,20 @@ fn entry(server_name: &str, document_root: &str, php: Option<&str>, idx: usize) 
     let entries = vec![entry("shop.local", "/var/www/shop", Some("8.2"), 0)];
     let out = build_conf_content(&entries);
     assert!(out.contains("SetHandler application/x-httpd-php8.2"));
+}
+#[test] fn build_https_entry_produces_port_443_block() {
+    let mut e = entry("secure.local", "/var/www/secure", Some("8.2"), 0);
+    e.https_enabled = true;
+    let out = build_conf_content(&[e]);
+    assert!(out.contains("<VirtualHost *:443>"));
+    assert!(out.contains("SSLEngine on"));
+    assert!(out.contains("secure_local.pem"));
+}
+#[test] fn parse_https_entry_sets_flag_once() {
+    let content = "<VirtualHost *:80>\nServerName secure.local\nDocumentRoot /srv/secure\n</VirtualHost>\n<VirtualHost *:443>\nServerName secure.local\nDocumentRoot /srv/secure\nSSLEngine on\n</VirtualHost>\n";
+    let entries = parse_vhosts_from_content(content);
+    assert_eq!(entries.len(), 1);
+    assert!(entries[0].https_enabled);
 }
 #[test] fn build_uses_dot_to_underscore_slug_for_log_paths() {
     let entries = vec![entry("my.project.local", "/srv/mp", None, 0)];

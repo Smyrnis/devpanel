@@ -23,7 +23,7 @@ fn db() -> DevPanelDb { DevPanelDb::open_in_memory().expect("in-memory db must o
 #[test] fn set_vhost_meta_then_get() { let d = db(); d.set_vhost_meta("myapp.local", "production", "Main site").unwrap(); let meta = d.get_vhost_meta("myapp.local").unwrap().expect("must be Some"); assert_eq!(meta.0, "production"); assert_eq!(meta.1, "Main site"); }
 #[test] fn set_vhost_meta_overwrites() { let d = db(); d.set_vhost_meta("app.local", "dev", "old").unwrap(); d.set_vhost_meta("app.local", "staging", "new").unwrap(); let meta = d.get_vhost_meta("app.local").unwrap().expect("must be Some"); assert_eq!(meta.0, "staging"); }
 #[test] fn all_vhost_meta_returns_all_rows() { let d = db(); d.set_vhost_meta("a.local","dev","").unwrap(); d.set_vhost_meta("b.local","prod","live").unwrap(); let all = d.all_vhost_meta().unwrap(); assert_eq!(all.len(), 2); assert_eq!(all[0].0, "a.local"); }
-#[test] fn user_settings_load_uses_defaults_on_fresh_db() { let d = db(); let us = UserSettings::load(&d); assert_eq!(us.apache_log_level, defaults::APACHE_LOG_LEVEL); assert_eq!(us.apache_auto_reload, true); assert_eq!(us.ui_confirm_deletes, true); assert_eq!(us.ui_toast_duration_ms, 4000); assert_eq!(us.ssh_default_key_type, defaults::SSH_DEFAULT_KEY_TYPE); }
+#[test] fn user_settings_load_uses_defaults_on_fresh_db() { let d = db(); let us = UserSettings::load(&d); assert_eq!(us.apache_log_level, defaults::APACHE_LOG_LEVEL); assert!(us.apache_auto_reload); assert!(us.ui_confirm_deletes); assert_eq!(us.ui_toast_duration_ms, 4000); assert_eq!(us.ssh_default_key_type, defaults::SSH_DEFAULT_KEY_TYPE); }
 #[test] fn user_settings_default_matches_db_defaults() {
     let us = UserSettings::default();
     assert_eq!(us.apache_log_level, defaults::APACHE_LOG_LEVEL);

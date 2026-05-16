@@ -41,7 +41,7 @@ use devpanel::tabs::repos::Provider;
 }
 #[test] fn remote_repo_is_partial_eq() {
     use devpanel::tabs::repos::RemoteRepo;
-    let a = RemoteRepo { name: "r".into(), full_name: "u/r".into(), ssh_url: "git@github.com:u/r.git".into(), provider: Provider::GitHub, is_cloned: false, is_cloning: false };
+    let a = RemoteRepo { name: "r".into(), full_name: "u/r".into(), ssh_url: "git@github.com:u/r.git".into(), provider: Provider::GitHub, is_cloned: false, is_cloning: false, is_dirty: false };
     let b = a.clone();
     assert_eq!(a, b);
 }

@@ -5,12 +5,12 @@ Cargo.lock
 # Ignore simple documentation.
 
 packaging-guide.md
-#pipeline.png
 
 # Ignore the .idea , .zed , .code . Files that the IDEs/Editors create for parsing and debbuging.
 .idea
 .zed
 .code
+.vscode
 
 # Ignore not important files inside the target file.
 # Ignore all of the target files no need to have the debian package there.

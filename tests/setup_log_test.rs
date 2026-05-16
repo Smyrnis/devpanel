@@ -21,7 +21,7 @@ fn parse(line: &str) -> Option<SetupLogEntry> {
 #[test] fn parse_message_with_colon() { let e = parse("2025-06-01 10:00:00 [INFO]  repos_root: /home/user/projects").unwrap(); assert_eq!(e.message, "repos_root: /home/user/projects"); }
 #[test] fn parse_message_trimmed_of_whitespace() { let e = parse("2025-06-01 10:00:00 [OK]      extra spaces before message   ").unwrap(); assert!(!e.message.starts_with(' ')); assert!(!e.message.ends_with(' ')); }
 #[test] fn only_error_and_warn_are_issues() {
-    let lines = vec![
+    let lines = [
         "2025-01-15 14:30:00 [STEP]  Installing packages",
         "2025-01-15 14:30:05 [OK]    Done",
         "2025-01-15 14:30:10 [WARN]  PHP 5.6 not found",
