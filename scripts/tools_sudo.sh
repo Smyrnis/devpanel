@@ -17,20 +17,19 @@ case "${1:-}" in
         ;;
     composer-install)
         php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
-        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+        php /tmp/composer-setup.php --install-dir="$DEV_COMPOSER_INSTALL_DIR" --filename=composer
         rm -f /tmp/composer-setup.php
         ;;
     composer-update)
         composer self-update
         ;;
     redis-start)
-        run_systemctl start redis-server
+        run_systemctl start "$(redis_service_name)"
         ;;
     redis-stop)
-        run_systemctl stop redis-server
+        run_systemctl stop "$(redis_service_name)"
         ;;
     *)
-        echo "Usage: $0 {apt-install PKG|apt-remove PKG|composer-install|composer-update|redis-start|redis-stop}" >&2
-        exit 2
+        usage_error "$0 {apt-install PKG|apt-remove PKG|composer-install|composer-update|redis-start|redis-stop}"
         ;;
 esac

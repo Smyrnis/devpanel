@@ -2,7 +2,7 @@
 
 install_apache_check() {
     log_step "1/8 - Checking Apache installation"
-    if ! command -v apache2 >/dev/null 2>&1 && ! command -v apachectl >/dev/null 2>&1; then
+    if ! command_exists apache2 && ! command_exists apachectl; then
         log_err "Apache2 is not installed"
         log_err "Install it first: apt-get install -y apache2 libapache2-mod-php"
         exit 1
@@ -40,7 +40,7 @@ configure_default_site() {
 
 enable_rewrite() {
     log_step "7/8 - Enabling mod_rewrite"
-    if command -v a2enmod >/dev/null 2>&1; then
+    if command_exists a2enmod; then
         run_cmd "a2enmod rewrite" a2enmod rewrite \
             && log_ok "mod_rewrite enabled" \
             || log_info "mod_rewrite already enabled or unavailable"

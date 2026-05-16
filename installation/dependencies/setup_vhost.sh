@@ -18,14 +18,14 @@ APACHECONF
 
 enable_devpanel_site() {
     log_step "6/8 - Enabling devpanel.conf"
-    if command -v a2ensite >/dev/null 2>&1; then
+    if command_exists a2ensite; then
         run_cmd "a2ensite devpanel.conf" a2ensite devpanel.conf \
             && log_ok "a2ensite devpanel.conf succeeded" \
             || log_info "devpanel.conf may already be enabled"
         return 0
     fi
 
-    local enabled_link="/etc/apache2/sites-enabled/devpanel.conf"
+    local enabled_link="$DEV_APACHE_SITES_ENABLED/devpanel.conf"
     if [ ! -L "$enabled_link" ]; then
         run_cmd "symlink devpanel.conf" ln -s "$DEVPANEL_CONF" "$enabled_link" \
             && log_ok "Created symlink: $enabled_link" \

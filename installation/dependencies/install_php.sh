@@ -9,9 +9,9 @@ enable_php_modules() {
 
     for ver in 5.6 7.4 8.0 8.1 8.2 8.3 8.4; do
         if [ "$ver" = "5.6" ]; then
-            if [ -f "/etc/apache2/mods-available/php5.6.load" ]; then
+            if [ -f "$DEV_APACHE_MODS_AVAILABLE/php5.6.load" ]; then
                 mod_name="php5.6"
-            elif [ -f "/etc/apache2/mods-available/php5.load" ]; then
+            elif [ -f "$DEV_APACHE_MODS_AVAILABLE/php5.load" ]; then
                 mod_name="php5"
             else
                 log_info "PHP 5.6 has no Apache module"
@@ -21,11 +21,11 @@ enable_php_modules() {
             mod_name="php${ver}"
         fi
 
-        mod_load="/etc/apache2/mods-available/${mod_name}.load"
+        mod_load="$DEV_APACHE_MODS_AVAILABLE/${mod_name}.load"
         [ ! -f "$mod_load" ] && log_info "PHP $ver module not found" && continue
         found=$((found + 1))
 
-        if command -v a2enmod >/dev/null 2>&1; then
+        if command_exists a2enmod; then
             run_cmd "a2enmod $mod_name" a2enmod "$mod_name" \
                 && log_ok "Enabled mod_${mod_name}" \
                 || log_info "mod_${mod_name} already enabled or skipped"
@@ -33,9 +33,9 @@ enable_php_modules() {
             continue
         fi
 
-        enabled_link="/etc/apache2/mods-enabled/${mod_name}.load"
-        conf_src="/etc/apache2/mods-available/${mod_name}.conf"
-        conf_link="/etc/apache2/mods-enabled/${mod_name}.conf"
+        enabled_link="$DEV_APACHE_MODS_ENABLED/${mod_name}.load"
+        conf_src="$DEV_APACHE_MODS_AVAILABLE/${mod_name}.conf"
+        conf_link="$DEV_APACHE_MODS_ENABLED/${mod_name}.conf"
 
         [ ! -L "$enabled_link" ] && run_cmd "symlink $mod_name.load" ln -s "$mod_load" "$enabled_link" || true
         [ -f "$conf_src" ] && [ ! -L "$conf_link" ] && run_cmd "symlink $mod_name.conf" ln -s "$conf_src" "$conf_link" || true

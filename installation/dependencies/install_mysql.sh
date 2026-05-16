@@ -2,9 +2,9 @@
 
 check_mysql() {
     log_info "Checking MySQL/MariaDB availability"
-    if command -v mysql >/dev/null 2>&1; then
+    if command_exists mysql; then
         log_ok "mysql client found: $(command -v mysql)"
-    elif command -v mariadb >/dev/null 2>&1; then
+    elif command_exists mariadb; then
         log_ok "mariadb client found: $(command -v mariadb)"
     else
         log_warn "No MySQL/MariaDB client found"

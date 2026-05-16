@@ -29,7 +29,6 @@ case "${1:-}" in
         apt-get remove -y "$2"
         ;;
     *)
-        echo "Usage: $0 {switch PHP_BIN|install-version VERSION|remove-version VERSION|install-extension PKG|remove-extension PKG}" >&2
-        exit 2
+        usage_error "$0 {switch PHP_BIN|install-version VERSION|remove-version VERSION|install-extension PKG|remove-extension PKG}"
         ;;
 esac

@@ -5,9 +5,20 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPS_DIR="$SCRIPT_DIR/dependencies"
+LIB_DIR="$SCRIPT_DIR/lib"
 
 # shellcheck source=/dev/null
-. "$DEPS_DIR/common.sh"
+. "$LIB_DIR/paths.sh"
+
+LOG_DIR="${LOG_DIR:-$DEV_LOG_DIR}"
+LOG_FILE="${LOG_FILE:-$DEV_LOG_FILE}"
+
+# shellcheck source=/dev/null
+. "$LIB_DIR/log.sh"
+# shellcheck source=/dev/null
+. "$LIB_DIR/runner.sh"
+# shellcheck source=/dev/null
+. "$LIB_DIR/context.sh"
 # shellcheck source=/dev/null
 . "$DEPS_DIR/install_apache.sh"
 # shellcheck source=/dev/null
@@ -19,17 +30,12 @@ DEPS_DIR="$SCRIPT_DIR/dependencies"
 # shellcheck source=/dev/null
 . "$DEPS_DIR/install_tools.sh"
 
-init_log
+log_init
 log_step "Starting DevPanel setup"
 require_root
 detect_target_user
 resolve_index_php "$ROOT_DIR"
-
-log_info "User:     $REAL_USER"
-log_info "Home:     $USER_HOME"
-log_info "Projects: $PROJECTS_DIR"
-log_info "Webroot:  $WEBROOT"
-log_info "VHosts:   $DEVPANEL_CONF"
+log_context
 
 install_apache_check
 create_projects_dir
