@@ -2,6 +2,31 @@
 
 use iced::Color;
 
+pub const WHITE: Color = Color::WHITE;
+
+pub const OVERLAY_STRONG: Color = Color {
+    r: 0.0,
+    g: 0.0,
+    b: 0.0,
+    a: 0.78,
+};
+pub const OVERLAY_MED: Color = Color {
+    r: 0.0,
+    g: 0.0,
+    b: 0.0,
+    a: 0.72,
+};
+pub const SHADOW_HEAVY: Color = Color {
+    a: 0.7,
+    ..Color::BLACK
+};
+pub const TEXT_ON_ACCENT: Color = Color {
+    r: 0.05,
+    g: 0.05,
+    b: 0.06,
+    a: 1.0,
+};
+
 pub const GREEN: Color = Color {
     r: 0.188,
     g: 0.820,
@@ -165,6 +190,12 @@ pub const RED_HOVER: Color = Color {
     r: 0.230,
     g: 0.070,
     b: 0.063,
+    a: 1.0,
+};
+pub const RED_BORDER: Color = Color {
+    r: 0.300,
+    g: 0.090,
+    b: 0.080,
     a: 1.0,
 };
 pub const BLUE_BG: Color = Color {

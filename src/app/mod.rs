@@ -1,10 +1,11 @@
+mod handlers;
 pub mod update;
 
 use crate::core::{
     config::DevPanelConfig,
     db::{DevPanelDb, UserSettings},
-    first_run::{self, FirstRunState},
-    sudo_prompt::{PendingAction, SudoModal},
+    first_run::FirstRunState,
+    sudo_prompt::SudoModal,
     theme::*,
 };
 use crate::messages::{Message, SudoMessage, Tab};
@@ -35,7 +36,6 @@ pub struct App {
     pub config_tab: ConfigTab,
     pub notifications: Vec<Toast>,
     pub sudo: SudoModal,
-    pub sudo_pending_action: Option<PendingAction>,
     pub first_run_state: FirstRunState,
     pub first_run_options: crate::core::first_run_install::FirstRunInstallOptions,
     pub first_run_installing: bool,
@@ -64,7 +64,6 @@ impl App {
             db,
             notifications: Vec::new(),
             sudo: SudoModal::new(),
-            sudo_pending_action: None,
             first_run_state: FirstRunState::default(),
             first_run_options: crate::core::first_run_install::FirstRunInstallOptions::default(),
             first_run_installing: false,
@@ -97,12 +96,13 @@ impl App {
             iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::NotificationTick),
             iced::time::every(std::time::Duration::from_secs(1))
                 .map(|_| Message::FirstRun(crate::messages::FirstRunMessage::ProgressTick)),
+            crate::core::file_watcher::vhost_config(self.vhosts.devpanel_conf.clone()),
         ])
     }
 
     pub fn view(&self) -> Element<'_, Message> {
         if self.first_run_state == FirstRunState::Visible {
-            return first_run::view(
+            return crate::install_window::view(
                 self.first_run_options,
                 self.first_run_installing,
                 &self.first_run_log_lines,

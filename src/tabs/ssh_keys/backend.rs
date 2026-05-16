@@ -1,4 +1,5 @@
 use super::{KeyEntry, KeyType};
+use crate::core::error::{DevPanelError, DevPanelResult};
 use tokio::process::Command;
 
 pub async fn generate_key(
@@ -6,12 +7,10 @@ pub async fn generate_key(
     key_name: String,
     key_type: KeyType,
     passphrase: String,
-) -> (bool, String) {
+) -> DevPanelResult {
     let ssh_dir = ssh_dir();
     if !ssh_dir.exists() {
-        if let Err(e) = tokio::fs::create_dir_all(&ssh_dir).await {
-            return (false, format!("Could not create ~/.ssh: {}", e));
-        }
+        tokio::fs::create_dir_all(&ssh_dir).await?;
         let _ = Command::new("chmod")
             .args(["700", &ssh_dir.to_string_lossy()])
             .status()
@@ -24,13 +23,10 @@ pub async fn generate_key(
     };
     let key_path = ssh_dir.join(&key_name);
     if key_path.exists() {
-        return (
-            false,
-            format!(
-                "{} already exists — choose a different name",
-                key_path.display()
-            ),
-        );
+        return Err(DevPanelError::Validation(format!(
+            "{} already exists - choose a different name",
+            key_path.display()
+        )));
     }
     let mut cmd = Command::new("ssh-keygen");
     match key_type {
@@ -62,13 +58,13 @@ pub async fn generate_key(
                 .status()
                 .await;
             let _ = Command::new("ssh-add").arg(&key_path).output().await;
-            (true, format!("Key generated: {}", key_path.display()))
+            Ok(format!("Key generated: {}", key_path.display()))
         }
-        Ok(o) => (
-            false,
-            format!("ssh-keygen failed: {}", String::from_utf8_lossy(&o.stderr)),
-        ),
-        Err(e) => (false, format!("ssh-keygen not found: {}", e)),
+        Ok(o) => Err(DevPanelError::Command(format!(
+            "ssh-keygen failed: {}",
+            String::from_utf8_lossy(&o.stderr)
+        ))),
+        Err(e) => Err(DevPanelError::Io(e)),
     }
 }
 
@@ -113,12 +109,17 @@ pub async fn list_keys() -> Vec<KeyEntry> {
     entries
 }
 
-pub async fn read_public_key(path: String) -> Result<String, String> {
+pub async fn read_public_key(path: String) -> DevPanelResult {
     let pub_path = format!("{}.pub", path);
     tokio::fs::read_to_string(&pub_path)
         .await
         .map(|s| s.trim().to_string())
-        .map_err(|e| format!("Could not read {}: {}", pub_path, e))
+        .map_err(|e| {
+            DevPanelError::Io(std::io::Error::new(
+                e.kind(),
+                format!("Could not read {}: {}", pub_path, e),
+            ))
+        })
 }
 
 fn ssh_dir() -> std::path::PathBuf {

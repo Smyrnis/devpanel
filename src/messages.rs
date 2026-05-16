@@ -174,6 +174,7 @@ pub enum VHostsMessage {
     OpenConfigEditor,
     CloseConfigEditor,
     ConfigLoaded(String),
+    ConfigFileChanged,
     ConfigEditorAction(text_editor::Action),
     SaveConfigFile,
     SaveConfigDone(bool, String),

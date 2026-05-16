@@ -1,6 +1,9 @@
 mod app;
 mod core;
+#[path = "installWindow/mod.rs"]
+mod install_window;
 mod messages;
+mod sudo_s;
 mod tabs;
 
 use app::App;

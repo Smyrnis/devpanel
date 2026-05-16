@@ -1,6 +1,8 @@
 pub mod config;
 pub mod db;
 pub mod dry_run;
+pub mod error;
+pub mod file_watcher;
 pub mod first_run;
 pub mod first_run_install;
 pub mod paths;
