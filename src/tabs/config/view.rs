@@ -4,12 +4,6 @@ use crate::messages::{ConfigMessage, Message};
 use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-const TEAL_BG: Color = Color { r: 0.040, g: 0.160, b: 0.150, a: 1.0 };
-const TEAL_BDR: Color = Color { r: 0.060, g: 0.210, b: 0.200, a: 1.0 };
-const TEAL_HOVER: Color = Color { r: 0.050, g: 0.185, b: 0.175, a: 1.0 };
-const GREEN_BG: Color = Color { r: 0.050, g: 0.160, b: 0.090, a: 1.0 };
-const RED_BG: Color = Color { r: 0.200, g: 0.060, b: 0.055, a: 1.0 };
-
 pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     let header = column![
         text("Configuration").size(22).color(TEXT_PRIMARY),
@@ -21,28 +15,32 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     .spacing(0);
 
     let section_bar = row![
-        section_pill("Apache",   ConfigSection::Apache,   &tab.active_section),
-        section_pill("PHP",      ConfigSection::Php,      &tab.active_section),
+        section_pill("Apache", ConfigSection::Apache, &tab.active_section),
+        section_pill("PHP", ConfigSection::Php, &tab.active_section),
         section_pill("Projects", ConfigSection::Projects, &tab.active_section),
-        section_pill("UI",       ConfigSection::Ui,       &tab.active_section),
-        section_pill("SSH",      ConfigSection::Ssh,      &tab.active_section),
-        section_pill("Editor",   ConfigSection::Editor,   &tab.active_section),
+        section_pill("UI", ConfigSection::Ui, &tab.active_section),
+        section_pill("SSH", ConfigSection::Ssh, &tab.active_section),
+        section_pill("Editor", ConfigSection::Editor, &tab.active_section),
     ]
     .spacing(8);
 
     let section_body = match tab.active_section {
-        ConfigSection::Apache   => section_apache(tab),
-        ConfigSection::Php      => section_php(tab),
+        ConfigSection::Apache => section_apache(tab),
+        ConfigSection::Php => section_php(tab),
         ConfigSection::Projects => section_projects(tab),
-        ConfigSection::Ui       => section_ui(tab),
-        ConfigSection::Ssh      => section_ssh(tab),
-        ConfigSection::Editor   => section_editor(tab),
+        ConfigSection::Ui => section_ui(tab),
+        ConfigSection::Ssh => section_ssh(tab),
+        ConfigSection::Editor => section_editor(tab),
     };
 
     let save_btn = button(
-        text(if tab.saving { "Saving…" } else { "Save Changes" })
-            .size(13)
-            .color(if tab.saving { TEXT_MUTED } else { TEAL }),
+        text(if tab.saving {
+            "Saving…"
+        } else {
+            "Save Changes"
+        })
+        .size(13)
+        .color(if tab.saving { TEXT_MUTED } else { TEAL }),
     )
     .on_press_maybe(if tab.saving {
         None
@@ -51,35 +49,54 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     })
     .padding(Padding::from([10, 24]))
     .style(move |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             iced::widget::button::Style {
                 background: Some(TEAL_HOVER.into()),
                 text_color: TEAL,
-                border: Border { color: TEAL_BDR, width: 1.0, radius: 8.0.into() },
+                border: Border {
+                    color: TEAL_BORDER,
+                    width: 1.0,
+                    radius: 8.0.into(),
+                },
                 ..Default::default()
-            },
+            }
+        }
         _ => iced::widget::button::Style {
             background: Some(TEAL_BG.into()),
             text_color: TEAL,
-            border: Border { color: TEAL_BDR, width: 1.0, radius: 8.0.into() },
+            border: Border {
+                color: TEAL_BORDER,
+                width: 1.0,
+                radius: 8.0.into(),
+            },
             ..Default::default()
         },
     });
 
     let status: Element<Message> = match &tab.status_msg {
         Some((ok, msg)) => {
-            let (color, bg) = if *ok { (GREEN, GREEN_BG) } else { (RED, RED_BG) };
-            container(row![
-                dot(color),
-                Space::with_width(8),
-                text(msg.as_str()).size(12).color(TEXT_SECONDARY),
-            ]
-            .align_y(Alignment::Center))
+            let (color, bg) = if *ok {
+                (GREEN, GREEN_BG)
+            } else {
+                (RED, RED_BG)
+            };
+            container(
+                row![
+                    dot(color),
+                    Space::with_width(8),
+                    text(msg.as_str()).size(12).color(TEXT_SECONDARY),
+                ]
+                .align_y(Alignment::Center),
+            )
             .padding(Padding::from([10, 14]))
             .width(Length::Fill)
             .style(move |_: &iced::Theme| container::Style {
                 background: Some(bg.into()),
-                border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 8.0.into() },
+                border: Border {
+                    color: BORDER_SUBTLE,
+                    width: 1.0,
+                    radius: 8.0.into(),
+                },
                 ..Default::default()
             })
             .into()
@@ -107,133 +124,175 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
 }
 
 fn section_apache(tab: &ConfigTab) -> Element<'_, Message> {
-    card(column![
-        setting_label("Log level", "warn / error / info / debug"),
-        Space::with_height(5),
-        text_input("warn", &tab.settings.apache_log_level)
-            .on_input(|v| Message::Config(ConfigMessage::ApacheLogLevelChanged(v)))
-            .padding(Padding::from([8, 10]))
-            .size(13),
-        Space::with_height(16),
-        setting_toggle(
-            "Auto-reload Apache on config save",
-            "When enabled, Apache is reloaded every time devpanel.conf is saved.",
-            tab.settings.apache_auto_reload,
-            |v| Message::Config(ConfigMessage::ApacheAutoReloadChanged(v)),
-        ),
-    ]
-    .spacing(0))
+    card(
+        column![
+            setting_label("Log level", "warn / error / info / debug"),
+            Space::with_height(5),
+            text_input("warn", &tab.settings.apache_log_level)
+                .on_input(|v| Message::Config(ConfigMessage::ApacheLogLevelChanged(v)))
+                .padding(Padding::from([8, 10]))
+                .size(13),
+            Space::with_height(16),
+            setting_toggle(
+                "Auto-reload Apache on config save",
+                "When enabled, Apache is reloaded every time devpanel.conf is saved.",
+                tab.settings.apache_auto_reload,
+                |v| Message::Config(ConfigMessage::ApacheAutoReloadChanged(v)),
+            ),
+        ]
+        .spacing(0),
+    )
 }
 
 fn section_php(tab: &ConfigTab) -> Element<'_, Message> {
-    card(column![
-        setting_label("Default PHP version", "e.g. 8.2 — used as fallback in new VHosts"),
-        Space::with_height(5),
-        text_input("8.2", &tab.settings.php_default_version)
-            .on_input(|v| Message::Config(ConfigMessage::PhpDefaultVersionChanged(v)))
-            .padding(Padding::from([8, 10]))
-            .size(13),
-        Space::with_height(16),
-        setting_toggle(
-            "Enable display_errors for development",
-            "Sets display_errors = On in PHP INI for local dev convenience.",
-            tab.settings.php_display_errors,
-            |v| Message::Config(ConfigMessage::PhpDisplayErrorsChanged(v)),
-        ),
-    ]
-    .spacing(0))
+    card(
+        column![
+            setting_label(
+                "Default PHP version",
+                "e.g. 8.2 — used as fallback in new VHosts"
+            ),
+            Space::with_height(5),
+            text_input("8.2", &tab.settings.php_default_version)
+                .on_input(|v| Message::Config(ConfigMessage::PhpDefaultVersionChanged(v)))
+                .padding(Padding::from([8, 10]))
+                .size(13),
+            Space::with_height(16),
+            setting_toggle(
+                "Enable display_errors for development",
+                "Sets display_errors = On in PHP INI for local dev convenience.",
+                tab.settings.php_display_errors,
+                |v| Message::Config(ConfigMessage::PhpDisplayErrorsChanged(v)),
+            ),
+        ]
+        .spacing(0),
+    )
 }
 
 fn section_projects(tab: &ConfigTab) -> Element<'_, Message> {
-    card(column![
-        setting_label("Open command", "Command used to open a project folder (e.g. xdg-open, code, nautilus)"),
-        Space::with_height(5),
-        text_input("xdg-open", &tab.settings.projects_open_command)
-            .on_input(|v| Message::Config(ConfigMessage::ProjectsOpenCommandChanged(v)))
-            .padding(Padding::from([8, 10]))
-            .size(13),
-    ]
-    .spacing(0))
+    card(
+        column![
+            setting_label(
+                "Open command",
+                "Command used to open a project folder (e.g. xdg-open, code, nautilus)"
+            ),
+            Space::with_height(5),
+            text_input("xdg-open", &tab.settings.projects_open_command)
+                .on_input(|v| Message::Config(ConfigMessage::ProjectsOpenCommandChanged(v)))
+                .padding(Padding::from([8, 10]))
+                .size(13),
+        ]
+        .spacing(0),
+    )
 }
 
 fn section_ui(tab: &ConfigTab) -> Element<'_, Message> {
-    card(column![
-        setting_toggle(
-            "Confirm before deleting VHosts",
-            "Shows a confirmation step before any virtual host is removed.",
-            tab.settings.ui_confirm_deletes,
-            |v| Message::Config(ConfigMessage::UiConfirmDeletesChanged(v)),
-        ),
-        Space::with_height(16),
-        setting_label("Toast notification duration (ms)", "How long success/error banners stay visible"),
-        Space::with_height(5),
-        text_input("4000", &tab.settings.ui_toast_duration_ms.to_string())
-            .on_input(|v| {
-                let n = v.parse::<u32>().unwrap_or(4000);
-                Message::Config(ConfigMessage::UiToastDurationChanged(n))
-            })
-            .padding(Padding::from([8, 10]))
-            .size(13),
-        Space::with_height(16),
-        setting_toggle(
-            "Show setup log warnings on startup",
-            "Surfaces post-install WARN/ERROR entries from /var/log/devpanel/setup.log.",
-            tab.settings.ui_show_setup_log,
-            |v| Message::Config(ConfigMessage::UiShowSetupLogChanged(v)),
-        ),
-    ]
-    .spacing(0))
+    card(
+        column![
+            setting_toggle(
+                "Confirm before deleting VHosts",
+                "Shows a confirmation step before any virtual host is removed.",
+                tab.settings.ui_confirm_deletes,
+                |v| Message::Config(ConfigMessage::UiConfirmDeletesChanged(v)),
+            ),
+            Space::with_height(16),
+            setting_label(
+                "Toast notification duration (ms)",
+                "How long success/error banners stay visible"
+            ),
+            Space::with_height(5),
+            text_input("4000", &tab.settings.ui_toast_duration_ms.to_string())
+                .on_input(|v| {
+                    let n = v.parse::<u32>().unwrap_or(4000);
+                    Message::Config(ConfigMessage::UiToastDurationChanged(n))
+                })
+                .padding(Padding::from([8, 10]))
+                .size(13),
+            Space::with_height(16),
+            setting_toggle(
+                "Show setup log warnings on startup",
+                "Surfaces post-install WARN/ERROR entries from the DevPanel setup log.",
+                tab.settings.ui_show_setup_log,
+                |v| Message::Config(ConfigMessage::UiShowSetupLogChanged(v)),
+            ),
+        ]
+        .spacing(0),
+    )
 }
 
 fn section_ssh(tab: &ConfigTab) -> Element<'_, Message> {
-    card(column![
-        setting_label("Default key type", "Ed25519 / RSA 4096 / ECDSA 521"),
-        Space::with_height(5),
-        text_input("Ed25519", &tab.settings.ssh_default_key_type)
-            .on_input(|v| Message::Config(ConfigMessage::SshDefaultKeyTypeChanged(v)))
-            .padding(Padding::from([8, 10]))
-            .size(13),
-    ]
-    .spacing(0))
+    card(
+        column![
+            setting_label("Default key type", "Ed25519 / RSA 4096 / ECDSA 521"),
+            Space::with_height(5),
+            text_input("Ed25519", &tab.settings.ssh_default_key_type)
+                .on_input(|v| Message::Config(ConfigMessage::SshDefaultKeyTypeChanged(v)))
+                .padding(Padding::from([8, 10]))
+                .size(13),
+        ]
+        .spacing(0),
+    )
 }
 
 fn section_editor(tab: &ConfigTab) -> Element<'_, Message> {
-    let blue_bg = Color { r: 0.047, g: 0.090, b: 0.157, a: 1.0 };
-    let blue_bdr = Color { r: 0.080, g: 0.140, b: 0.260, a: 1.0 };
+    let blue_bg = Color {
+        r: 0.047,
+        g: 0.090,
+        b: 0.157,
+        a: 1.0,
+    };
+    let blue_bdr = Color {
+        r: 0.080,
+        g: 0.140,
+        b: 0.260,
+        a: 1.0,
+    };
 
-    card(column![
-        setting_label("Editor command", "Command used to open files (e.g. code, vim, gedit, xdg-open)"),
-        Space::with_height(5),
-        text_input("xdg-open", &tab.settings.editor_command)
-            .on_input(|v| Message::Config(ConfigMessage::EditorCommandChanged(v)))
-            .padding(Padding::from([8, 10]))
-            .size(13),
-        Space::with_height(12),
-        container(row![
-            text("i").size(10).color(BLUE),
-            Space::with_width(8),
-            text("Used by 'Open File' buttons throughout the app.").size(11).color(TEXT_MUTED),
+    card(
+        column![
+            setting_label(
+                "Editor command",
+                "Command used to open files (e.g. code, vim, gedit, xdg-open)"
+            ),
+            Space::with_height(5),
+            text_input("xdg-open", &tab.settings.editor_command)
+                .on_input(|v| Message::Config(ConfigMessage::EditorCommandChanged(v)))
+                .padding(Padding::from([8, 10]))
+                .size(13),
+            Space::with_height(12),
+            container(
+                row![
+                    text("i").size(10).color(BLUE),
+                    Space::with_width(8),
+                    text("Used by 'Open File' buttons throughout the app.")
+                        .size(11)
+                        .color(TEXT_MUTED),
+                ]
+                .align_y(Alignment::Center)
+            )
+            .padding(Padding::from([9, 12]))
+            .width(Length::Fill)
+            .style(move |_: &iced::Theme| container::Style {
+                background: Some(blue_bg.into()),
+                border: Border {
+                    color: blue_bdr,
+                    width: 1.0,
+                    radius: 8.0.into()
+                },
+                ..Default::default()
+            }),
         ]
-        .align_y(Alignment::Center))
-        .padding(Padding::from([9, 12]))
-        .width(Length::Fill)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(blue_bg.into()),
-            border: Border { color: blue_bdr, width: 1.0, radius: 8.0.into() },
-            ..Default::default()
-        }),
-    ]
-    .spacing(0))
+        .spacing(0),
+    )
 }
 
 fn section_pill<'a>(
-    label:   &'a str,
+    label: &'a str,
     section: ConfigSection,
-    active:  &ConfigSection,
+    active: &ConfigSection,
 ) -> Element<'a, Message> {
     let is_active = &section == active;
     let (color, bg, border) = if is_active {
-        (TEAL, TEAL_BG, TEAL_BDR)
+        (TEAL, TEAL_BG, TEAL_BORDER)
     } else {
         (TEXT_MUTED, BG_SURFACE, BORDER_SUBTLE)
     };
@@ -241,17 +300,26 @@ fn section_pill<'a>(
         .on_press(Message::Config(ConfigMessage::SetSection(section)))
         .padding(Padding::from([7, 16]))
         .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
                     background: Some(TEAL_HOVER.into()),
                     text_color: TEAL,
-                    border: Border { color: TEAL_BDR, width: 1.0, radius: 8.0.into() },
+                    border: Border {
+                        color: TEAL_BORDER,
+                        width: 1.0,
+                        radius: 8.0.into(),
+                    },
                     ..Default::default()
-                },
+                }
+            }
             _ => iced::widget::button::Style {
                 background: Some(bg.into()),
                 text_color: color,
-                border: Border { color: border, width: 1.0, radius: 8.0.into() },
+                border: Border {
+                    color: border,
+                    width: 1.0,
+                    radius: 8.0.into(),
+                },
                 ..Default::default()
             },
         })
@@ -263,7 +331,11 @@ fn card(content: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
         .width(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
             background: Some(BG_CARD.into()),
-            border: Border { color: BORDER_SUBTLE, width: 1.0, radius: 10.0.into() },
+            border: Border {
+                color: BORDER_SUBTLE,
+                width: 1.0,
+                radius: 10.0.into(),
+            },
             ..Default::default()
         })
         .into()
@@ -280,9 +352,9 @@ fn setting_label<'a>(label: &'a str, hint: &'a str) -> Element<'a, Message> {
 }
 
 fn setting_toggle<'a, F>(
-    label:   &'a str,
-    hint:    &'a str,
-    value:   bool,
+    label: &'a str,
+    hint: &'a str,
+    value: bool,
     on_toggle: F,
 ) -> Element<'a, Message>
 where
@@ -309,7 +381,10 @@ fn dot(color: Color) -> iced::widget::Container<'static, Message> {
         .height(6)
         .style(move |_: &iced::Theme| container::Style {
             background: Some(color.into()),
-            border: Border { radius: 3.0.into(), ..Default::default() },
+            border: Border {
+                radius: 3.0.into(),
+                ..Default::default()
+            },
             ..Default::default()
         })
 }

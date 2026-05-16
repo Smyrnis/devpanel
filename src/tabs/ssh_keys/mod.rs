@@ -1,7 +1,7 @@
 pub mod backend;
 pub mod view;
 
-pub use backend::{generate_key, list_keys};
+pub use backend::{generate_key, list_keys, read_public_key};
 
 use crate::messages::Message;
 use iced::Element;
@@ -37,6 +37,9 @@ pub struct KeyEntry {
     pub name: String,
     pub path: String,
     pub has_pub: bool,
+    pub fingerprint: Option<String>,
+    pub created: Option<String>,
+    pub loaded_in_agent: bool,
 }
 
 pub struct SshKeysTab {

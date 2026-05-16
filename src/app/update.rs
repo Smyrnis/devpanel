@@ -3,7 +3,7 @@ use iced::Task;
 use crate::app::App;
 use crate::core::{
     db::{DevPanelDb, UserSettings},
-    first_run, setup_log,
+    first_run, paths, setup_log,
     sudo_prompt::{
         ModalState, PendingAction, clear_saved_password, save_password, validate_sudo_password,
     },
@@ -22,6 +22,17 @@ impl App {
     pub fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectTab(tab) => self.handle_select_tab(tab),
+            Message::NotificationTick => {
+                for notification in &mut self.notifications {
+                    notification.remaining_ms = notification.remaining_ms.saturating_sub(1000);
+                }
+                self.notifications.retain(|n| n.remaining_ms > 0);
+                Task::none()
+            }
+            Message::DismissAllNotifications => {
+                self.notifications.clear();
+                Task::none()
+            }
             Message::Dashboard(m) => self.handle_dashboard(m),
             Message::SshKeys(m) => self.handle_ssh_keys(m),
             Message::Tools(m) => self.handle_tools(m),
@@ -44,12 +55,18 @@ impl App {
             }),
             Tab::Tools => {
                 self.tools.scanning = true;
-                Task::perform(
-                    crate::tabs::tools::scan_php_versions(
-                        self.dashboard.active_php_version.clone(),
+                self.tools.tools_scanning = true;
+                Task::batch([
+                    Task::perform(
+                        crate::tabs::tools::scan_php_versions(
+                            self.dashboard.active_php_version.clone(),
+                        ),
+                        |r| Message::Tools(ToolsMessage::ScanDone(r)),
                     ),
-                    |r| Message::Tools(ToolsMessage::ScanDone(r)),
-                )
+                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                        Message::Tools(ToolsMessage::InstalledToolsScanned(r))
+                    }),
+                ])
             }
             Tab::Repos => Task::none(),
             Tab::VHosts => {
@@ -83,6 +100,12 @@ impl App {
                 Task::none()
             }
             SudoMessage::Cancel => {
+                if matches!(
+                    self.sudo_pending_action,
+                    Some(PendingAction::FirstRunInstall { .. })
+                ) {
+                    self.first_run_installing = false;
+                }
                 self.sudo.state = ModalState::Hidden;
                 self.sudo.password_input.clear();
                 Task::none()
@@ -256,13 +279,23 @@ impl App {
                 |(ok, msg)| Message::Tools(ToolsMessage::PhpExtDone(ok, msg)),
             ),
 
+            PendingAction::ComposerInstall { update } => Task::perform(
+                crate::tabs::tools::composer_op(update, password),
+                |(ok, msg)| Message::Tools(ToolsMessage::ComposerDone(ok, msg)),
+            ),
+
+            PendingAction::RedisService { action } => Task::perform(
+                crate::tabs::tools::redis_service_op(action, password),
+                |(ok, msg)| Message::Tools(ToolsMessage::RedisDone(ok, msg)),
+            ),
+
             PendingAction::SaveConfig { path, content } => Task::perform(
                 crate::tabs::vhosts::save_config_file(path, content, password),
                 |(ok, msg)| Message::VHosts(VHostsMessage::SaveConfigDone(ok, msg)),
             ),
 
-            PendingAction::FirstRunInstall => Task::perform(
-                crate::core::first_run_install::run_first_run_install(password),
+            PendingAction::FirstRunInstall { options } => Task::perform(
+                crate::core::first_run_install::run_first_run_install(password, options),
                 |(ok, msg)| Message::FirstRun(FirstRunMessage::InstallDone(ok, msg)),
             ),
         }
@@ -301,8 +334,9 @@ impl App {
                         let issues = setup_log::read_setup_issues();
                         if !issues.is_empty() {
                             let summary = format!(
-                                "{} post-install issue(s) — check /var/log/devpanel/setup.log",
-                                issues.len()
+                                "{} post-install issue(s) - check {}",
+                                issues.len(),
+                                paths::SETUP_LOG,
                             );
                             return self.show_toast(summary, false);
                         }
@@ -377,9 +411,10 @@ impl App {
             DashboardMessage::ShowPhpInfo => {
                 self.dashboard.php_info_loading = true;
                 self.dashboard.php_info = None;
-                Task::perform(crate::tabs::dashboard::backend::php_info_summary(), |text| {
-                    Message::Dashboard(DashboardMessage::PhpInfoLoaded(text))
-                })
+                Task::perform(
+                    crate::tabs::dashboard::backend::php_info_summary(),
+                    |text| Message::Dashboard(DashboardMessage::PhpInfoLoaded(text)),
+                )
             }
             DashboardMessage::PhpInfoLoaded(text) => {
                 self.dashboard.php_info_loading = false;
@@ -408,23 +443,23 @@ impl App {
                 Task::none()
             }
             DashboardMessage::NavigateApache2Conf => {
-                let _ = xdg_open("/etc/apache2/apache2.conf");
+                let _ = xdg_open(paths::APACHE_CONF_FILE);
                 Task::none()
             }
             DashboardMessage::NavigateApache2Sites => {
-                let _ = xdg_open("/etc/apache2/sites-available");
+                let _ = xdg_open(paths::APACHE_SITES_AVAILABLE);
                 Task::none()
             }
             DashboardMessage::NavigatePhpDir => {
-                let _ = xdg_open("/etc/php");
+                let _ = xdg_open(paths::PHP_ETC_DIR);
                 Task::none()
             }
             DashboardMessage::NavigateMysqlDir => {
-                let _ = xdg_open("/etc/mysql");
+                let _ = xdg_open(paths::MYSQL_ETC_DIR);
                 Task::none()
             }
             DashboardMessage::NavigateHostsFile => {
-                let _ = xdg_open("/etc/hosts");
+                let _ = xdg_open(paths::HOSTS_FILE);
                 Task::none()
             }
             DashboardMessage::OpenPhpIni => {
@@ -523,6 +558,28 @@ impl App {
                 self.ssh_keys.keys_list = keys;
                 Task::none()
             }
+            SshKeysMessage::CopyPublicKey(path) => Task::perform(
+                async move {
+                    match crate::tabs::ssh_keys::read_public_key(path).await {
+                        Ok(text) => {
+                            crate::core::system::copy_to_clipboard(text).await;
+                            (true, "Public key copied".to_string())
+                        }
+                        Err(e) => (false, e),
+                    }
+                },
+                |(ok, msg)| Message::SshKeys(SshKeysMessage::CopyPublicKeyDone(ok, msg)),
+            ),
+            SshKeysMessage::CopyPublicKeyDone(ok, msg) => {
+                use crate::tabs::ssh_keys::StatusKind;
+                self.ssh_keys.status_kind = if ok {
+                    StatusKind::Success
+                } else {
+                    StatusKind::Error
+                };
+                self.ssh_keys.status_message = msg.clone();
+                self.show_toast(msg, ok)
+            }
         }
     }
 }
@@ -599,11 +656,6 @@ impl App {
                 self.tools.db_status.clear();
                 Task::none()
             }
-            ToolsMessage::ClearToast => {
-                self.toast = None;
-                Task::none()
-            }
-
             ToolsMessage::CopyFixCommands(commands) => {
                 Task::perform(copy_to_clipboard(commands), |_| {
                     Message::Tools(ToolsMessage::CopyDone)
@@ -615,6 +667,76 @@ impl App {
             ToolsMessage::SetSection(s) => {
                 self.tools.active_section = s;
                 Task::none()
+            }
+
+            ToolsMessage::ToolSearchChanged(v) => {
+                self.tools.tool_search = v;
+                Task::none()
+            }
+
+            ToolsMessage::ScanInstalledTools => {
+                self.tools.tools_scanning = true;
+                Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                    Message::Tools(ToolsMessage::InstalledToolsScanned(r))
+                })
+            }
+
+            ToolsMessage::InstalledToolsScanned(tools) => {
+                self.tools.apply_tools_scan(tools);
+                Task::none()
+            }
+
+            ToolsMessage::InstallComposer => {
+                self.tools.push_log(true, "Queued Composer install".into());
+                self.trigger_sudo(PendingAction::ComposerInstall { update: false })
+            }
+
+            ToolsMessage::UpdateComposer => {
+                self.tools.push_log(true, "Queued Composer update".into());
+                self.trigger_sudo(PendingAction::ComposerInstall { update: true })
+            }
+
+            ToolsMessage::ComposerDone(ok, msg) => {
+                self.tools.push_log(ok, msg.clone());
+                self.tools.tools_scanning = true;
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                        Message::Tools(ToolsMessage::InstalledToolsScanned(r))
+                    }),
+                ])
+            }
+
+            ToolsMessage::CopyNvmInstallCommand => {
+                let command = "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash".to_string();
+                Task::perform(copy_to_clipboard(command), |_| {
+                    Message::Tools(ToolsMessage::CopyDone)
+                })
+            }
+
+            ToolsMessage::RedisStart => {
+                self.tools.push_log(true, "Starting Redis".into());
+                self.trigger_sudo(PendingAction::RedisService {
+                    action: "start".into(),
+                })
+            }
+
+            ToolsMessage::RedisStop => {
+                self.tools.push_log(true, "Stopping Redis".into());
+                self.trigger_sudo(PendingAction::RedisService {
+                    action: "stop".into(),
+                })
+            }
+
+            ToolsMessage::RedisDone(ok, msg) => {
+                self.tools.push_log(ok, msg.clone());
+                self.tools.tools_scanning = true;
+                Task::batch([
+                    self.show_toast(msg, ok),
+                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                        Message::Tools(ToolsMessage::InstalledToolsScanned(r))
+                    }),
+                ])
             }
 
             ToolsMessage::ScanApacheMods => {
@@ -1002,7 +1124,10 @@ impl App {
                         }
                     }
                 }
-                self.vhosts.status_msg = Some((true, format!("Tagged {} VirtualHost(s)", self.vhosts.selected.len())));
+                self.vhosts.status_msg = Some((
+                    true,
+                    format!("Tagged {} VirtualHost(s)", self.vhosts.selected.len()),
+                ));
                 self.vhosts.bulk_tag.clear();
                 Task::none()
             }
@@ -1107,9 +1232,7 @@ impl App {
 
             ConfigMessage::SaveDone(ok, msg) => {
                 self.config_tab.apply_save_result(ok, msg.clone());
-                if ok
-                    && let Ok(db) = DevPanelDb::open()
-                {
+                if ok && let Ok(db) = DevPanelDb::open() {
                     let loaded = UserSettings::load(&db);
                     self.config_tab.settings = loaded;
                     self.db = Some(db);
@@ -1165,14 +1288,48 @@ impl App {
     fn handle_first_run(&mut self, msg: FirstRunMessage) -> Task<Message> {
         match msg {
             FirstRunMessage::Continue => {
-                first_run::mark_done();
-                self.first_run_state = first_run::FirstRunState::Hidden;
-                self.trigger_sudo(PendingAction::FirstRunInstall)
+                self.first_run_installing = true;
+                self.trigger_sudo(PendingAction::FirstRunInstall {
+                    options: self.first_run_options,
+                })
             }
             FirstRunMessage::Exit => {
                 std::process::exit(0);
             }
+            FirstRunMessage::ToggleMysql(v) => {
+                self.first_run_options.install_mysql = v;
+                Task::none()
+            }
+            FirstRunMessage::TogglePhpExtras(v) => {
+                self.first_run_options.install_php_extras = v;
+                Task::none()
+            }
+            FirstRunMessage::ProgressTick => {
+                if self.first_run_installing {
+                    Task::perform(
+                        async {
+                            crate::core::setup_log::read_setup_log_async()
+                                .await
+                                .into_iter()
+                                .map(|entry| format!("[{:?}] {}", entry.level, entry.message))
+                                .collect()
+                        },
+                        |lines| Message::FirstRun(FirstRunMessage::LogLoaded(lines)),
+                    )
+                } else {
+                    Task::none()
+                }
+            }
+            FirstRunMessage::LogLoaded(lines) => {
+                self.first_run_log_lines = lines;
+                Task::none()
+            }
             FirstRunMessage::InstallDone(ok, msg) => {
+                self.first_run_installing = false;
+                if ok {
+                    first_run::mark_done();
+                    self.first_run_state = first_run::FirstRunState::Hidden;
+                }
                 self.tools.scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),

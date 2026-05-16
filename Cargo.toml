@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.6.3"
+version = "0.8.3"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -52,6 +52,25 @@ assets = [
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
+  ["installation/devpanel-setup.sh",   "usr/share/devpanel/installation/","755"],
+  ["installation/lib/log.sh",          "usr/share/devpanel/installation/lib/","755"],
+  ["installation/lib/paths.sh",        "usr/share/devpanel/installation/lib/","755"],
+  ["installation/lib/context.sh",      "usr/share/devpanel/installation/lib/","755"],
+  ["installation/lib/runner.sh",       "usr/share/devpanel/installation/lib/","755"],
+  ["installation/dependencies/common.sh",         "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_apache.sh", "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_php.sh",    "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_mysql.sh",  "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/setup_vhost.sh",    "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_tools.sh",  "usr/share/devpanel/installation/dependencies/","755"],
+  ["scripts/apache_sudo.sh",           "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/php_sudo.sh",              "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/mysql_sudo.sh",            "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/vhost_sudo.sh",            "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/tools_sudo.sh",            "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/common_sudo.sh",           "usr/share/devpanel/scripts/",     "755"],
+  ["scripts/lib/common.sh",            "usr/share/devpanel/scripts/lib/", "755"],
+  ["scripts/lib/paths.sh",             "usr/share/devpanel/scripts/lib/", "755"],
 ]
 features = ["production"]
 maintainer-scripts = "scripts/"

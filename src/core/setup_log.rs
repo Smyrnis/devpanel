@@ -1,4 +1,4 @@
-pub const LOG_PATH: &str = "/var/log/devpanel/setup.log";
+pub const LOG_PATH: &str = crate::core::paths::SETUP_LOG;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {

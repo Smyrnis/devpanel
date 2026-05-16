@@ -13,6 +13,8 @@ pub enum Tab {
 #[derive(Debug, Clone)]
 pub enum Message {
     SelectTab(Tab),
+    NotificationTick,
+    DismissAllNotifications,
     Dashboard(DashboardMessage),
     SshKeys(SshKeysMessage),
     Tools(ToolsMessage),
@@ -82,6 +84,8 @@ pub enum SshKeysMessage {
     OpenDir,
     ListKeys,
     KeysListed(Vec<crate::tabs::ssh_keys::KeyEntry>),
+    CopyPublicKey(String),
+    CopyPublicKeyDone(bool, String),
 }
 
 #[derive(Debug, Clone)]
@@ -95,10 +99,19 @@ pub enum ToolsMessage {
     OpenMariadbCli,
     OpenMysqlSocket,
     ClearLog,
-    ClearToast,
     CopyFixCommands(String),
     CopyDone,
     SetSection(crate::tabs::tools::ToolSection),
+    ToolSearchChanged(String),
+    ScanInstalledTools,
+    InstalledToolsScanned(crate::tabs::tools::InstalledTools),
+    InstallComposer,
+    UpdateComposer,
+    ComposerDone(bool, String),
+    CopyNvmInstallCommand,
+    RedisStart,
+    RedisStop,
+    RedisDone(bool, String),
     ScanApacheMods,
     ScanApacheModsDone(Vec<crate::tabs::tools::ApacheModule>),
     ModFilterChanged(String),
@@ -181,6 +194,10 @@ pub enum SudoMessage {
 pub enum FirstRunMessage {
     Continue,
     Exit,
+    ToggleMysql(bool),
+    TogglePhpExtras(bool),
+    ProgressTick,
+    LogLoaded(Vec<String>),
     InstallDone(bool, String),
 }
 
