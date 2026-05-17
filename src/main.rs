@@ -1,16 +1,15 @@
 mod app;
 mod core;
-#[path = "installWindow/mod.rs"]
-mod install_window;
+mod helpers;
 mod lang;
 mod messages;
 mod sudo_s;
-mod tabs;
+mod ui;
 
 use app::App;
 use iced::Theme;
 
-static ICON_BYTES: &[u8] = include_bytes!("../devpanel.jpg");
+static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.jpg");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;

@@ -40,7 +40,7 @@ impl App {
                     self.ssh_keys.passphrase.clone(),
                 );
                 Task::perform(
-                    crate::tabs::ssh_keys::generate_key(email, name, ktype, pass),
+                    crate::ui::tabs::ssh_keys::generate_key(email, name, ktype, pass),
                     |result| {
                         let (ok, msg) = result_status(result);
                         Message::SshKeys(SshKeysMessage::GenerateDone(ok, msg))
@@ -49,7 +49,7 @@ impl App {
             }
 
             SshKeysMessage::GenerateDone(ok, msg) => {
-                use crate::tabs::ssh_keys::StatusKind;
+                use crate::ui::tabs::ssh_keys::StatusKind;
                 self.ssh_keys.status_kind = if ok {
                     StatusKind::Success
                 } else {
@@ -59,7 +59,7 @@ impl App {
                 if ok {
                     Task::batch([
                         self.show_toast(msg, ok),
-                        Task::perform(crate::tabs::ssh_keys::list_keys(), |keys| {
+                        Task::perform(crate::ui::tabs::ssh_keys::list_keys(), |keys| {
                             Message::SshKeys(SshKeysMessage::KeysListed(keys))
                         }),
                     ])
@@ -77,7 +77,7 @@ impl App {
             }
 
             SshKeysMessage::AddExistingDone(ok, msg) => {
-                use crate::tabs::ssh_keys::StatusKind;
+                use crate::ui::tabs::ssh_keys::StatusKind;
                 self.ssh_keys.status_kind = if ok {
                     StatusKind::Success
                 } else {
@@ -92,9 +92,11 @@ impl App {
                 Task::none()
             }
 
-            SshKeysMessage::ListKeys => Task::perform(crate::tabs::ssh_keys::list_keys(), |keys| {
-                Message::SshKeys(SshKeysMessage::KeysListed(keys))
-            }),
+            SshKeysMessage::ListKeys => {
+                Task::perform(crate::ui::tabs::ssh_keys::list_keys(), |keys| {
+                    Message::SshKeys(SshKeysMessage::KeysListed(keys))
+                })
+            }
 
             SshKeysMessage::KeysListed(keys) => {
                 self.ssh_keys.keys_list = keys;
@@ -102,7 +104,7 @@ impl App {
             }
             SshKeysMessage::CopyPublicKey(path) => Task::perform(
                 async move {
-                    match crate::tabs::ssh_keys::read_public_key(path).await {
+                    match crate::ui::tabs::ssh_keys::read_public_key(path).await {
                         Ok(text) => {
                             crate::core::system::copy_to_clipboard(text).await;
                             (true, "Public key copied".to_string())
@@ -113,7 +115,7 @@ impl App {
                 |(ok, msg)| Message::SshKeys(SshKeysMessage::CopyPublicKeyDone(ok, msg)),
             ),
             SshKeysMessage::CopyPublicKeyDone(ok, msg) => {
-                use crate::tabs::ssh_keys::StatusKind;
+                use crate::ui::tabs::ssh_keys::StatusKind;
                 self.ssh_keys.status_kind = if ok {
                     StatusKind::Success
                 } else {

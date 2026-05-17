@@ -2,6 +2,7 @@ use super::{Provider, ProviderFilter, RemoteRepo, ReposTab, SshStatus};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::repos as keys, text as tr};
 use crate::messages::{Message, ReposMessage};
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
@@ -25,63 +26,20 @@ fn provider_border(p: &Provider) -> Color {
 }
 
 pub fn render(tab: &ReposTab) -> Element<'_, Message> {
-    let header = column![
-        text(tr(keys::TITLE))
-            .size(22)
-            .color(theme::color(theme_keys::TEXT_PRIMARY)),
-        Space::with_height(4),
-        text(tr(keys::SUBTITLE))
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-    ]
-    .spacing(0);
-
-    let status_bar = container(
-        row![
-            ssh_pill(tr(keys::GITHUB), &tab.github_status),
-            Space::with_width(10),
-            ssh_pill(tr(keys::BITBUCKET), &tab.bitbucket_status),
-            Space::with_width(Length::Fill),
-            icon_btn(
-                if tab.fetching {
-                    tr(keys::FETCHING)
-                } else {
-                    tr(keys::FETCH_REPOS)
-                },
-                theme::color(theme_keys::TEAL),
-                theme::color(theme_keys::TEAL_BG),
-                theme::color(theme_keys::TEAL_HOVER),
-                theme::color(theme_keys::TEAL_BORDER),
-                if tab.fetching {
-                    None
-                } else {
-                    Some(Message::Repos(ReposMessage::Fetch))
-                }
-            ),
-            Space::with_width(8),
-            icon_btn(
-                tr(keys::CHECK_SSH),
-                theme::color(theme_keys::TEXT_SECONDARY),
-                theme::color(theme_keys::BG_HOVER),
-                theme::color(theme_keys::BG_ELEVATED),
-                theme::color(theme_keys::BORDER_SUBTLE),
-                Some(Message::Repos(ReposMessage::CheckSsh))
-            ),
-            Space::with_width(8),
-            icon_btn(
+    let header = ui::page_header(
+        tr(keys::TITLE),
+        tr(keys::SUBTITLE),
+        vec![
+            ui::secondary_button(
                 tr(keys::OPEN_PROJECTS),
-                theme::color(theme_keys::TEXT_SECONDARY),
-                theme::color(theme_keys::BG_HOVER),
-                theme::color(theme_keys::BG_ELEVATED),
-                theme::color(theme_keys::BORDER_SUBTLE),
-                Some(Message::Repos(ReposMessage::OpenRoot))
+                Message::Repos(ReposMessage::OpenRoot),
             ),
-        ]
-        .align_y(Alignment::Center),
-    )
-    .padding(Padding::from([12, 16]))
-    .width(Length::Fill)
-    .style(surface_style());
+            ui::secondary_button(tr(keys::CHECK_SSH), Message::Repos(ReposMessage::CheckSsh)),
+            ui::primary_button(tr(keys::FETCH_REPOS), Message::Repos(ReposMessage::Fetch)),
+        ],
+    );
+
+    let status_bar = connection_status_panel(tab);
 
     let filter_bar: Element<Message> = if !tab.remote_repos.is_empty() {
         container(
@@ -110,7 +68,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
         )
         .padding(Padding::from([10, 16]))
         .width(Length::Fill)
-        .style(surface_style())
+        .style(ui::surface_style())
         .into()
     } else {
         Space::with_height(0).into()
@@ -131,7 +89,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
             };
             container(
                 row![
-                    dot(color),
+                    ui::status_dot(color),
                     Space::with_width(8),
                     text(msg.as_str())
                         .size(12)
@@ -146,7 +104,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
                 border: Border {
                     color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             })
@@ -267,47 +225,127 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     .into()
 }
 
-fn ssh_pill<'a>(label: &'a str, status: &'a SshStatus) -> Element<'a, Message> {
-    let (dot_color, status_text, bg) = match status {
-        SshStatus::Unknown => (
-            theme::color(theme_keys::TEXT_MUTED),
-            tr(keys::SSH_UNKNOWN),
-            theme::color(theme_keys::BG_SURFACE),
-        ),
-        SshStatus::Connected => (
-            theme::color(theme_keys::GREEN),
-            tr(keys::SSH_CONNECTED),
-            theme::color(theme_keys::GREEN_BG),
-        ),
-        SshStatus::Failed(_) => (
-            theme::color(theme_keys::RED),
-            tr(keys::SSH_FAILED),
-            theme::color(theme_keys::RED_BG),
-        ),
-    };
+fn connection_status_panel(tab: &ReposTab) -> Element<'_, Message> {
     container(
-        row![
-            dot(dot_color),
-            Space::with_width(6),
-            text(label)
+        column![
+            row![
+                text(tr(keys::PROVIDER_ACCESS))
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
+                Space::with_width(Length::Fill),
+                text(if tab.fetching { tr(keys::FETCHING) } else { "" })
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            ]
+            .align_y(Alignment::Center),
+            Space::with_height(12),
+            row![
+                provider_access_card(
+                    tr(keys::GITHUB),
+                    &tab.github_status,
+                    tr(keys::GITHUB_SSH_COMMAND),
+                    theme::color(theme_keys::TEAL),
+                    theme::color(theme_keys::TEAL_BG),
+                    theme::color(theme_keys::TEAL_BORDER),
+                ),
+                provider_access_card(
+                    tr(keys::BITBUCKET),
+                    &tab.bitbucket_status,
+                    tr(keys::BITBUCKET_SSH_COMMAND),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_BORDER),
+                ),
+                repo_count_card(tab.remote_repos.len()),
+            ]
+            .spacing(12),
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([14, 16]))
+    .width(Length::Fill)
+    .style(ui::surface_style())
+    .into()
+}
+
+fn provider_access_card<'a>(
+    label: &'a str,
+    status: &'a SshStatus,
+    command: &'a str,
+    accent: Color,
+    bg: Color,
+    border: Color,
+) -> Element<'a, Message> {
+    let status_text = ssh_status_text(status);
+    container(
+        column![
+            row![
+                ui::status_dot(ssh_status_color(status)),
+                Space::with_width(7),
+                text(label).size(12).color(accent),
+                Space::with_width(Length::Fill),
+                text(status_text).size(10).color(ssh_status_color(status)),
+            ]
+            .align_y(Alignment::Center),
+            Space::with_height(8),
+            text(tr(keys::PROVIDER_COMMAND))
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(3),
+            text(command)
                 .size(11)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_width(4),
-            text(status_text).size(10).color(dot_color),
         ]
-        .align_y(Alignment::Center),
+        .spacing(0),
     )
-    .padding(Padding::from([6, 12]))
+    .padding(Padding::from([12, 14]))
+    .width(Length::FillPortion(1))
     .style(move |_: &iced::Theme| container::Style {
         background: Some(bg.into()),
         border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
+            color: border,
             width: 1.0,
-            radius: 20.0.into(),
+            radius: 6.0.into(),
         },
         ..Default::default()
     })
     .into()
+}
+
+fn repo_count_card(count: usize) -> Element<'static, Message> {
+    container(
+        column![
+            text(count.to_string())
+                .size(20)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(3),
+            text(tr(keys::REPOS_LOADED))
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([12, 14]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style())
+    .into()
+}
+
+fn ssh_status_text(status: &SshStatus) -> String {
+    match status {
+        SshStatus::Unknown => tr(keys::SSH_UNKNOWN).to_string(),
+        SshStatus::Connected => tr(keys::SSH_CONNECTED).to_string(),
+        SshStatus::Failed(reason) if !reason.trim().is_empty() => reason.clone(),
+        SshStatus::Failed(_) => tr(keys::SSH_FAILED).to_string(),
+    }
+}
+
+fn ssh_status_color(status: &SshStatus) -> Color {
+    match status {
+        SshStatus::Unknown => theme::color(theme_keys::TEXT_MUTED),
+        SshStatus::Connected => theme::color(theme_keys::GREEN),
+        SshStatus::Failed(_) => theme::color(theme_keys::RED),
+    }
 }
 
 fn empty_state<'a>() -> Element<'a, Message> {
@@ -337,7 +375,7 @@ fn empty_state<'a>() -> Element<'a, Message> {
         border: Border {
             color: theme::color(theme_keys::TEAL_BORDER),
             width: 1.0,
-            radius: 8.0.into(),
+            radius: 6.0.into(),
         },
         ..Default::default()
     });
@@ -368,7 +406,7 @@ fn empty_state<'a>() -> Element<'a, Message> {
         border: Border {
             color: theme::color(theme_keys::BLUE_BORDER),
             width: 1.0,
-            radius: 8.0.into(),
+            radius: 6.0.into(),
         },
         ..Default::default()
     });
@@ -390,31 +428,35 @@ fn empty_state<'a>() -> Element<'a, Message> {
         border: Border {
             color: theme::color(theme_keys::YELLOW_BORDER),
             width: 1.0,
-            radius: 8.0.into(),
+            radius: 6.0.into(),
         },
         ..Default::default()
     });
 
-    container(
-        column![
-            text(tr(keys::EMPTY_TITLE))
-                .size(15)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(4),
-            text(tr(keys::EMPTY_BODY))
-                .size(13)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(20),
-            github_hint,
-            Space::with_height(8),
-            bitbucket_hint,
-            Space::with_height(16),
-            note,
-        ]
-        .spacing(0),
-    )
-    .width(Length::Fill)
-    .padding(Padding::from([8, 0]))
+    column![
+        ui::empty_state(
+            tr(keys::EMPTY_TITLE),
+            tr(keys::EMPTY_BODY),
+            vec![
+                ui::secondary_button(tr(keys::CHECK_SSH), Message::Repos(ReposMessage::CheckSsh),),
+                ui::primary_button(tr(keys::FETCH_REPOS), Message::Repos(ReposMessage::Fetch),),
+            ],
+        ),
+        Space::with_height(20),
+        container(
+            column![
+                github_hint,
+                Space::with_height(8),
+                bitbucket_hint,
+                Space::with_height(16),
+                note,
+            ]
+            .spacing(0),
+        )
+        .width(Length::Fill)
+        .padding(Padding::from([8, 0]))
+    ]
+    .spacing(0)
     .into()
 }
 
@@ -512,7 +554,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         })
@@ -534,7 +576,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                         border: Border {
                             color: theme::color(theme_keys::TEAL_BORDER),
                             width: 1.0,
-                            radius: 8.0.into()
+                            radius: 6.0.into()
                         },
                         ..Default::default()
                     },
@@ -544,7 +586,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                     border: Border {
                         color: theme::color(theme_keys::TEAL_BORDER),
                         width: 1.0,
-                        radius: 8.0.into()
+                        radius: 6.0.into()
                     },
                     ..Default::default()
                 },
@@ -565,7 +607,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                         border: Border {
                             color: theme::color(theme_keys::BLUE_BORDER),
                             width: 1.0,
-                            radius: 8.0.into()
+                            radius: 6.0.into()
                         },
                         ..Default::default()
                     },
@@ -575,7 +617,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                     border: Border {
                         color: theme::color(theme_keys::BLUE_BORDER),
                         width: 1.0,
-                        radius: 8.0.into()
+                        radius: 6.0.into()
                     },
                     ..Default::default()
                 },
@@ -599,7 +641,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                     background: Some(theme::color(theme_keys::GREEN_HOVER).into()),
                     text_color: theme::color(theme_keys::GREEN),
                     border: Border {
-                        radius: 8.0.into(),
+                        radius: 6.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -609,7 +651,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
                 background: Some(theme::color(theme_keys::GREEN_BG).into()),
                 text_color: theme::color(theme_keys::GREEN),
                 border: Border {
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -628,7 +670,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
             Space::with_height(6),
             ssh_row,
             Space::with_height(14),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(12),
             row![Space::with_width(Length::Fill), action_btn].align_y(Alignment::Center),
         ]
@@ -636,12 +678,12 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
     )
     .padding(Padding::from([16, 18]))
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
 fn small_nav<'a>(label: &'a str, on_press: Option<Message>) -> Element<'a, Message> {
-    icon_btn(
+    ui::action_button(
         label,
         theme::color(theme_keys::TEXT_SECONDARY),
         theme::color(theme_keys::BG_HOVER),
@@ -649,91 +691,6 @@ fn small_nav<'a>(label: &'a str, on_press: Option<Message>) -> Element<'a, Messa
         theme::color(theme_keys::BORDER_SUBTLE),
         on_press,
     )
-}
-
-fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 8.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-}
-fn dot(color: Color) -> iced::widget::Container<'static, Message> {
-    container(Space::with_width(6))
-        .width(6)
-        .height(6)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 3.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-}
-fn icon_btn<'a>(
-    label: &'a str,
-    color: Color,
-    bg: Color,
-    bg_hover: Color,
-    border: Color,
-    on_press: Option<Message>,
-) -> Element<'a, Message> {
-    let b = button(text(label).size(12).color(color))
-        .padding(Padding::from([7, 14]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-                iced::widget::button::Style {
-                    background: Some(bg_hover.into()),
-                    text_color: color,
-                    border: Border {
-                        color: border,
-                        width: 1.0,
-                        radius: 8.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }
-            _ => iced::widget::button::Style {
-                background: Some(bg.into()),
-                text_color: color,
-                border: Border {
-                    color: border,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            },
-        });
-    if let Some(msg) = on_press {
-        b.on_press(msg).into()
-    } else {
-        b.into()
-    }
 }
 fn filter_tab<'a>(
     label: &'a str,

@@ -1,4 +1,6 @@
 use crate::core::paths;
+use crate::helpers::process::service_active;
+use crate::helpers::time::format_duration;
 use crate::messages::{DashboardMessage, Message};
 use tokio::process::Command;
 
@@ -20,15 +22,6 @@ pub async fn probe_services() -> Message {
         mysql_uptime,
         recent_failures,
     })
-}
-
-pub async fn service_active(name: &str) -> bool {
-    Command::new("systemctl")
-        .args(["is-active", "--quiet", name])
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false)
 }
 
 pub async fn detect_php() -> (Option<String>, Vec<String>) {
@@ -161,17 +154,4 @@ async fn recent_service_failures(service: &str) -> Vec<String> {
         .into_iter()
         .rev()
         .collect()
-}
-
-fn format_duration(total: u64) -> String {
-    let days = total / 86_400;
-    let hours = (total % 86_400) / 3_600;
-    let minutes = (total % 3_600) / 60;
-    if days > 0 {
-        format!("{}d {}h", days, hours)
-    } else if hours > 0 {
-        format!("{}h {}m", hours, minutes)
-    } else {
-        format!("{}m", minutes)
-    }
 }

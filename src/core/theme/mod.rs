@@ -15,7 +15,7 @@ pub fn color(key: &'static str) -> Color {
     theme
         .get(key)
         .copied()
-        .or_else(|| parse_theme(include_str!("../../../share/themes/dark.json")).remove(key))
+        .or_else(|| parse_theme(include_str!("../../../share/themes/default.json")).remove(key))
         .unwrap_or(Color::TRANSPARENT)
 }
 
@@ -35,7 +35,7 @@ pub fn available_themes() -> Vec<String> {
 fn load_configured_theme() -> HashMap<String, Color> {
     let code = configured_theme_code();
     load_theme(&code)
-        .unwrap_or_else(|| parse_theme(include_str!("../../../share/themes/dark.json")))
+        .unwrap_or_else(|| parse_theme(include_str!("../../../share/themes/default.json")))
 }
 
 fn configured_theme_code() -> String {

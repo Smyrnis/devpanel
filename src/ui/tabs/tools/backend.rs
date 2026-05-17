@@ -1,6 +1,8 @@
 use super::{ApacheModule, InstalledTools, PhpStatus};
 use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
+use crate::helpers::env::home_dir;
+use crate::helpers::process::{command_first_line, service_active, service_exists};
 use crate::sudo_s::{apache_sudo, php_sudo, tools_sudo};
 use tokio::process::Command;
 
@@ -230,9 +232,7 @@ pub async fn scan_installed_tools() -> InstalledTools {
     let composer_version = command_first_line("composer", &["--version"]).await;
     let node_version = command_first_line("node", &["--version"]).await;
     let npm_version = command_first_line("npm", &["--version"]).await;
-    let nvm_available = std::env::var("HOME")
-        .map(|home| std::path::Path::new(&home).join(".nvm/nvm.sh").exists())
-        .unwrap_or(false);
+    let nvm_available = home_dir().join(".nvm/nvm.sh").exists();
     let redis_installed = command_first_line("redis-server", &["--version"])
         .await
         .is_some();
@@ -281,36 +281,6 @@ pub async fn redis_service_op(action: String, password: String) -> DevPanelResul
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Redis {} failed: {}", action, e)))?;
     Ok(format!("Redis {}ed", action))
-}
-
-async fn command_first_line(cmd: &str, args: &[&str]) -> Option<String> {
-    let out = Command::new(cmd).args(args).output().await.ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .next()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
-async fn service_active(name: &str) -> bool {
-    Command::new("systemctl")
-        .args(["is-active", "--quiet", name])
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-async fn service_exists(name: &str) -> bool {
-    Command::new("systemctl")
-        .args(["status", name, "--no-pager"])
-        .status()
-        .await
-        .map(|s| s.success())
-        .unwrap_or(false)
 }
 
 async fn redis_memory_usage() -> Option<String> {

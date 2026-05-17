@@ -57,9 +57,9 @@ impl App {
                 self.tools.scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
+                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
                     Task::perform(
-                        crate::tabs::tools::scan_php_versions(
+                        crate::ui::tabs::tools::scan_php_versions(
                             self.dashboard.active_php_version.clone(),
                         ),
                         |r| Message::Tools(ToolsMessage::ScanDone(r)),

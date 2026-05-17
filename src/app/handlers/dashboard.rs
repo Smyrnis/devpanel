@@ -16,7 +16,7 @@ impl App {
     pub(crate) fn handle_dashboard(&mut self, msg: DashboardMessage) -> Task<Message> {
         match msg {
             DashboardMessage::RefreshStatus => {
-                Task::perform(crate::tabs::dashboard::probe_services(), |r| r)
+                Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r)
             }
 
             DashboardMessage::StatusRefreshed {
@@ -62,7 +62,7 @@ impl App {
 
             DashboardMessage::AutoRefreshTick => {
                 if self.active_tab == Tab::Dashboard {
-                    Task::perform(crate::tabs::dashboard::probe_services(), |r| r)
+                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r)
                 } else {
                     Task::none()
                 }
@@ -107,7 +107,7 @@ impl App {
                 };
                 Task::batch([
                     self.show_toast(msg, success),
-                    Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
+                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
                 ])
             }
 
@@ -117,14 +117,14 @@ impl App {
 
             DashboardMessage::PhpSwitchResult(ok, msg) => Task::batch([
                 self.show_toast(msg, ok),
-                Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
+                Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
             ]),
 
             DashboardMessage::ShowPhpInfo => {
                 self.dashboard.php_info_loading = true;
                 self.dashboard.php_info = None;
                 Task::perform(
-                    crate::tabs::dashboard::backend::php_info_summary(),
+                    crate::ui::tabs::dashboard::backend::php_info_summary(),
                     |text| Message::Dashboard(DashboardMessage::PhpInfoLoaded(text)),
                 )
             }

@@ -3,6 +3,7 @@ use crate::core::first_run_install::FirstRunInstallOptions;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::install as keys, text as tr};
 use crate::messages::Message;
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Border, Element, Length, Padding};
 
@@ -79,7 +80,7 @@ pub fn view<'a>(
         column![
             header,
             Space::with_height(20),
-            divider(),
+            ui::divider(),
             Space::with_height(16),
             text(tr(keys::PACKAGES_TO_INSTALL))
                 .size(11)
@@ -333,45 +334,6 @@ fn exit_button<'a>(installing: bool) -> Element<'a, Message> {
             Some(Message::FirstRun(FirstRunMessage::Exit))
         })
         .padding(Padding::from([11, 20]))
-        .style(ghost_btn_style())
+        .style(ui::ghost_button_style())
         .into()
-}
-
-fn divider<'a>() -> Element<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-        .into()
-}
-
-fn ghost_btn_style()
--> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-    |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_MED),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            text_color: theme::color(theme_keys::TEXT_SECONDARY),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 8.0.into(),
-            },
-            ..Default::default()
-        },
-    }
 }

@@ -17,7 +17,7 @@ impl App {
             ToolsMessage::ScanPhp => {
                 self.tools.scanning = true;
                 Task::perform(
-                    crate::tabs::tools::scan_php_versions(
+                    crate::ui::tabs::tools::scan_php_versions(
                         self.dashboard.active_php_version.clone(),
                     ),
                     |r| Message::Tools(ToolsMessage::ScanDone(r)),
@@ -52,9 +52,9 @@ impl App {
                 self.tools.scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
+                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
                     Task::perform(
-                        crate::tabs::tools::scan_php_versions(
+                        crate::ui::tabs::tools::scan_php_versions(
                             self.dashboard.active_php_version.clone(),
                         ),
                         |r| Message::Tools(ToolsMessage::ScanDone(r)),
@@ -109,7 +109,7 @@ impl App {
 
             ToolsMessage::ScanInstalledTools => {
                 self.tools.tools_scanning = true;
-                Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                Task::perform(crate::ui::tabs::tools::scan_installed_tools(), |r| {
                     Message::Tools(ToolsMessage::InstalledToolsScanned(r))
                 })
             }
@@ -134,7 +134,7 @@ impl App {
                 self.tools.tools_scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                    Task::perform(crate::ui::tabs::tools::scan_installed_tools(), |r| {
                         Message::Tools(ToolsMessage::InstalledToolsScanned(r))
                     }),
                 ])
@@ -166,14 +166,14 @@ impl App {
                 self.tools.tools_scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                    Task::perform(crate::ui::tabs::tools::scan_installed_tools(), |r| {
                         Message::Tools(ToolsMessage::InstalledToolsScanned(r))
                     }),
                 ])
             }
 
             ToolsMessage::ScanApacheMods => {
-                Task::perform(crate::tabs::tools::scan_apache_modules(), |r| {
+                Task::perform(crate::ui::tabs::tools::scan_apache_modules(), |r| {
                     Message::Tools(ToolsMessage::ScanApacheModsDone(r))
                 })
             }
@@ -213,7 +213,7 @@ impl App {
                 self.sync_php_versions_to_vhosts();
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::tools::scan_apache_modules(), |r| {
+                    Task::perform(crate::ui::tabs::tools::scan_apache_modules(), |r| {
                         Message::Tools(ToolsMessage::ScanApacheModsDone(r))
                     }),
                 ])
@@ -226,7 +226,7 @@ impl App {
                     .iter()
                     .find(|r| r.is_active)
                     .map(|r| r.version.clone());
-                Task::perform(crate::tabs::tools::scan_php_extensions(active), |r| {
+                Task::perform(crate::ui::tabs::tools::scan_php_extensions(active), |r| {
                     Message::Tools(ToolsMessage::ScanPhpExtsDone(r))
                 })
             }
@@ -265,7 +265,7 @@ impl App {
                     .map(|r| r.version.clone());
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::tools::scan_php_extensions(active), |r| {
+                    Task::perform(crate::ui::tabs::tools::scan_php_extensions(active), |r| {
                         Message::Tools(ToolsMessage::ScanPhpExtsDone(r))
                     }),
                 ])

@@ -7,8 +7,8 @@ impl App {
     pub(crate) fn handle_select_tab(&mut self, tab: Tab) -> Task<Message> {
         self.active_tab = tab.clone();
         match tab {
-            Tab::Dashboard => Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
-            Tab::SshKeys => Task::perform(crate::tabs::ssh_keys::list_keys(), |keys| {
+            Tab::Dashboard => Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
+            Tab::SshKeys => Task::perform(crate::ui::tabs::ssh_keys::list_keys(), |keys| {
                 Message::SshKeys(SshKeysMessage::KeysListed(keys))
             }),
             Tab::Tools => {
@@ -16,12 +16,12 @@ impl App {
                 self.tools.tools_scanning = true;
                 Task::batch([
                     Task::perform(
-                        crate::tabs::tools::scan_php_versions(
+                        crate::ui::tabs::tools::scan_php_versions(
                             self.dashboard.active_php_version.clone(),
                         ),
                         |r| Message::Tools(ToolsMessage::ScanDone(r)),
                     ),
-                    Task::perform(crate::tabs::tools::scan_installed_tools(), |r| {
+                    Task::perform(crate::ui::tabs::tools::scan_installed_tools(), |r| {
                         Message::Tools(ToolsMessage::InstalledToolsScanned(r))
                     }),
                 ])
@@ -30,7 +30,7 @@ impl App {
             Tab::VHosts => {
                 self.vhosts.scanning = true;
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                     Message::VHosts(VHostsMessage::ScanDone(v))
                 })
             }

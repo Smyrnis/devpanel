@@ -2,22 +2,21 @@ use super::{ConfigSection, ConfigTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::config as keys, text as tr};
 use crate::messages::{ConfigMessage, Message};
+use crate::ui::templates::view as ui;
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
-    let header = column![
-        text(tr(keys::TITLE))
-            .size(22)
-            .color(theme::color(theme_keys::TEXT_PRIMARY)),
-        Space::with_height(4),
-        text(tr(keys::SUBTITLE))
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-    ]
-    .spacing(0);
+    let header = ui::page_header(
+        tr(keys::TITLE),
+        tr(keys::SUBTITLE),
+        vec![ui::primary_button(
+            tr(keys::SAVE_CHANGES),
+            Message::Config(ConfigMessage::Save),
+        )],
+    );
 
     let section_bar = row![
         section_pill(
@@ -58,6 +57,67 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
         ConfigSection::Editor => section_editor(tab),
     };
 
+    let save_bar = save_panel(tab);
+
+    let status: Element<Message> = match &tab.status_msg {
+        Some((ok, msg)) => {
+            let (color, bg) = if *ok {
+                (
+                    theme::color(theme_keys::GREEN),
+                    theme::color(theme_keys::GREEN_BG),
+                )
+            } else {
+                (
+                    theme::color(theme_keys::RED),
+                    theme::color(theme_keys::RED_BG),
+                )
+            };
+            container(
+                row![
+                    ui::status_dot(color),
+                    Space::with_width(8),
+                    text(msg.as_str())
+                        .size(12)
+                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
+                ]
+                .align_y(Alignment::Center),
+            )
+            .padding(Padding::from([10, 14]))
+            .width(Length::Fill)
+            .style(move |_: &iced::Theme| container::Style {
+                background: Some(bg.into()),
+                border: Border {
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                ..Default::default()
+            })
+            .into()
+        }
+        None => Space::with_height(0).into(),
+    };
+
+    scrollable(
+        column![
+            header,
+            Space::with_height(18),
+            section_bar,
+            Space::with_height(14),
+            section_body,
+            Space::with_height(16),
+            status,
+            Space::with_height(if tab.status_msg.is_some() { 12 } else { 0 }),
+            save_bar,
+            Space::with_height(24),
+        ]
+        .spacing(0)
+        .padding(Padding::from([22, 24])),
+    )
+    .into()
+}
+
+fn save_panel(tab: &ConfigTab) -> Element<'_, Message> {
     let save_btn = button(
         text(if tab.saving {
             tr(keys::SAVING)
@@ -85,7 +145,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
                 border: Border {
                     color: theme::color(theme_keys::TEAL_BORDER),
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             }
@@ -96,67 +156,32 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             border: Border {
                 color: theme::color(theme_keys::TEAL_BORDER),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         },
     });
 
-    let status: Element<Message> = match &tab.status_msg {
-        Some((ok, msg)) => {
-            let (color, bg) = if *ok {
-                (
-                    theme::color(theme_keys::GREEN),
-                    theme::color(theme_keys::GREEN_BG),
-                )
-            } else {
-                (
-                    theme::color(theme_keys::RED),
-                    theme::color(theme_keys::RED_BG),
-                )
-            };
-            container(
-                row![
-                    dot(color),
-                    Space::with_width(8),
-                    text(msg.as_str())
-                        .size(12)
-                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
-                ]
-                .align_y(Alignment::Center),
-            )
-            .padding(Padding::from([10, 14]))
-            .width(Length::Fill)
-            .style(move |_: &iced::Theme| container::Style {
-                background: Some(bg.into()),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_SUBTLE),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            })
-            .into()
-        }
-        None => Space::with_height(0).into(),
-    };
-
-    scrollable(
-        column![
-            header,
-            Space::with_height(18),
-            section_bar,
-            Space::with_height(14),
-            section_body,
-            Space::with_height(16),
-            status,
-            Space::with_height(if tab.status_msg.is_some() { 12 } else { 0 }),
+    container(
+        row![
+            column![
+                text(tr(keys::SAVE_BAR_TITLE))
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
+                Space::with_height(3),
+                text(tr(keys::SAVE_BAR_BODY))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            ]
+            .spacing(0)
+            .width(Length::Fill),
             save_btn,
-            Space::with_height(24),
         ]
-        .spacing(0)
-        .padding(Padding::from([22, 24])),
+        .align_y(Alignment::Center),
     )
+    .padding(Padding::from([12, 16]))
+    .width(Length::Fill)
+    .style(ui::surface_style())
     .into()
 }
 
@@ -345,7 +370,7 @@ fn section_editor(tab: &ConfigTab) -> Element<'_, Message> {
                 border: Border {
                     color: blue_bdr,
                     width: 1.0,
-                    radius: 8.0.into()
+                    radius: 6.0.into()
                 },
                 ..Default::default()
             }),
@@ -384,7 +409,7 @@ fn section_pill<'a>(
                     border: Border {
                         color: theme::color(theme_keys::TEAL_BORDER),
                         width: 1.0,
-                        radius: 8.0.into(),
+                        radius: 6.0.into(),
                     },
                     ..Default::default()
                 }
@@ -395,7 +420,7 @@ fn section_pill<'a>(
                 border: Border {
                     color: border,
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             },
@@ -406,15 +431,7 @@ fn section_pill<'a>(
 fn card(content: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
     container(content.padding(Padding::from([20, 22])))
         .width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 10.0.into(),
-            },
-            ..Default::default()
-        })
+        .style(ui::card_style())
         .into()
 }
 
@@ -458,18 +475,4 @@ where
     ]
     .align_y(Alignment::Center)
     .into()
-}
-
-fn dot(color: Color) -> iced::widget::Container<'static, Message> {
-    container(Space::with_width(6))
-        .width(6)
-        .height(6)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 3.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
 }

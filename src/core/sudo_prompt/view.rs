@@ -3,6 +3,7 @@ use crate::core::dry_run;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::sudo as keys, text as tr};
 use crate::messages::Message;
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Border, Element, Length, Padding};
 
@@ -75,7 +76,7 @@ impl SudoModal {
                 )
                 .on_press(Message::Sudo(SudoMessage::ToggleShow(!self.show_password)))
                 .padding(Padding::from([11, 14]))
-                .style(ghost_btn_style());
+                .style(ui::ghost_button_style());
 
                 let input_row = row![pass_input.width(Length::Fill), show_btn]
                     .spacing(8)
@@ -94,7 +95,7 @@ impl SudoModal {
                 let cancel_btn = button(text(tr(keys::CANCEL)).size(13))
                     .on_press(Message::Sudo(SudoMessage::Cancel))
                     .padding(Padding::from([10, 18]))
-                    .style(ghost_btn_style());
+                    .style(ui::ghost_button_style());
 
                 column![
                     sudo_title(),
@@ -105,7 +106,7 @@ impl SudoModal {
                     Space::with_height(12),
                     dev_banner,
                     Space::with_height(20),
-                    divider(),
+                    ui::divider(),
                     Space::with_height(16),
                     error_msg,
                     Space::with_height(if self.state == ModalState::Failed {
@@ -232,17 +233,6 @@ fn error_message() -> Element<'static, Message> {
     .into()
 }
 
-fn divider() -> Element<'static, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-        .into()
-}
-
 fn teal_btn_style()
 -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
     |_, status| match status {
@@ -263,34 +253,6 @@ fn teal_btn_style()
             border: Border {
                 radius: 8.0.into(),
                 ..Default::default()
-            },
-            ..Default::default()
-        },
-    }
-}
-
-fn ghost_btn_style()
--> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-    |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_MED),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            text_color: theme::color(theme_keys::TEXT_SECONDARY),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 8.0.into(),
             },
             ..Default::default()
         },
