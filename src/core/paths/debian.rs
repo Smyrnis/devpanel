@@ -1,3 +1,9 @@
+//! Debian-family path constants.
+//!
+//! Keep these in sync with `installation/lib/paths.sh`, which is the shell-side
+//! source used by installation scripts. Drift between the Rust and shell values
+//! can make setup succeed while the app reads from a different location.
+
 pub const HOSTS_FILE: &str = "/etc/hosts";
 pub const WEB_ROOT: &str = "/var/www/html";
 pub const APACHE_CONF_DIR: &str = "/etc/apache2";

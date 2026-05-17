@@ -3,7 +3,7 @@ use crate::core::first_run_install::FirstRunInstallOptions;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::install as keys, text as tr};
 use crate::messages::Message;
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Border, Element, Length, Padding};
 

@@ -3,7 +3,7 @@ use crate::core::dry_run;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::sudo as keys, text as tr};
 use crate::messages::Message;
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Border, Element, Length, Padding};
 

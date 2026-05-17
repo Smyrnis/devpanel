@@ -1,5 +1,11 @@
 use tokio::io::AsyncWriteExt;
 
+pub mod apache;
+pub mod mysql;
+pub mod php;
+pub mod tools;
+pub mod vhost;
+
 pub async fn run(password: &str, args: &[&str]) -> Result<String, String> {
     crate::core::sudo_prompt::sudo_cmd_with_password(password, args).await
 }
@@ -15,7 +21,7 @@ pub async fn append_file(password: &str, path: &str, content: &str) -> Result<()
 pub async fn write_file(password: &str, path: &str, content: &str) -> Result<(), String> {
     if crate::core::dry_run::active() {
         crate::core::dry_run::log(&format!(
-            "common_sudo::write_file: would write {} bytes to {}",
+            "operations::write_file: would write {} bytes to {}",
             content.len(),
             path
         ));

@@ -14,7 +14,7 @@ use crate::ui::tabs::{
     config::ConfigTab, dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab,
     tools::ToolsTab, vhosts::VHostsTab,
 };
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 
 use iced::widget::{Space, button, column, container, row, stack, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Task};

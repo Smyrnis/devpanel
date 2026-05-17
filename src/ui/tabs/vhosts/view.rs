@@ -2,7 +2,7 @@ use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::vhosts as keys, text as tr};
 use crate::messages::{Message, Tab, VHostsMessage};
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
     text_input,

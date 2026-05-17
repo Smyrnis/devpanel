@@ -3,7 +3,7 @@ use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
 use crate::ui::tabs::tools::ToolsTab;
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Border, Element, Length, Padding};
 

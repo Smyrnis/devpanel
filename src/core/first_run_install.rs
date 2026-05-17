@@ -1,7 +1,7 @@
 use crate::core::dry_run;
 use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
-use crate::sudo_s::{apache_sudo, tools_sudo};
+use crate::operations::{apache, tools};
 
 const BASE_PACKAGES: &[&str] = &[
     "apache2",
@@ -62,11 +62,11 @@ pub async fn run_first_run_install(
         ));
     }
 
-    tools_sudo::apt_update(&password)
+    tools::apt_update(&password)
         .await
         .map_err(|e| DevPanelError::Sudo(format!("apt-get update failed: {}", e)))?;
 
-    tools_sudo::apt_install_packages(&password, &packages)
+    tools::apt_install_packages(&password, &packages)
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Package install failed: {}", e)))?;
 
@@ -77,15 +77,15 @@ pub async fn run_first_run_install(
         }
         let mod_load = paths::apache_mod_available(mod_name);
         if std::path::Path::new(&mod_load).exists() {
-            let _ = apache_sudo::enable_module(&password, mod_name).await;
+            let _ = apache::enable_module(&password, mod_name).await;
             enabled_mods.insert(mod_name.to_string());
         }
     }
 
-    let _ = apache_sudo::enable_module(&password, "rewrite").await;
+    let _ = apache::enable_module(&password, "rewrite").await;
 
-    if apache_sudo::reload(&password).await.is_err() {
-        let _ = apache_sudo::start(&password).await;
+    if apache::reload(&password).await.is_err() {
+        let _ = apache::start(&password).await;
     }
 
     Ok("Setup complete - Apache and PHP are ready".into())

@@ -1,8 +1,8 @@
 use super::{Provider, RemoteRepo};
 use crate::core::dry_run;
 use crate::core::error::{DevPanelError, DevPanelResult};
-use crate::helpers::env::home_dir;
-pub use crate::helpers::json::{extract_json_str, split_json_objects};
+pub use crate::core::json::{extract_json_str, split_json_objects};
+use crate::core::system::get_home;
 
 pub struct SshCheckResult {
     pub github_ok: bool,
@@ -240,7 +240,7 @@ async fn fetch_bitbucket_repos() -> Vec<RemoteRepo> {
 }
 
 async fn scan_local_for_bitbucket() -> Vec<RemoteRepo> {
-    let home = home_dir();
+    let home = get_home();
     let ssh_cfg = home.join(".ssh").join("config");
     if let Ok(content) = tokio::fs::read_to_string(&ssh_cfg).await
         && let Some(user) = extract_bitbucket_user_from_ssh_config(&content)

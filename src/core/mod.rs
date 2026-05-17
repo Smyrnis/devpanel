@@ -5,6 +5,7 @@ pub mod error;
 pub mod file_watcher;
 pub mod first_run;
 pub mod first_run_install;
+pub mod json;
 pub mod paths;
 pub mod setup_log;
 pub mod sudo_prompt;

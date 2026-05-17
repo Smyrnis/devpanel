@@ -1,6 +1,6 @@
 use super::{KeyEntry, KeyType};
 use crate::core::error::{DevPanelError, DevPanelResult};
-use crate::helpers::env::ssh_dir;
+use crate::core::system::ssh_dir;
 use crate::helpers::time::format_unix_day;
 use tokio::process::Command;
 

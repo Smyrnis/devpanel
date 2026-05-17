@@ -3,7 +3,7 @@ mod core;
 mod helpers;
 mod lang;
 mod messages;
-mod sudo_s;
+mod operations;
 mod ui;
 
 use app::App;

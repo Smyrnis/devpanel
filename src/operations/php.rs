@@ -1,8 +1,7 @@
-use super::common_sudo;
 use crate::core::paths;
 
 pub async fn apt_php_op(password: &str, version: &str, install: bool) -> Result<String, String> {
-    common_sudo::run(password, &["apt-get", "update"]).await?;
+    super::run(password, &["apt-get", "update"]).await?;
 
     let op = if install { "install" } else { "remove" };
     let pkg = if version == "5.6" {
@@ -22,7 +21,7 @@ pub async fn apt_php_op(password: &str, version: &str, install: bool) -> Result<
     };
 
     let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
-    common_sudo::run(password, &["sh", "-c", &full_cmd]).await
+    super::run(password, &["sh", "-c", &full_cmd]).await
 }
 
 pub async fn switch_php(password: &str, version: &str) -> Result<String, String> {
@@ -36,5 +35,5 @@ pub async fn switch_php(password: &str, version: &str) -> Result<String, String>
         paths::php_binary(version)
     };
 
-    common_sudo::run(password, &["update-alternatives", "--set", "php", &bin]).await
+    super::run(password, &["update-alternatives", "--set", "php", &bin]).await
 }

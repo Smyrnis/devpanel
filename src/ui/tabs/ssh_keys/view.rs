@@ -2,7 +2,7 @@ use super::{KeyType, SshKeysTab, StatusKind};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::ssh_keys as keys, text as tr};
 use crate::messages::{Message, SshKeysMessage};
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, column, container, radio, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 

@@ -1,9 +1,9 @@
 use super::{ApacheModule, InstalledTools, PhpStatus};
 use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
-use crate::helpers::env::home_dir;
+use crate::core::system::get_home;
 use crate::helpers::process::{command_first_line, service_active, service_exists};
-use crate::sudo_s::{apache_sudo, php_sudo, tools_sudo};
+use crate::operations::{apache, php, tools};
 use tokio::process::Command;
 
 struct PhpVersionMeta {
@@ -179,7 +179,7 @@ pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, boo
 }
 
 pub async fn toggle_apache_module(name: String, enable: bool, password: String) -> DevPanelResult {
-    apache_sudo::set_module_and_reload(&password, &name, enable)
+    apache::set_module_and_reload(&password, &name, enable)
         .await
         .map_err(DevPanelError::Sudo)?;
     Ok(format!(
@@ -192,7 +192,7 @@ pub async fn toggle_apache_module(name: String, enable: bool, password: String) 
 pub async fn apt_php_op(version: String, install: bool, password: String) -> DevPanelResult {
     let op = if install { "install" } else { "remove" };
 
-    let output = php_sudo::apt_php_op(&password, &version, install)
+    let output = php::apt_php_op(&password, &version, install)
         .await
         .map_err(|e| DevPanelError::Sudo(format!("PHP {} {} failed: {}", version, op, e)))?;
 
@@ -211,7 +211,7 @@ pub async fn apt_php_op(version: String, install: bool, password: String) -> Dev
 }
 
 pub async fn apt_package_op(package: String, install: bool, password: String) -> DevPanelResult {
-    tools_sudo::apt_package_op(&password, &package, install)
+    tools::apt_package_op(&password, &package, install)
         .await
         .map_err(DevPanelError::Sudo)?;
     Ok(format!(
@@ -222,7 +222,7 @@ pub async fn apt_package_op(package: String, install: bool, password: String) ->
 }
 
 pub async fn switch_php(version: String, password: String) -> DevPanelResult {
-    php_sudo::switch_php(&password, &version)
+    php::switch_php(&password, &version)
         .await
         .map_err(DevPanelError::Sudo)?;
     Ok(format!("Switched to PHP {}", version))
@@ -232,7 +232,7 @@ pub async fn scan_installed_tools() -> InstalledTools {
     let composer_version = command_first_line("composer", &["--version"]).await;
     let node_version = command_first_line("node", &["--version"]).await;
     let npm_version = command_first_line("npm", &["--version"]).await;
-    let nvm_available = home_dir().join(".nvm/nvm.sh").exists();
+    let nvm_available = get_home().join(".nvm/nvm.sh").exists();
     let redis_installed = command_first_line("redis-server", &["--version"])
         .await
         .is_some();
@@ -255,15 +255,13 @@ pub async fn scan_installed_tools() -> InstalledTools {
 }
 
 pub async fn composer_op(update: bool, password: String) -> DevPanelResult {
-    tools_sudo::composer_op(&password, update)
-        .await
-        .map_err(|e| {
-            if update {
-                DevPanelError::Sudo(format!("Composer update failed: {}", e))
-            } else {
-                DevPanelError::Sudo(format!("Composer install failed: {}", e))
-            }
-        })?;
+    tools::composer_op(&password, update).await.map_err(|e| {
+        if update {
+            DevPanelError::Sudo(format!("Composer update failed: {}", e))
+        } else {
+            DevPanelError::Sudo(format!("Composer install failed: {}", e))
+        }
+    })?;
     Ok(if update {
         "Composer updated".into()
     } else {
@@ -277,7 +275,7 @@ pub async fn redis_service_op(action: String, password: String) -> DevPanelResul
     } else {
         "redis"
     };
-    tools_sudo::redis_service_op(&password, &action, service)
+    tools::redis_service_op(&password, &action, service)
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Redis {} failed: {}", action, e)))?;
     Ok(format!("Redis {}ed", action))

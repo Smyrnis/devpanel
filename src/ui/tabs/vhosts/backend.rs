@@ -1,7 +1,7 @@
 use super::VHostEntry;
 use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
-use crate::sudo_s::vhost_sudo;
+use crate::operations::vhost;
 
 pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
     let content = tokio::fs::read_to_string(&devpanel_conf)
@@ -23,10 +23,10 @@ pub async fn load_config_file(path: String) -> String {
 }
 
 pub async fn save_config_file(path: String, content: String, password: String) -> DevPanelResult {
-    vhost_sudo::write_config(&password, &path, &content)
+    vhost::write_config(&password, &path, &content)
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Save failed: {}", e)))?;
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
     Ok("Config saved and Apache reloaded".into())
 }
 
@@ -64,7 +64,7 @@ pub async fn add_vhost(
         ensure_mkcert_cert(&sn).await?;
     }
 
-    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+    vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
 
@@ -72,9 +72,9 @@ pub async fn add_vhost(
         .await
         .unwrap_or_default();
     if !hosts.contains(&sn) {
-        let _ = vhost_sudo::append_host(&password, &sn).await;
+        let _ = vhost::append_host(&password, &sn).await;
     }
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
 
     let php_note = php_version
         .map(|v| format!(" (PHP {})", v))
@@ -113,7 +113,7 @@ pub async fn edit_vhost(
         ensure_mkcert_cert(&new_sn).await?;
     }
 
-    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+    vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
 
@@ -122,10 +122,10 @@ pub async fn edit_vhost(
             .await
             .unwrap_or_default();
         if !hosts.contains(&new_sn) {
-            let _ = vhost_sudo::append_host(&password, &new_sn).await;
+            let _ = vhost::append_host(&password, &new_sn).await;
         }
     }
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
 
     let php_note = php_version
         .map(|v| format!(" (PHP {})", v))
@@ -148,10 +148,10 @@ pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String)
         e.index = i;
     }
 
-    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+    vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
     Ok(format!("VirtualHost '{}' removed", removed))
 }
 
@@ -178,10 +178,10 @@ pub async fn bulk_delete_vhosts(
     for (i, e) in entries.iter_mut().enumerate() {
         e.index = i;
     }
-    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+    vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
     Ok(format!("Removed {} VirtualHost(s)", sorted.len()))
 }
 
@@ -198,10 +198,10 @@ pub async fn toggle_https(devpanel_conf: String, index: usize, password: String)
     if entries[index].https_enabled {
         ensure_mkcert_cert(&server_name).await?;
     }
-    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+    vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
-    vhost_sudo::reload_apache(&password).await;
+    vhost::reload_apache(&password).await;
     let state = if entries[index].https_enabled {
         "enabled"
     } else {

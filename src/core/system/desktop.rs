@@ -5,6 +5,10 @@ pub fn get_home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
 }
 
+pub fn ssh_dir() -> PathBuf {
+    get_home().join(".ssh")
+}
+
 pub fn xdg_open(path: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(path).spawn()?;
     Ok(())

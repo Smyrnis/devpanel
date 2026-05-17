@@ -4,7 +4,7 @@ use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
 use crate::ui::tabs::tools::{ApacheModule, ToolsTab};
-use crate::ui::templates::view as ui;
+use crate::ui::templates::prelude as ui;
 use crate::ui::utils::styles;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Element, Length, Padding};
