@@ -1,6 +1,7 @@
 use super::VHostEntry;
+use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
-use tokio::io::AsyncWriteExt;
+use crate::sudo_s::vhost_sudo;
 
 pub async fn scan_vhosts(devpanel_conf: String) -> Vec<VHostEntry> {
     let content = tokio::fs::read_to_string(&devpanel_conf)
@@ -21,18 +22,12 @@ pub async fn load_config_file(path: String) -> String {
     tokio::fs::read_to_string(&path).await.unwrap_or_default()
 }
 
-pub async fn save_config_file(path: String, content: String, password: String) -> (bool, String) {
-    match write_conf(&path, &content, &password).await {
-        Ok(_) => {
-            let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-                &password,
-                &["systemctl", "reload", "apache2"],
-            )
-            .await;
-            (true, "Config saved and Apache reloaded".into())
-        }
-        Err(e) => (false, format!("Save failed: {}", e)),
-    }
+pub async fn save_config_file(path: String, content: String, password: String) -> DevPanelResult {
+    vhost_sudo::write_config(&password, &path, &content)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Save failed: {}", e)))?;
+    vhost_sudo::reload_apache(&password).await;
+    Ok("Config saved and Apache reloaded".into())
 }
 
 pub async fn add_vhost(
@@ -42,7 +37,7 @@ pub async fn add_vhost(
     php_version: Option<String>,
     https_enabled: bool,
     password: String,
-) -> (bool, String) {
+) -> DevPanelResult {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
@@ -51,7 +46,10 @@ pub async fn add_vhost(
     let dr = document_root.trim().to_string();
 
     if entries.iter().any(|e| e.server_name == sn) {
-        return (false, format!("VirtualHost '{}' already exists", sn));
+        return Err(DevPanelError::Validation(format!(
+            "VirtualHost '{}' already exists",
+            sn
+        )));
     }
     entries.push(VHostEntry {
         server_name: sn.clone(),
@@ -62,41 +60,29 @@ pub async fn add_vhost(
         index: entries.len(),
     });
 
-    if https_enabled && let Err(e) = ensure_mkcert_cert(&sn).await {
-        return (false, e);
+    if https_enabled {
+        ensure_mkcert_cert(&sn).await?;
     }
 
-    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
-        return (false, format!("Write failed: {}", e));
-    }
+    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
 
     let hosts = tokio::fs::read_to_string(paths::HOSTS_FILE)
         .await
         .unwrap_or_default();
     if !hosts.contains(&sn) {
-        let _ = crate::core::sudo_prompt::sudo_tee_append_with_password(
-            &password,
-            paths::HOSTS_FILE,
-            &format!("127.0.0.1    {}\n", sn),
-        )
-        .await;
+        let _ = vhost_sudo::append_host(&password, &sn).await;
     }
-    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-        &password,
-        &["systemctl", "reload", "apache2"],
-    )
-    .await;
+    vhost_sudo::reload_apache(&password).await;
 
     let php_note = php_version
         .map(|v| format!(" (PHP {})", v))
         .unwrap_or_default();
-    (
-        true,
-        format!(
-            "VirtualHost '{}'{} created and Apache reloaded",
-            sn, php_note
-        ),
-    )
+    Ok(format!(
+        "VirtualHost '{}'{} created and Apache reloaded",
+        sn, php_note
+    ))
 }
 
 pub async fn edit_vhost(
@@ -107,13 +93,13 @@ pub async fn edit_vhost(
     php_version: Option<String>,
     https_enabled: bool,
     password: String,
-) -> (bool, String) {
+) -> DevPanelResult {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
     let mut entries = parse_vhosts_from_content(&existing);
     if index >= entries.len() {
-        return (false, "Index out of range".into());
+        return Err(DevPanelError::Validation("Index out of range".into()));
     }
 
     let old_sn = entries[index].server_name.clone();
@@ -123,49 +109,37 @@ pub async fn edit_vhost(
     entries[index].php_version = php_version.clone();
     entries[index].https_enabled = https_enabled;
 
-    if https_enabled && let Err(e) = ensure_mkcert_cert(&new_sn).await {
-        return (false, e);
+    if https_enabled {
+        ensure_mkcert_cert(&new_sn).await?;
     }
 
-    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
-        return (false, format!("Write failed: {}", e));
-    }
+    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
 
     if old_sn != new_sn {
         let hosts = tokio::fs::read_to_string(paths::HOSTS_FILE)
             .await
             .unwrap_or_default();
         if !hosts.contains(&new_sn) {
-            let _ = crate::core::sudo_prompt::sudo_tee_append_with_password(
-                &password,
-                paths::HOSTS_FILE,
-                &format!("127.0.0.1    {}\n", new_sn),
-            )
-            .await;
+            let _ = vhost_sudo::append_host(&password, &new_sn).await;
         }
     }
-    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-        &password,
-        &["systemctl", "reload", "apache2"],
-    )
-    .await;
+    vhost_sudo::reload_apache(&password).await;
 
     let php_note = php_version
         .map(|v| format!(" (PHP {})", v))
         .unwrap_or_default();
-    (
-        true,
-        format!("VirtualHost '{}'{} updated", new_sn, php_note),
-    )
+    Ok(format!("VirtualHost '{}'{} updated", new_sn, php_note))
 }
 
-pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String) -> (bool, String) {
+pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String) -> DevPanelResult {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
     let mut entries = parse_vhosts_from_content(&existing);
     if index >= entries.len() {
-        return (false, "Index out of range".into());
+        return Err(DevPanelError::Validation("Index out of range".into()));
     }
 
     let removed = entries[index].server_name.clone();
@@ -174,22 +148,18 @@ pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String)
         e.index = i;
     }
 
-    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
-        return (false, format!("Write failed: {}", e));
-    }
-    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-        &password,
-        &["systemctl", "reload", "apache2"],
-    )
-    .await;
-    (true, format!("VirtualHost '{}' removed", removed))
+    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
+    vhost_sudo::reload_apache(&password).await;
+    Ok(format!("VirtualHost '{}' removed", removed))
 }
 
 pub async fn bulk_delete_vhosts(
     devpanel_conf: String,
     indexes: Vec<usize>,
     password: String,
-) -> (bool, String) {
+) -> DevPanelResult {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
@@ -198,10 +168,9 @@ pub async fn bulk_delete_vhosts(
     sorted.sort_unstable();
     sorted.dedup();
     if sorted.iter().any(|idx| *idx >= entries.len()) {
-        return (
-            false,
+        return Err(DevPanelError::Validation(
             "One or more selected VirtualHosts no longer exist".into(),
-        );
+        ));
     }
     for idx in sorted.iter().rev() {
         entries.remove(*idx);
@@ -209,46 +178,36 @@ pub async fn bulk_delete_vhosts(
     for (i, e) in entries.iter_mut().enumerate() {
         e.index = i;
     }
-    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
-        return (false, format!("Write failed: {}", e));
-    }
-    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-        &password,
-        &["systemctl", "reload", "apache2"],
-    )
-    .await;
-    (true, format!("Removed {} VirtualHost(s)", sorted.len()))
+    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
+    vhost_sudo::reload_apache(&password).await;
+    Ok(format!("Removed {} VirtualHost(s)", sorted.len()))
 }
 
-pub async fn toggle_https(devpanel_conf: String, index: usize, password: String) -> (bool, String) {
+pub async fn toggle_https(devpanel_conf: String, index: usize, password: String) -> DevPanelResult {
     let existing = tokio::fs::read_to_string(&devpanel_conf)
         .await
         .unwrap_or_default();
     let mut entries = parse_vhosts_from_content(&existing);
     if index >= entries.len() {
-        return (false, "Index out of range".into());
+        return Err(DevPanelError::Validation("Index out of range".into()));
     }
     entries[index].https_enabled = !entries[index].https_enabled;
     let server_name = entries[index].server_name.clone();
-    if entries[index].https_enabled
-        && let Err(e) = ensure_mkcert_cert(&server_name).await
-    {
-        return (false, e);
+    if entries[index].https_enabled {
+        ensure_mkcert_cert(&server_name).await?;
     }
-    if let Err(e) = write_conf(&devpanel_conf, &build_conf_content(&entries), &password).await {
-        return (false, format!("Write failed: {}", e));
-    }
-    let _ = crate::core::sudo_prompt::sudo_cmd_with_password(
-        &password,
-        &["systemctl", "reload", "apache2"],
-    )
-    .await;
+    vhost_sudo::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
+    vhost_sudo::reload_apache(&password).await;
     let state = if entries[index].https_enabled {
         "enabled"
     } else {
         "disabled"
     };
-    (true, format!("HTTPS {} for {}", state, server_name))
+    Ok(format!("HTTPS {} for {}", state, server_name))
 }
 
 pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
@@ -372,11 +331,14 @@ fn cert_base_dir() -> std::path::PathBuf {
         .join("certs")
 }
 
-async fn ensure_mkcert_cert(server_name: &str) -> Result<(), String> {
+async fn ensure_mkcert_cert(server_name: &str) -> DevPanelResult<()> {
     let base = cert_base_dir();
-    tokio::fs::create_dir_all(&base)
-        .await
-        .map_err(|e| format!("Could not create certificate directory: {}", e))?;
+    tokio::fs::create_dir_all(&base).await.map_err(|e| {
+        DevPanelError::Io(std::io::Error::new(
+            e.kind(),
+            format!("Could not create certificate directory: {}", e),
+        ))
+    })?;
     let slug = server_name.trim_end_matches('/').replace('.', "_");
     let cert = base.join(format!("{}.pem", slug));
     let key = base.join(format!("{}-key.pem", slug));
@@ -393,19 +355,24 @@ async fn ensure_mkcert_cert(server_name: &str) -> Result<(), String> {
         ])
         .output()
         .await
-        .map_err(|e| format!("mkcert is required for HTTPS: {}", e))?;
+        .map_err(|e| {
+            DevPanelError::Io(std::io::Error::new(
+                e.kind(),
+                format!("mkcert is required for HTTPS: {}", e),
+            ))
+        })?;
     if out.status.success() {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        Err(format!(
+        Err(DevPanelError::Apache(format!(
             "mkcert failed: {}",
             if stderr.is_empty() {
                 "unknown error"
             } else {
                 &stderr
             }
-        ))
+        )))
     }
 }
 
@@ -430,25 +397,4 @@ fn extract_php_version_from_sethandler(line: &str) -> Option<String> {
     let pos = lower.find(prefix)?;
     let ver = line[pos + prefix.len()..].trim().to_string();
     if ver.is_empty() { None } else { Some(ver) }
-}
-
-async fn write_conf(path: &str, content: &str, password: &str) -> Result<(), String> {
-    let mut child = tokio::process::Command::new("sudo")
-        .args(["-S", "tee", path])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(format!("{}\n", password).as_bytes()).await;
-        let _ = stdin.write_all(content.as_bytes()).await;
-    }
-    let out = child.wait_with_output().await.map_err(|e| e.to_string())?;
-    if out.status.success() {
-        Ok(())
-    } else {
-        Err(String::from_utf8_lossy(&out.stderr).to_string())
-    }
 }

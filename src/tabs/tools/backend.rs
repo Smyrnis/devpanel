@@ -1,6 +1,7 @@
 use super::{ApacheModule, InstalledTools, PhpStatus};
+use crate::core::error::{DevPanelError, DevPanelResult};
 use crate::core::paths;
-use crate::core::sudo_prompt::sudo_cmd_with_password;
+use crate::sudo_s::{apache_sudo, php_sudo, tools_sudo};
 use tokio::process::Command;
 
 struct PhpVersionMeta {
@@ -175,105 +176,54 @@ pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, boo
     results
 }
 
-pub async fn toggle_apache_module(
-    name: String,
-    enable: bool,
-    password: String,
-) -> (bool, String, String, bool) {
-    let cmd = if enable { "a2enmod" } else { "a2dismod" };
-    match sudo_cmd_with_password(&password, &[cmd, &name]).await {
-        Ok(_) => {
-            let _ = sudo_cmd_with_password(&password, &["systemctl", "reload", "apache2"]).await;
-            (
-                true,
-                format!(
-                    "mod_{} {} — Apache reloaded",
-                    name,
-                    if enable { "enabled" } else { "disabled" }
-                ),
-                name,
-                enable,
-            )
-        }
-        Err(e) => (false, format!("Failed: {}", e), name, enable),
-    }
+pub async fn toggle_apache_module(name: String, enable: bool, password: String) -> DevPanelResult {
+    apache_sudo::set_module_and_reload(&password, &name, enable)
+        .await
+        .map_err(DevPanelError::Sudo)?;
+    Ok(format!(
+        "mod_{} {} - Apache reloaded",
+        name,
+        if enable { "enabled" } else { "disabled" }
+    ))
 }
 
-pub async fn apt_php_op(version: String, install: bool, password: String) -> (bool, String) {
+pub async fn apt_php_op(version: String, install: bool, password: String) -> DevPanelResult {
     let op = if install { "install" } else { "remove" };
 
-    if let Err(e) = sudo_cmd_with_password(&password, &["apt-get", "update"]).await {
-        return (false, format!("Failed to update package lists: {}", e));
-    }
+    let output = php_sudo::apt_php_op(&password, &version, install)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("PHP {} {} failed: {}", version, op, e)))?;
 
-    let pkg = if version == "5.6" {
-        if install {
-            "php5.6 php5.6-cli php5.6-common php5.6-mysql php5.6-xml php5.6-mbstring php5.6-curl"
-                .to_string()
+    if output.contains("not found") || output.contains("Unable to locate") {
+        if version == "5.6" {
+            Err(DevPanelError::Command("PHP 5.6 not found in repositories.\nAdd the ondrej/php PPA first:\nsudo add-apt-repository ppa:ondrej/php\nsudo apt-get update".to_string()))
         } else {
-            "php5.6 php5.6-*".to_string()
+            Err(DevPanelError::Command(format!(
+                "PHP {} not found in repositories.",
+                version
+            )))
         }
-    } else if install {
-        format!(
-            "php{0} php{0}-cli php{0}-common php{0}-mysql php{0}-xml php{0}-mbstring",
-            version
-        )
     } else {
-        format!("php{0} php{0}-*", version)
-    };
-
-    let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
-
-    match sudo_cmd_with_password(&password, &["sh", "-c", &full_cmd]).await {
-        Ok(output) => {
-            if output.contains("not found") || output.contains("Unable to locate") {
-                if version == "5.6" {
-                    (false, "PHP 5.6 not found in repositories.\nAdd the ondrej/php PPA first:\nsudo add-apt-repository ppa:ondrej/php\nsudo apt-get update".to_string())
-                } else {
-                    (false, format!("PHP {} not found in repositories.", version))
-                }
-            } else {
-                (true, format!("PHP {} {}ed successfully", version, op))
-            }
-        }
-        Err(e) => (false, format!("PHP {} {} failed: {}", version, op, e)),
+        Ok(format!("PHP {} {}ed successfully", version, op))
     }
 }
 
-pub async fn apt_package_op(package: String, install: bool, password: String) -> (bool, String) {
-    let args = if install {
-        vec!["apt-get", "install", "-y", &package]
-    } else {
-        vec!["apt-get", "remove", "-y", &package]
-    };
-    match sudo_cmd_with_password(&password, &args).await {
-        Ok(_) => (
-            true,
-            format!(
-                "{} {}d successfully",
-                package,
-                if install { "installe" } else { "remove" }
-            ),
-        ),
-        Err(e) => (false, format!("Failed: {}", e)),
-    }
+pub async fn apt_package_op(package: String, install: bool, password: String) -> DevPanelResult {
+    tools_sudo::apt_package_op(&password, &package, install)
+        .await
+        .map_err(DevPanelError::Sudo)?;
+    Ok(format!(
+        "{} {}d successfully",
+        package,
+        if install { "installe" } else { "remove" }
+    ))
 }
 
-pub async fn switch_php(version: String, password: String) -> (bool, String) {
-    let bin = if version == "5.6" {
-        if std::path::Path::new(&paths::php_binary("5.6")).exists() {
-            paths::php_binary("5.6")
-        } else {
-            paths::php_binary("5")
-        }
-    } else {
-        paths::php_binary(&version)
-    };
-
-    match sudo_cmd_with_password(&password, &["update-alternatives", "--set", "php", &bin]).await {
-        Ok(_) => (true, format!("Switched to PHP {}", version)),
-        Err(e) => (false, e),
-    }
+pub async fn switch_php(version: String, password: String) -> DevPanelResult {
+    php_sudo::switch_php(&password, &version)
+        .await
+        .map_err(DevPanelError::Sudo)?;
+    Ok(format!("Switched to PHP {}", version))
 }
 
 pub async fn scan_installed_tools() -> InstalledTools {
@@ -304,36 +254,33 @@ pub async fn scan_installed_tools() -> InstalledTools {
     }
 }
 
-pub async fn composer_op(update: bool, password: String) -> (bool, String) {
-    if update {
-        return match sudo_cmd_with_password(&password, &["composer", "self-update"]).await {
-            Ok(_) => (true, "Composer updated".into()),
-            Err(e) => (false, format!("Composer update failed: {}", e)),
-        };
-    }
-
-    let cmd = format!(
-        "php -r \"copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');\" \
-         && php /tmp/composer-setup.php --install-dir={} --filename=composer \
-         && rm -f /tmp/composer-setup.php",
-        paths::COMPOSER_INSTALL_DIR,
-    );
-    match sudo_cmd_with_password(&password, &["sh", "-c", &cmd]).await {
-        Ok(_) => (true, "Composer installed globally".into()),
-        Err(e) => (false, format!("Composer install failed: {}", e)),
-    }
+pub async fn composer_op(update: bool, password: String) -> DevPanelResult {
+    tools_sudo::composer_op(&password, update)
+        .await
+        .map_err(|e| {
+            if update {
+                DevPanelError::Sudo(format!("Composer update failed: {}", e))
+            } else {
+                DevPanelError::Sudo(format!("Composer install failed: {}", e))
+            }
+        })?;
+    Ok(if update {
+        "Composer updated".into()
+    } else {
+        "Composer installed globally".into()
+    })
 }
 
-pub async fn redis_service_op(action: String, password: String) -> (bool, String) {
+pub async fn redis_service_op(action: String, password: String) -> DevPanelResult {
     let service = if service_active("redis-server").await || service_exists("redis-server").await {
         "redis-server"
     } else {
         "redis"
     };
-    match sudo_cmd_with_password(&password, &["systemctl", &action, service]).await {
-        Ok(_) => (true, format!("Redis {}ed", action)),
-        Err(e) => (false, format!("Redis {} failed: {}", action, e)),
-    }
+    tools_sudo::redis_service_op(&password, &action, service)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Redis {} failed: {}", action, e)))?;
+    Ok(format!("Redis {}ed", action))
 }
 
 async fn command_first_line(cmd: &str, args: &[&str]) -> Option<String> {

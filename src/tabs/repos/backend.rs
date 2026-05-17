@@ -1,5 +1,6 @@
 use super::{Provider, RemoteRepo};
 use crate::core::dry_run;
+use crate::core::error::{DevPanelError, DevPanelResult};
 
 pub struct SshCheckResult {
     pub github_ok: bool,
@@ -8,14 +9,19 @@ pub struct SshCheckResult {
     pub bb_msg: String,
 }
 
+struct SshHostCheck {
+    ok: bool,
+    message: String,
+}
+
 pub async fn check_ssh() -> SshCheckResult {
-    let (github_ok, github_msg) = check_ssh_host("git@github.com").await;
-    let (bb_ok, bb_msg) = check_ssh_host("git@bitbucket.org").await;
+    let github = check_ssh_host("git@github.com").await;
+    let bitbucket = check_ssh_host("git@bitbucket.org").await;
     SshCheckResult {
-        github_ok,
-        github_msg,
-        bb_ok,
-        bb_msg,
+        github_ok: github.ok,
+        github_msg: github.message,
+        bb_ok: bitbucket.ok,
+        bb_msg: bitbucket.message,
     }
 }
 
@@ -38,41 +44,31 @@ pub async fn fetch_remote_repos(repos_root: String) -> Vec<RemoteRepo> {
     repos
 }
 
-pub async fn clone_repo(
-    ssh_url: String,
-    name: String,
-    repos_root: String,
-) -> (bool, String, String) {
+pub async fn clone_repo(ssh_url: String, name: String, repos_root: String) -> DevPanelResult {
     if dry_run::active() {
         dry_run::log(&format!(
             "clone_repo: would run: git clone {} {}/{}",
             ssh_url, repos_root, name
         ));
-        return (
-            true,
-            format!("[dry-run] would clone {} into ~/projects/{}", name, name),
-            ssh_url,
-        );
+        return Ok(format!(
+            "[dry-run] would clone {} into ~/projects/{}",
+            name, name
+        ));
     }
 
     let dest = std::path::PathBuf::from(&repos_root).join(&name);
     if dest.exists() {
-        return (
-            false,
-            format!("{} already exists in projects", name),
-            ssh_url,
-        );
+        return Err(DevPanelError::Validation(format!(
+            "{} already exists in projects",
+            name
+        )));
     }
     let out = tokio::process::Command::new("git")
         .args(["clone", &ssh_url, dest.to_string_lossy().as_ref()])
         .output()
         .await;
     match out {
-        Ok(o) if o.status.success() => (
-            true,
-            format!("Cloned {} into ~/projects/{}", name, name),
-            ssh_url,
-        ),
+        Ok(o) if o.status.success() => Ok(format!("Cloned {} into ~/projects/{}", name, name)),
         Ok(o) => {
             let msg = String::from_utf8_lossy(&o.stderr)
                 .trim()
@@ -80,13 +76,13 @@ pub async fn clone_repo(
                 .last()
                 .unwrap_or("clone failed")
                 .to_string();
-            (false, format!("Clone failed: {}", msg), ssh_url)
+            Err(DevPanelError::Command(format!("Clone failed: {}", msg)))
         }
-        Err(e) => (false, format!("git not found: {}", e), ssh_url),
+        Err(e) => Err(DevPanelError::Io(e)),
     }
 }
 
-async fn check_ssh_host(host: &str) -> (bool, String) {
+async fn check_ssh_host(host: &str) -> SshHostCheck {
     let out = tokio::process::Command::new("ssh")
         .args([
             "-o",
@@ -113,7 +109,10 @@ async fn check_ssh_host(host: &str) -> (bool, String) {
                 || combined.contains("successfully authenticated")
                 || o.status.success();
             if ok {
-                (true, extract_ssh_username(&combined))
+                SshHostCheck {
+                    ok: true,
+                    message: extract_ssh_username(&combined),
+                }
             } else {
                 let first = combined
                     .trim()
@@ -121,10 +120,16 @@ async fn check_ssh_host(host: &str) -> (bool, String) {
                     .next()
                     .unwrap_or("no key")
                     .to_string();
-                (false, first)
+                SshHostCheck {
+                    ok: false,
+                    message: first,
+                }
             }
         }
-        Err(e) => (false, e.to_string()),
+        Err(e) => SshHostCheck {
+            ok: false,
+            message: e.to_string(),
+        },
     }
 }
 

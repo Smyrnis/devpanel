@@ -1,0 +1,12 @@
+#[path = "sudo_s/apache_sudo.rs"]
+pub mod apache_sudo;
+#[path = "sudo_s/common_sudo.rs"]
+pub mod common_sudo;
+#[path = "sudo_s/mysql_sudo.rs"]
+pub mod mysql_sudo;
+#[path = "sudo_s/php_sudo.rs"]
+pub mod php_sudo;
+#[path = "sudo_s/tools_sudo.rs"]
+pub mod tools_sudo;
+#[path = "sudo_s/vhost_sudo.rs"]
+pub mod vhost_sudo;

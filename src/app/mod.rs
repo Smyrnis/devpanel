@@ -1,12 +1,14 @@
+mod handlers;
 pub mod update;
 
 use crate::core::{
     config::DevPanelConfig,
     db::{DevPanelDb, UserSettings},
-    first_run::{self, FirstRunState},
-    sudo_prompt::{PendingAction, SudoModal},
-    theme::*,
+    first_run::FirstRunState,
+    sudo_prompt::SudoModal,
+    theme::{self, theme_map as theme_keys},
 };
+use crate::lang::{lang_map::app as keys, text as tr};
 use crate::messages::{Message, SudoMessage, Tab};
 use crate::tabs::{
     config::ConfigTab, dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab,
@@ -35,7 +37,6 @@ pub struct App {
     pub config_tab: ConfigTab,
     pub notifications: Vec<Toast>,
     pub sudo: SudoModal,
-    pub sudo_pending_action: Option<PendingAction>,
     pub first_run_state: FirstRunState,
     pub first_run_options: crate::core::first_run_install::FirstRunInstallOptions,
     pub first_run_installing: bool,
@@ -64,7 +65,6 @@ impl App {
             db,
             notifications: Vec::new(),
             sudo: SudoModal::new(),
-            sudo_pending_action: None,
             first_run_state: FirstRunState::default(),
             first_run_options: crate::core::first_run_install::FirstRunInstallOptions::default(),
             first_run_installing: false,
@@ -97,12 +97,13 @@ impl App {
             iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::NotificationTick),
             iced::time::every(std::time::Duration::from_secs(1))
                 .map(|_| Message::FirstRun(crate::messages::FirstRunMessage::ProgressTick)),
+            crate::core::file_watcher::vhost_config(self.vhosts.devpanel_conf.clone()),
         ])
     }
 
     pub fn view(&self) -> Element<'_, Message> {
         if self.first_run_state == FirstRunState::Visible {
-            return first_run::view(
+            return crate::install_window::view(
                 self.first_run_options,
                 self.first_run_installing,
                 &self.first_run_log_lines,
@@ -124,7 +125,7 @@ impl App {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(BG_BASE.into()),
+                    background: Some(theme::color(theme_keys::BG_BASE).into()),
                     ..Default::default()
                 }),
         ];
@@ -155,31 +156,35 @@ impl App {
             .collect();
         cards.insert(
             0,
-            button(text("Dismiss all").size(11).color(TEXT_MUTED))
-                .on_press(Message::DismissAllNotifications)
-                .padding(Padding::from([6, 12]))
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(BG_HOVER.into()),
-                        text_color: TEXT_PRIMARY,
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
+            button(
+                text(tr(keys::DISMISS_ALL))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            )
+            .on_press(Message::DismissAllNotifications)
+            .padding(Padding::from([6, 12]))
+            .style(|_, status| match status {
+                iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                    border: Border {
+                        radius: 6.0.into(),
                         ..Default::default()
                     },
-                    _ => iced::widget::button::Style {
-                        background: Some(BG_SURFACE.into()),
-                        text_color: TEXT_MUTED,
-                        border: Border {
-                            color: BORDER_SUBTLE,
-                            width: 1.0,
-                            radius: 6.0.into(),
-                        },
-                        ..Default::default()
+                    ..Default::default()
+                },
+                _ => iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+                    text_color: theme::color(theme_keys::TEXT_MUTED),
+                    border: Border {
+                        color: theme::color(theme_keys::BORDER_SUBTLE),
+                        width: 1.0,
+                        radius: 6.0.into(),
                     },
-                })
-                .into(),
+                    ..Default::default()
+                },
+            })
+            .into(),
         );
 
         container(
@@ -205,7 +210,7 @@ impl App {
                         .width(3)
                         .height(26)
                         .style(|_: &iced::Theme| container::Style {
-                            background: Some(TEAL.into()),
+                            background: Some(theme::color(theme_keys::TEAL).into()),
                             border: Border {
                                 radius: 2.0.into(),
                                 ..Default::default()
@@ -214,8 +219,12 @@ impl App {
                         }),
                     Space::with_width(10),
                     column![
-                        text("dev").size(19).color(TEAL),
-                        text("panel").size(19).color(TEXT_PRIMARY),
+                        text(tr(keys::LOGO_DEV))
+                            .size(19)
+                            .color(theme::color(theme_keys::TEAL)),
+                        text(tr(keys::LOGO_PANEL))
+                            .size(19)
+                            .color(theme::color(theme_keys::TEXT_PRIMARY)),
                     ]
                     .spacing(0),
                 ]
@@ -226,12 +235,12 @@ impl App {
         .padding(Padding::from([22, 16]));
 
         let nav = column![
-            self.nav_item("Dashboard", Tab::Dashboard),
-            self.nav_item("Repos", Tab::Repos),
-            self.nav_item("VirtualHosts", Tab::VHosts),
-            self.nav_item("SSH Keys", Tab::SshKeys),
-            self.nav_item("Tools", Tab::Tools),
-            self.nav_item("Config", Tab::Config),
+            self.nav_item(tr(keys::NAV_DASHBOARD), Tab::Dashboard),
+            self.nav_item(tr(keys::NAV_REPOS), Tab::Repos),
+            self.nav_item(tr(keys::NAV_VHOSTS), Tab::VHosts),
+            self.nav_item(tr(keys::NAV_SSH_KEYS), Tab::SshKeys),
+            self.nav_item(tr(keys::NAV_TOOLS), Tab::Tools),
+            self.nav_item(tr(keys::NAV_CONFIG), Tab::Config),
         ]
         .spacing(2)
         .padding(Padding::from([0, 8]));
@@ -242,7 +251,7 @@ impl App {
                     row![
                         container(Space::with_width(6)).width(6).height(6).style(
                             |_: &iced::Theme| container::Style {
-                                background: Some(GREEN.into()),
+                                background: Some(theme::color(theme_keys::GREEN).into()),
                                 border: Border {
                                     radius: 3.0.into(),
                                     ..Default::default()
@@ -251,7 +260,9 @@ impl App {
                             }
                         ),
                         Space::with_width(7),
-                        text("sudo active").size(11).color(GREEN),
+                        text(tr(keys::SUDO_ACTIVE))
+                            .size(11)
+                            .color(theme::color(theme_keys::GREEN)),
                     ]
                     .align_y(Alignment::Center)
                 )
@@ -273,25 +284,29 @@ impl App {
                     ..Default::default()
                 }),
                 Space::with_height(5),
-                button(text("Clear sudo").size(11).color(TEXT_MUTED))
-                    .on_press(Message::Sudo(SudoMessage::ClearSaved))
-                    .padding(Padding::from([4, 10]))
-                    .style(|_, status| match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                            background: Some(BG_HOVER.into()),
-                            text_color: RED,
-                            border: Border {
-                                radius: 6.0.into(),
-                                ..Default::default()
-                            },
+                button(
+                    text(tr(keys::CLEAR_SUDO))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                )
+                .on_press(Message::Sudo(SudoMessage::ClearSaved))
+                .padding(Padding::from([4, 10]))
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                        text_color: theme::color(theme_keys::RED),
+                        border: Border {
+                            radius: 6.0.into(),
                             ..Default::default()
                         },
-                        _ => iced::widget::button::Style {
-                            background: None,
-                            text_color: TEXT_MUTED,
-                            ..Default::default()
-                        },
-                    }),
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: None,
+                        text_color: theme::color(theme_keys::TEXT_MUTED),
+                        ..Default::default()
+                    },
+                }),
             ]
             .spacing(0)
             .into()
@@ -302,7 +317,7 @@ impl App {
                         .width(6)
                         .height(6)
                         .style(|_: &iced::Theme| container::Style {
-                            background: Some(YELLOW.into()),
+                            background: Some(theme::color(theme_keys::YELLOW).into()),
                             border: Border {
                                 radius: 3.0.into(),
                                 ..Default::default()
@@ -310,7 +325,9 @@ impl App {
                             ..Default::default()
                         }),
                     Space::with_width(7),
-                    text("sudo locked").size(11).color(TEXT_MUTED),
+                    text(tr(keys::SUDO_LOCKED))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center),
             )
@@ -340,9 +357,13 @@ impl App {
                 Space::with_height(10),
                 button(
                     row![
-                        text("R").size(11).color(TEXT_MUTED),
+                        text("R")
+                            .size(11)
+                            .color(theme::color(theme_keys::TEXT_MUTED)),
                         Space::with_width(6),
-                        text("Refresh").size(12).color(TEXT_MUTED),
+                        text(tr(keys::REFRESH))
+                            .size(12)
+                            .color(theme::color(theme_keys::TEXT_MUTED)),
                     ]
                     .align_y(Alignment::Center)
                 )
@@ -353,8 +374,8 @@ impl App {
                 .width(Length::Fill)
                 .style(|_, status| match status {
                     iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(BG_HOVER.into()),
-                        text_color: TEXT_PRIMARY,
+                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
                         border: Border {
                             radius: 8.0.into(),
                             ..Default::default()
@@ -363,14 +384,14 @@ impl App {
                     },
                     _ => iced::widget::button::Style {
                         background: None,
-                        text_color: TEXT_MUTED,
+                        text_color: theme::color(theme_keys::TEXT_MUTED),
                         ..Default::default()
                     },
                 }),
                 Space::with_height(8),
                 text(format!("v{}", env!("CARGO_PKG_VERSION")))
                     .size(11)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
             .align_x(Alignment::Start),
@@ -392,7 +413,7 @@ impl App {
         .width(192)
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BG_SURFACE.into()),
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
             ..Default::default()
         })
         .into()
@@ -410,8 +431,16 @@ impl App {
         } else {
             Color::TRANSPARENT
         };
-        let text_color = if active { TEXT_PRIMARY } else { TEXT_SECONDARY };
-        let icon_color = if active { TEAL } else { TEXT_MUTED };
+        let text_color = if active {
+            theme::color(theme_keys::TEXT_PRIMARY)
+        } else {
+            theme::color(theme_keys::TEXT_SECONDARY)
+        };
+        let icon_color = if active {
+            theme::color(theme_keys::TEAL)
+        } else {
+            theme::color(theme_keys::TEXT_MUTED)
+        };
         button(
             row![
                 text("").size(12).color(icon_color),
@@ -425,8 +454,8 @@ impl App {
         .width(Length::Fill)
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(BG_HOVER.into()),
-                text_color: TEXT_PRIMARY,
+                background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                text_color: theme::color(theme_keys::TEXT_PRIMARY),
                 border: Border {
                     radius: 8.0.into(),
                     ..Default::default()
@@ -452,7 +481,7 @@ fn divider<'a>() -> Element<'a, Message> {
         .width(Length::Fill)
         .height(1)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BORDER_SUBTLE.into()),
+            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
             ..Default::default()
         })
         .into()
@@ -461,7 +490,7 @@ fn divider<'a>() -> Element<'a, Message> {
 fn notification_card(toast: &Toast) -> Element<'_, Message> {
     let (accent, border_color) = if toast.ok {
         (
-            GREEN,
+            theme::color(theme_keys::GREEN),
             Color {
                 r: 0.070,
                 g: 0.210,
@@ -471,7 +500,7 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
         )
     } else {
         (
-            RED,
+            theme::color(theme_keys::RED),
             Color {
                 r: 0.300,
                 g: 0.090,
@@ -486,7 +515,7 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
             container(
                 text(if toast.ok { "+" } else { "x" })
                     .size(11)
-                    .color(Color::WHITE)
+                    .color(theme::color(theme_keys::WHITE))
             )
             .padding(Padding::from([3, 7]))
             .style(move |_: &iced::Theme| container::Style {
@@ -500,16 +529,18 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
             Space::with_width(10),
             text(toast.message.as_str())
                 .size(13)
-                .color(TEXT_PRIMARY)
+                .color(theme::color(theme_keys::TEXT_PRIMARY))
                 .width(Length::Fill),
-            text(format!("{}s", seconds)).size(10).color(TEXT_MUTED),
+            text(format!("{}s", seconds))
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .align_y(Alignment::Center),
     )
     .padding(Padding::from([10, 14]))
     .width(Length::Fill)
     .style(move |_: &iced::Theme| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
             color: border_color,
             width: 1.0,

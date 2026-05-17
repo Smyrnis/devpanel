@@ -1,5 +1,6 @@
 use super::{FormMode, VHostEntry, VHostView, VHostsTab};
-use crate::core::theme::*;
+use crate::core::theme::{self, theme_map as theme_keys};
+use crate::lang::{lang_map::vhosts as keys, text as tr};
 use crate::messages::{Message, VHostsMessage};
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
@@ -7,16 +8,14 @@ use iced::widget::{
 };
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-const PHP_GLOBAL: &str = "Use global";
-
 fn php_options(available: &[String]) -> Vec<String> {
-    let mut opts = vec![PHP_GLOBAL.to_string()];
+    let mut opts = vec![tr(keys::PHP_GLOBAL).to_string()];
     opts.extend(available.iter().cloned());
     opts
 }
 
 fn selection_to_php(s: &str) -> Option<String> {
-    if s == PHP_GLOBAL {
+    if s == tr(keys::PHP_GLOBAL) {
         None
     } else {
         Some(s.to_string())
@@ -24,7 +23,8 @@ fn selection_to_php(s: &str) -> Option<String> {
 }
 
 fn php_to_selection(v: &Option<String>) -> String {
-    v.clone().unwrap_or_else(|| PHP_GLOBAL.to_string())
+    v.clone()
+        .unwrap_or_else(|| tr(keys::PHP_GLOBAL).to_string())
 }
 
 pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
@@ -36,53 +36,57 @@ pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
 
 fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = column![
-        text("VirtualHosts").size(22).color(TEXT_PRIMARY),
+        text(tr(keys::TITLE))
+            .size(22)
+            .color(theme::color(theme_keys::TEXT_PRIMARY)),
         Space::with_height(4),
-        text("All vhosts are stored in one file: devpanel.conf")
+        text(tr(keys::SUBTITLE))
             .size(13)
-            .color(TEXT_MUTED),
+            .color(theme::color(theme_keys::TEXT_MUTED)),
     ]
     .spacing(0);
 
     let path_bar = container(
         row![
             column![
-                text("Config file").size(10).color(TEXT_MUTED),
+                text(tr(keys::CONFIG_FILE))
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(2),
                 text(tab.devpanel_conf.as_str())
                     .size(12)
-                    .color(TEXT_SECONDARY),
+                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
             ]
             .spacing(0)
             .width(Length::Fill),
             icon_btn(
-                "Edit Config",
-                BLUE,
-                BLUE_BG,
-                BLUE_HOVER,
-                BLUE_BORDER,
+                tr(keys::EDIT_CONFIG),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
+                theme::color(theme_keys::BLUE_BORDER),
                 Some(Message::VHosts(VHostsMessage::OpenConfigEditor))
             ),
             Space::with_width(8),
             icon_btn(
-                "Open File",
-                BLUE,
-                BLUE_BG,
-                BLUE_HOVER,
-                BLUE_BORDER,
+                tr(keys::OPEN_FILE),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
+                theme::color(theme_keys::BLUE_BORDER),
                 Some(Message::VHosts(VHostsMessage::OpenDevpanelConf))
             ),
             Space::with_width(8),
             icon_btn(
                 if tab.scanning {
-                    "Scanning…"
+                    tr(keys::SCANNING)
                 } else {
-                    "Reload"
+                    tr(keys::RELOAD)
                 },
-                TEAL,
-                TEAL_BG,
-                TEAL_HOVER,
-                TEAL_BORDER,
+                theme::color(theme_keys::TEAL),
+                theme::color(theme_keys::TEAL_BG),
+                theme::color(theme_keys::TEAL_HOVER),
+                theme::color(theme_keys::TEAL_BORDER),
                 if tab.scanning {
                     None
                 } else {
@@ -91,11 +95,11 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
             ),
             Space::with_width(8),
             icon_btn(
-                "+ Add VHost",
-                GREEN,
-                GREEN_BG,
-                GREEN_HOVER,
-                GREEN_BG,
+                tr(keys::ADD_VHOST),
+                theme::color(theme_keys::GREEN),
+                theme::color(theme_keys::GREEN_BG),
+                theme::color(theme_keys::GREEN_HOVER),
+                theme::color(theme_keys::GREEN_BG),
                 Some(Message::VHosts(VHostsMessage::ShowAddForm))
             ),
         ]
@@ -114,9 +118,15 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     let status: Element<Message> = match &tab.status_msg {
         Some((ok, msg)) => {
             let (color, bg) = if *ok {
-                (GREEN, GREEN_BG)
+                (
+                    theme::color(theme_keys::GREEN),
+                    theme::color(theme_keys::GREEN_BG),
+                )
             } else {
-                (RED, RED_BG)
+                (
+                    theme::color(theme_keys::RED),
+                    theme::color(theme_keys::RED_BG),
+                )
             };
             container(
                 row![
@@ -131,7 +141,9 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                         }
                     ),
                     Space::with_width(8),
-                    text(msg.as_str()).size(12).color(TEXT_SECONDARY),
+                    text(msg.as_str())
+                        .size(12)
+                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 ]
                 .align_y(Alignment::Center),
             )
@@ -140,7 +152,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
             .style(move |_: &iced::Theme| container::Style {
                 background: Some(bg.into()),
                 border: Border {
-                    color: BORDER_SUBTLE,
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -152,13 +164,28 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     };
 
     let php_info: Element<Message> = if tab.available_php_versions.is_empty() {
-        container(row![
-            text("i").size(10).color(BLUE), Space::with_width(8),
-            text("No Apache PHP modules detected. Go to Tools → PHP Versions and enable a mod_phpX.Y to allow per-vhost PHP pinning.")
-                .size(11).color(TEXT_MUTED),
-        ].align_y(Alignment::Center)).padding(Padding::from([10, 14])).width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style { background: Some(BLUE_BG.into()),
-            border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() }).into()
+        container(
+            row![
+                text("i").size(10).color(theme::color(theme_keys::BLUE)),
+                Space::with_width(8),
+                text(tr(keys::NO_PHP_MODULES))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            ]
+            .align_y(Alignment::Center),
+        )
+        .padding(Padding::from([10, 14]))
+        .width(Length::Fill)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BLUE_BG).into()),
+            border: Border {
+                color: theme::color(theme_keys::BLUE_BORDER),
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
         Space::with_height(0).into()
     };
@@ -168,40 +195,44 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     } else {
         container(
             row![
-                text(format!("{} selected", tab.selected.len()))
-                    .size(11)
-                    .color(TEXT_MUTED),
+                text(format!(
+                    "{} {}",
+                    tab.selected.len(),
+                    tr(keys::SELECTED_SUFFIX)
+                ))
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_width(8),
                 small_btn(
-                    "Select All",
-                    TEAL,
-                    TEAL_BG,
-                    TEAL_HOVER,
-                    TEAL_BORDER,
+                    tr(keys::SELECT_ALL),
+                    theme::color(theme_keys::TEAL),
+                    theme::color(theme_keys::TEAL_BG),
+                    theme::color(theme_keys::TEAL_HOVER),
+                    theme::color(theme_keys::TEAL_BORDER),
                     Some(Message::VHosts(VHostsMessage::SelectAll))
                 ),
                 Space::with_width(6),
                 small_btn(
-                    "Clear",
-                    TEXT_MUTED,
-                    BG_SURFACE,
-                    BG_HOVER,
-                    BORDER_SUBTLE,
+                    tr(keys::CLEAR),
+                    theme::color(theme_keys::TEXT_MUTED),
+                    theme::color(theme_keys::BG_SURFACE),
+                    theme::color(theme_keys::BG_HOVER),
+                    theme::color(theme_keys::BORDER_SUBTLE),
                     Some(Message::VHosts(VHostsMessage::ClearSelection))
                 ),
                 Space::with_width(14),
-                text_input("Tag selected...", &tab.bulk_tag)
+                text_input(tr(keys::TAG_SELECTED_PLACEHOLDER), &tab.bulk_tag)
                     .on_input(|v| Message::VHosts(VHostsMessage::BulkTagChanged(v)))
                     .size(12)
                     .padding(Padding::from([6, 10]))
                     .width(Length::FillPortion(1)),
                 Space::with_width(6),
                 small_btn(
-                    "Apply Tag",
-                    BLUE,
-                    BLUE_BG,
-                    BLUE_HOVER,
-                    BLUE_BORDER,
+                    tr(keys::APPLY_TAG),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
                     if tab.selected.is_empty() || tab.bulk_tag.trim().is_empty() {
                         None
                     } else {
@@ -210,11 +241,11 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                 ),
                 Space::with_width(6),
                 small_btn(
-                    "Delete Selected",
-                    RED,
-                    RED_BG,
-                    RED_HOVER,
-                    RED_BG,
+                    tr(keys::DELETE_SELECTED),
+                    theme::color(theme_keys::RED),
+                    theme::color(theme_keys::RED_BG),
+                    theme::color(theme_keys::RED_HOVER),
+                    theme::color(theme_keys::RED_BG),
                     if tab.selected.is_empty() {
                         None
                     } else {
@@ -233,13 +264,13 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     let body: Element<Message> = if tab.vhosts.is_empty() && !tab.scanning {
         container(
             column![
-                text("No virtual hosts found in devpanel.conf")
+                text(tr(keys::EMPTY_TITLE))
                     .size(15)
-                    .color(TEXT_SECONDARY),
+                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 Space::with_height(8),
-                text("Click \"+ Add VHost\" to create your first one")
+                text(tr(keys::EMPTY_BODY))
                     .size(13)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .align_x(Alignment::Center),
         )
@@ -248,11 +279,15 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
         .center_x(Length::Fill)
         .into()
     } else if tab.scanning {
-        container(text("Scanning…").size(14).color(TEXT_MUTED))
-            .width(Length::Fill)
-            .padding(Padding::from([40, 0]))
-            .center_x(Length::Fill)
-            .into()
+        container(
+            text(tr(keys::SCANNING))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        )
+        .width(Length::Fill)
+        .padding(Padding::from([40, 0]))
+        .center_x(Length::Fill)
+        .into()
     } else {
         column(
             tab.vhosts
@@ -306,31 +341,35 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
 fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = row![
         column![
-            text("Config Editor").size(22).color(TEXT_PRIMARY),
+            text(tr(keys::CONFIG_EDITOR))
+                .size(22)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(4),
-            text(tab.devpanel_conf.as_str()).size(12).color(TEXT_MUTED),
+            text(tab.devpanel_conf.as_str())
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .width(Length::Fill),
         icon_btn(
-            "← Back",
-            TEAL,
-            TEAL_BG,
-            TEAL_HOVER,
-            TEAL_BORDER,
+            tr(keys::BACK),
+            theme::color(theme_keys::TEAL),
+            theme::color(theme_keys::TEAL_BG),
+            theme::color(theme_keys::TEAL_HOVER),
+            theme::color(theme_keys::TEAL_BORDER),
             Some(Message::VHosts(VHostsMessage::CloseConfigEditor))
         ),
         Space::with_width(8),
         icon_btn(
             if tab.config_loading {
-                "Saving…"
+                tr(keys::SAVING)
             } else {
-                "Save"
+                tr(keys::SAVE)
             },
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
-            GREEN_BG,
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
+            theme::color(theme_keys::GREEN_BG),
             if tab.config_loading {
                 None
             } else {
@@ -341,25 +380,29 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let dirty_badge: Element<Message> = if tab.config_dirty {
-        container(text("unsaved changes").size(10).color(YELLOW))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(
-                    Color {
-                        r: 0.19,
-                        g: 0.16,
-                        b: 0.04,
-                        a: 1.0,
-                    }
-                    .into(),
-                ),
-                border: Border {
-                    radius: 20.0.into(),
-                    ..Default::default()
-                },
+        container(
+            text(tr(keys::UNSAVED_CHANGES))
+                .size(10)
+                .color(theme::color(theme_keys::YELLOW)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(
+                Color {
+                    r: 0.19,
+                    g: 0.16,
+                    b: 0.04,
+                    a: 1.0,
+                }
+                .into(),
+            ),
+            border: Border {
+                radius: 20.0.into(),
                 ..Default::default()
-            })
-            .into()
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
         Space::with_height(0).into()
     };
@@ -373,9 +416,9 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BG_CARD.into()),
+            background: Some(theme::color(theme_keys::BG_CARD).into()),
             border: Border {
-                color: BORDER_SUBTLE,
+                color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
                 radius: 8.0.into(),
             },
@@ -415,23 +458,31 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
         checkbox("", selected)
             .on_toggle(move |_| Message::VHosts(VHostsMessage::ToggleSelected(idx))),
         Space::with_width(8),
-        text(vh.server_name.as_str()).size(14).color(TEXT_PRIMARY),
+        text(vh.server_name.as_str())
+            .size(14)
+            .color(theme::color(theme_keys::TEXT_PRIMARY)),
         Space::with_width(Length::Fill),
-        container(text("active").size(10).color(GREEN))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(GREEN_BG.into()),
-                border: Border {
-                    radius: 20.0.into(),
-                    ..Default::default()
-                },
+        container(
+            text(tr(keys::ACTIVE))
+                .size(10)
+                .color(theme::color(theme_keys::GREEN))
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::GREEN_BG).into()),
+            border: Border {
+                radius: 20.0.into(),
                 ..Default::default()
-            }),
+            },
+            ..Default::default()
+        }),
     ]
     .align_y(Alignment::Center);
 
     let info_row = row![
-        text("DocumentRoot").size(10).color(TEXT_MUTED),
+        text(tr(keys::DOCUMENT_ROOT))
+            .size(10)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
         Space::with_width(8),
         text(if vh.document_root.is_empty() {
             "—"
@@ -439,118 +490,138 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             vh.document_root.as_str()
         })
         .size(12)
-        .color(TEXT_SECONDARY),
+        .color(theme::color(theme_keys::TEXT_SECONDARY)),
     ]
     .align_y(Alignment::Center);
 
     let php_badge: Element<Message> = match &vh.php_version {
         Some(ver) => container(
             row![
-                text("PHP").size(9).color(PURPLE),
+                text(tr(keys::PHP))
+                    .size(9)
+                    .color(theme::color(theme_keys::PURPLE)),
                 Space::with_width(4),
-                text(ver.as_str()).size(10).color(PURPLE),
+                text(ver.as_str())
+                    .size(10)
+                    .color(theme::color(theme_keys::PURPLE)),
             ]
             .align_y(Alignment::Center),
         )
         .padding(Padding::from([3, 8]))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(PURPLE_BG.into()),
+            background: Some(theme::color(theme_keys::PURPLE_BG).into()),
             border: Border {
-                color: PURPLE_BORDER,
+                color: theme::color(theme_keys::PURPLE_BORDER),
                 width: 1.0,
                 radius: 20.0.into(),
             },
             ..Default::default()
         })
         .into(),
-        None => container(text("global PHP").size(9).color(TEXT_MUTED))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(BG_SURFACE.into()),
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 20.0.into(),
-                },
-                ..Default::default()
-            })
-            .into(),
+        None => container(
+            text(tr(keys::GLOBAL_PHP))
+                .size(9)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        })
+        .into(),
     };
     let https_badge: Element<Message> = if vh.https_enabled {
-        container(text("HTTPS").size(9).color(TEAL))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(TEAL_BG.into()),
-                border: Border {
-                    color: TEAL_BORDER,
-                    width: 1.0,
-                    radius: 20.0.into(),
-                },
-                ..Default::default()
-            })
-            .into()
+        container(
+            text(tr(keys::HTTPS))
+                .size(9)
+                .color(theme::color(theme_keys::TEAL)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::TEAL_BG).into()),
+            border: Border {
+                color: theme::color(theme_keys::TEAL_BORDER),
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
-        container(text("HTTP only").size(9).color(TEXT_MUTED))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(BG_SURFACE.into()),
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 20.0.into(),
-                },
-                ..Default::default()
-            })
-            .into()
+        container(
+            text(tr(keys::HTTP_ONLY))
+                .size(9)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     };
     let tag_badge: Element<Message> = if vh.tag.trim().is_empty() {
         Space::with_width(0).into()
     } else {
-        container(text(vh.tag.as_str()).size(9).color(YELLOW))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(
-                    Color {
-                        r: 0.19,
-                        g: 0.16,
-                        b: 0.04,
-                        a: 1.0,
-                    }
-                    .into(),
-                ),
-                border: Border {
-                    color: Color {
-                        r: 0.24,
-                        g: 0.20,
-                        b: 0.05,
-                        a: 1.0,
-                    },
-                    width: 1.0,
-                    radius: 20.0.into(),
+        container(
+            text(vh.tag.as_str())
+                .size(9)
+                .color(theme::color(theme_keys::YELLOW)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(
+                Color {
+                    r: 0.19,
+                    g: 0.16,
+                    b: 0.04,
+                    a: 1.0,
+                }
+                .into(),
+            ),
+            border: Border {
+                color: Color {
+                    r: 0.24,
+                    g: 0.20,
+                    b: 0.05,
+                    a: 1.0,
                 },
-                ..Default::default()
-            })
-            .into()
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     };
 
     let is_confirming = tab.confirm_delete == Some(idx);
     let del_btn: Element<Message> = if is_confirming {
         row![
             small_btn(
-                "Confirm Delete",
-                RED,
-                RED_BG,
-                RED_HOVER,
-                RED_BG,
+                tr(keys::CONFIRM_DELETE),
+                theme::color(theme_keys::RED),
+                theme::color(theme_keys::RED_BG),
+                theme::color(theme_keys::RED_HOVER),
+                theme::color(theme_keys::RED_BG),
                 Some(Message::VHosts(VHostsMessage::DeleteConfirm(idx)))
             ),
             Space::with_width(6),
             small_btn(
-                "Cancel",
-                TEXT_MUTED,
-                BG_SURFACE,
-                BG_HOVER,
-                BORDER_SUBTLE,
+                tr(keys::CANCEL),
+                theme::color(theme_keys::TEXT_MUTED),
+                theme::color(theme_keys::BG_SURFACE),
+                theme::color(theme_keys::BG_HOVER),
+                theme::color(theme_keys::BORDER_SUBTLE),
                 Some(Message::VHosts(VHostsMessage::DeleteCancel))
             ),
         ]
@@ -558,11 +629,11 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
         .into()
     } else {
         small_btn(
-            "Delete",
-            RED,
-            RED_BG,
-            RED_HOVER,
-            RED_BG,
+            tr(keys::DELETE),
+            theme::color(theme_keys::RED),
+            theme::color(theme_keys::RED_BG),
+            theme::color(theme_keys::RED_HOVER),
+            theme::color(theme_keys::RED_BG),
             Some(Message::VHosts(VHostsMessage::DeleteRequest(idx))),
         )
     };
@@ -586,42 +657,42 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             Space::with_height(12),
             row![
                 small_btn(
-                    "Edit",
-                    BLUE,
-                    BLUE_BG,
-                    BLUE_HOVER,
-                    BLUE_BORDER,
+                    tr(keys::EDIT),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
                     Some(Message::VHosts(VHostsMessage::EditRequest(idx)))
                 ),
                 Space::with_width(6),
                 small_btn(
-                    "Duplicate",
-                    PURPLE,
-                    PURPLE_BG,
-                    PURPLE_HOVER,
-                    PURPLE_BORDER,
+                    tr(keys::DUPLICATE),
+                    theme::color(theme_keys::PURPLE),
+                    theme::color(theme_keys::PURPLE_BG),
+                    theme::color(theme_keys::PURPLE_HOVER),
+                    theme::color(theme_keys::PURPLE_BORDER),
                     Some(Message::VHosts(VHostsMessage::DuplicateRequest(idx)))
                 ),
                 Space::with_width(6),
                 small_btn(
                     if vh.https_enabled {
-                        "HTTPS Off"
+                        tr(keys::HTTPS_OFF)
                     } else {
-                        "HTTPS On"
+                        tr(keys::HTTPS_ON)
                     },
-                    TEAL,
-                    TEAL_BG,
-                    TEAL_HOVER,
-                    TEAL_BORDER,
+                    theme::color(theme_keys::TEAL),
+                    theme::color(theme_keys::TEAL_BG),
+                    theme::color(theme_keys::TEAL_HOVER),
+                    theme::color(theme_keys::TEAL_BORDER),
                     Some(Message::VHosts(VHostsMessage::ToggleHttps(idx)))
                 ),
                 Space::with_width(6),
                 small_btn(
-                    "Browser",
-                    TEAL,
-                    TEAL_BG,
-                    TEAL_HOVER,
-                    TEAL_BORDER,
+                    tr(keys::BROWSER),
+                    theme::color(theme_keys::TEAL),
+                    theme::color(theme_keys::TEAL_BG),
+                    theme::color(theme_keys::TEAL_HOVER),
+                    theme::color(theme_keys::TEAL_BORDER),
                     Some(Message::VHosts(VHostsMessage::OpenBrowser(sn)))
                 ),
                 Space::with_width(Length::Fill),
@@ -641,34 +712,44 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
     let can_save =
         !tab.form.server_name.trim().is_empty() && !tab.form.document_root.trim().is_empty();
 
-    let submit_btn =
-        button(
-            text("Save Changes")
-                .size(13)
-                .color(if can_save { GREEN } else { TEXT_MUTED }),
-        )
-        .padding(Padding::from([9, 18]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
-                background: Some(GREEN_HOVER.into()),
-                text_color: GREEN,
-                border: Border {
-                    radius: 8.0.into(),
-                    ..Default::default()
-                },
+    let submit_btn = button(text(tr(keys::SAVE_CHANGES)).size(13).color(if can_save {
+        theme::color(theme_keys::GREEN)
+    } else {
+        theme::color(theme_keys::TEXT_MUTED)
+    }))
+    .padding(Padding::from([9, 18]))
+    .style(move |_, status| match status {
+        iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
+            background: Some(theme::color(theme_keys::GREEN_HOVER).into()),
+            text_color: theme::color(theme_keys::GREEN),
+            border: Border {
+                radius: 8.0.into(),
                 ..Default::default()
             },
-            _ => iced::widget::button::Style {
-                background: Some(if can_save { GREEN_BG } else { BG_SURFACE }.into()),
-                text_color: if can_save { GREEN } else { TEXT_MUTED },
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
+            ..Default::default()
+        },
+        _ => iced::widget::button::Style {
+            background: Some(
+                if can_save {
+                    theme::color(theme_keys::GREEN_BG)
+                } else {
+                    theme::color(theme_keys::BG_SURFACE)
+                }
+                .into(),
+            ),
+            text_color: if can_save {
+                theme::color(theme_keys::GREEN)
+            } else {
+                theme::color(theme_keys::TEXT_MUTED)
             },
-        });
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        },
+    });
     let submit_el: Element<Message> = if can_save {
         submit_btn
             .on_press(Message::VHosts(VHostsMessage::SaveEdit))
@@ -681,21 +762,23 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
         php_version_picker(&tab.available_php_versions, &tab.form.php_version, |sel| {
             Message::VHosts(VHostsMessage::FormPhpVersionChanged(selection_to_php(&sel)))
         });
-    let https_toggle = checkbox("Enable HTTPS with mkcert", tab.form.https_enabled)
+    let https_toggle = checkbox(tr(keys::ENABLE_HTTPS_MKCERT), tab.form.https_enabled)
         .on_toggle(|v| Message::VHosts(VHostsMessage::FormHttpsChanged(v)))
         .size(13);
 
     container(
         column![
             row![
-                text("Editing VirtualHost").size(13).color(BLUE),
+                text(tr(keys::EDITING_VHOST))
+                    .size(13)
+                    .color(theme::color(theme_keys::BLUE)),
                 Space::with_width(Length::Fill),
                 small_btn(
-                    "Cancel",
-                    TEXT_MUTED,
-                    BG_SURFACE,
-                    BG_HOVER,
-                    BORDER_SUBTLE,
+                    tr(keys::CANCEL),
+                    theme::color(theme_keys::TEXT_MUTED),
+                    theme::color(theme_keys::BG_SURFACE),
+                    theme::color(theme_keys::BG_HOVER),
+                    theme::color(theme_keys::BORDER_SUBTLE),
                     Some(Message::VHosts(VHostsMessage::HideForm))
                 ),
             ]
@@ -705,9 +788,11 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             Space::with_height(14),
             row![
                 column![
-                    text("ServerName").size(11).color(TEXT_MUTED),
+                    text(tr(keys::SERVER_NAME))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(5),
-                    text_input("example.local", &tab.form.server_name)
+                    text_input(tr(keys::SERVER_NAME_PLACEHOLDER), &tab.form.server_name)
                         .on_input(|v| Message::VHosts(VHostsMessage::FormServerNameChanged(v)))
                         .size(13)
                         .padding(Padding::from([8, 10]))
@@ -717,9 +802,11 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
                 .width(Length::FillPortion(1)),
                 Space::with_width(14),
                 column![
-                    text("DocumentRoot").size(11).color(TEXT_MUTED),
+                    text(tr(keys::DOCUMENT_ROOT))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(5),
-                    text_input("/home/user/projects/app/public", &tab.form.document_root)
+                    text_input(tr(keys::DOCUMENT_ROOT_PLACEHOLDER), &tab.form.document_root)
                         .on_input(|v| Message::VHosts(VHostsMessage::FormDocRootChanged(v)))
                         .size(13)
                         .padding(Padding::from([8, 10]))
@@ -731,7 +818,9 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             .align_y(Alignment::Start),
             Space::with_height(12),
             column![
-                text("PHP Version (optional)").size(11).color(TEXT_MUTED),
+                text(tr(keys::PHP_VERSION_OPTIONAL))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(5),
                 php_picker,
             ]
@@ -746,9 +835,9 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
     )
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(BG_CARD.into()),
+        background: Some(theme::color(theme_keys::BG_CARD).into()),
         border: Border {
-            color: BLUE_BORDER,
+            color: theme::color(theme_keys::BLUE_BORDER),
             width: 1.5,
             radius: 10.0.into(),
         },
@@ -767,39 +856,49 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
         Message::VHosts(VHostsMessage::Create)
     };
     let save_lbl = if is_edit {
-        "Save Changes"
+        tr(keys::SAVE_CHANGES)
     } else {
-        "Create VirtualHost"
+        tr(keys::CREATE_VHOST)
     };
 
-    let submit_btn =
-        button(
-            text(save_lbl)
-                .size(13)
-                .color(if can_save { GREEN } else { TEXT_MUTED }),
-        )
-        .padding(Padding::from([9, 18]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
-                background: Some(GREEN_HOVER.into()),
-                text_color: GREEN,
-                border: Border {
-                    radius: 8.0.into(),
-                    ..Default::default()
-                },
+    let submit_btn = button(text(save_lbl).size(13).color(if can_save {
+        theme::color(theme_keys::GREEN)
+    } else {
+        theme::color(theme_keys::TEXT_MUTED)
+    }))
+    .padding(Padding::from([9, 18]))
+    .style(move |_, status| match status {
+        iced::widget::button::Status::Hovered if can_save => iced::widget::button::Style {
+            background: Some(theme::color(theme_keys::GREEN_HOVER).into()),
+            text_color: theme::color(theme_keys::GREEN),
+            border: Border {
+                radius: 8.0.into(),
                 ..Default::default()
             },
-            _ => iced::widget::button::Style {
-                background: Some(if can_save { GREEN_BG } else { BG_SURFACE }.into()),
-                text_color: if can_save { GREEN } else { TEXT_MUTED },
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
+            ..Default::default()
+        },
+        _ => iced::widget::button::Style {
+            background: Some(
+                if can_save {
+                    theme::color(theme_keys::GREEN_BG)
+                } else {
+                    theme::color(theme_keys::BG_SURFACE)
+                }
+                .into(),
+            ),
+            text_color: if can_save {
+                theme::color(theme_keys::GREEN)
+            } else {
+                theme::color(theme_keys::TEXT_MUTED)
             },
-        });
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        },
+    });
     let submit_el: Element<Message> = if can_save {
         submit_btn.on_press(save_msg).into()
     } else {
@@ -810,7 +909,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
         php_version_picker(&tab.available_php_versions, &tab.form.php_version, |sel| {
             Message::VHosts(VHostsMessage::FormPhpVersionChanged(selection_to_php(&sel)))
         });
-    let https_toggle = checkbox("Enable HTTPS with mkcert", tab.form.https_enabled)
+    let https_toggle = checkbox(tr(keys::ENABLE_HTTPS_MKCERT), tab.form.https_enabled)
         .on_toggle(|v| Message::VHosts(VHostsMessage::FormHttpsChanged(v)))
         .size(13);
 
@@ -818,19 +917,19 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
         column![
             row![
                 text(if is_edit {
-                    "Edit VirtualHost"
+                    tr(keys::EDIT_VHOST)
                 } else {
-                    "Add VirtualHost"
+                    tr(keys::ADD_VHOST_TITLE)
                 })
                 .size(14)
-                .color(TEXT_SECONDARY),
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 Space::with_width(Length::Fill),
                 small_btn(
-                    "Cancel",
-                    TEXT_MUTED,
-                    BG_SURFACE,
-                    BG_HOVER,
-                    BORDER_SUBTLE,
+                    tr(keys::CANCEL),
+                    theme::color(theme_keys::TEXT_MUTED),
+                    theme::color(theme_keys::BG_SURFACE),
+                    theme::color(theme_keys::BG_HOVER),
+                    theme::color(theme_keys::BORDER_SUBTLE),
                     Some(Message::VHosts(VHostsMessage::HideForm))
                 ),
             ]
@@ -839,11 +938,11 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             thin_line(),
             Space::with_height(16),
             column![
-                text("ServerName  (e.g. myproject.local)")
+                text(tr(keys::SERVER_NAME_HELP))
                     .size(11)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(5),
-                text_input("myproject.local", &tab.form.server_name)
+                text_input(tr(keys::SERVER_NAME_ADD_PLACEHOLDER), &tab.form.server_name)
                     .on_input(|v| Message::VHosts(VHostsMessage::FormServerNameChanged(v)))
                     .size(13)
                     .padding(Padding::from([8, 10]))
@@ -852,25 +951,30 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             .spacing(0),
             Space::with_height(12),
             column![
-                text("DocumentRoot  (full path, e.g. /home/user/projects/myapp/public)")
+                text(tr(keys::DOCUMENT_ROOT_HELP))
                     .size(11)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(5),
-                text_input("/home/user/projects/myapp/public", &tab.form.document_root)
-                    .on_input(|v| Message::VHosts(VHostsMessage::FormDocRootChanged(v)))
-                    .size(13)
-                    .padding(Padding::from([8, 10]))
-                    .width(Length::Fill),
+                text_input(
+                    tr(keys::DOCUMENT_ROOT_ADD_PLACEHOLDER),
+                    &tab.form.document_root
+                )
+                .on_input(|v| Message::VHosts(VHostsMessage::FormDocRootChanged(v)))
+                .size(13)
+                .padding(Padding::from([8, 10]))
+                .width(Length::Fill),
             ]
             .spacing(0),
             Space::with_height(12),
             column![
                 row![
-                    text("PHP Version").size(11).color(TEXT_MUTED),
+                    text(tr(keys::PHP_VERSION))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(6),
-                    text("(optional — pins this vhost to a specific PHP via SetHandler)")
+                    text(tr(keys::PHP_VERSION_HELP))
                         .size(10)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center),
                 Space::with_height(5),
@@ -908,12 +1012,20 @@ where
             use iced::widget::pick_list;
             let open = matches!(status, pick_list::Status::Opened);
             pick_list::Style {
-                text_color: PURPLE,
-                placeholder_color: TEXT_MUTED,
-                handle_color: PURPLE,
-                background: iced::Background::Color(if open { PURPLE_HOVER } else { PURPLE_BG }),
+                text_color: theme::color(theme_keys::PURPLE),
+                placeholder_color: theme::color(theme_keys::TEXT_MUTED),
+                handle_color: theme::color(theme_keys::PURPLE),
+                background: iced::Background::Color(if open {
+                    theme::color(theme_keys::PURPLE_HOVER)
+                } else {
+                    theme::color(theme_keys::PURPLE_BG)
+                }),
                 border: Border {
-                    color: if open { PURPLE } else { PURPLE_BORDER },
+                    color: if open {
+                        theme::color(theme_keys::PURPLE)
+                    } else {
+                        theme::color(theme_keys::PURPLE_BORDER)
+                    },
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -924,9 +1036,9 @@ where
         column![
             el,
             Space::with_height(3),
-            text("No mod_phpX.Y enabled — only global PHP available")
+            text(tr(keys::NO_MOD_PHP))
                 .size(10)
-                .color(TEXT_MUTED),
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .into()
@@ -937,9 +1049,9 @@ where
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style {
-        background: Some(BG_CARD.into()),
+        background: Some(theme::color(theme_keys::BG_CARD).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 10.0.into(),
         },
@@ -948,9 +1060,9 @@ fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
 }
 fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -962,7 +1074,7 @@ fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
         .width(Length::Fill)
         .height(1)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BORDER_SUBTLE.into()),
+            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
             ..Default::default()
         })
 }

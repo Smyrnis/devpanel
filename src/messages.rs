@@ -174,6 +174,7 @@ pub enum VHostsMessage {
     OpenConfigEditor,
     CloseConfigEditor,
     ConfigLoaded(String),
+    ConfigFileChanged,
     ConfigEditorAction(text_editor::Action),
     SaveConfigFile,
     SaveConfigDone(bool, String),
@@ -214,6 +215,8 @@ pub enum ConfigMessage {
     UiConfirmDeletesChanged(bool),
     UiToastDurationChanged(u32),
     UiShowSetupLogChanged(bool),
+    UiLanguageChanged(String),
+    UiThemeChanged(String),
     SshDefaultKeyTypeChanged(String),
     EditorCommandChanged(String),
 }

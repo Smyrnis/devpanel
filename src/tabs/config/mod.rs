@@ -18,6 +18,9 @@ pub struct ConfigTab {
 
     /// Which section of the config is currently expanded.
     pub active_section: ConfigSection,
+
+    pub available_languages: Vec<String>,
+    pub available_themes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +40,8 @@ impl ConfigTab {
             saving: false,
             status_msg: None,
             active_section: ConfigSection::Apache,
+            available_languages: crate::lang::available_languages(),
+            available_themes: crate::core::theme::available_themes(),
         }
     }
 
