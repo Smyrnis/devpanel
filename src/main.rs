@@ -1,5 +1,6 @@
 mod app;
 mod core;
+mod helpers;
 mod lang;
 mod messages;
 mod sudo_s;
@@ -8,7 +9,7 @@ mod ui;
 use app::App;
 use iced::Theme;
 
-static ICON_BYTES: &[u8] = include_bytes!("../devpanel.jpg");
+static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.jpg");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;

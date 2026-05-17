@@ -2,6 +2,8 @@ pub mod app {
     pub const DISMISS_ALL: &str = "app.dismiss_all";
     pub const LOGO_DEV: &str = "app.logo_dev";
     pub const LOGO_PANEL: &str = "app.logo_panel";
+    pub const LOCAL_ENVIRONMENT: &str = "app.local_environment";
+    pub const NAVIGATION: &str = "app.navigation";
     pub const NAV_DASHBOARD: &str = "app.nav_dashboard";
     pub const NAV_REPOS: &str = "app.nav_repos";
     pub const NAV_VHOSTS: &str = "app.nav_vhosts";
@@ -12,6 +14,14 @@ pub mod app {
     pub const SUDO_LOCKED: &str = "app.sudo_locked";
     pub const CLEAR_SUDO: &str = "app.clear_sudo";
     pub const REFRESH: &str = "app.refresh";
+    pub const ENVIRONMENT: &str = "app.environment";
+    pub const WEB_ROOT: &str = "app.web_root";
+    pub const APACHE: &str = "app.apache";
+    pub const PHP: &str = "app.php";
+    pub const NOT_AVAILABLE_SHORT: &str = "app.not_available_short";
+    pub const SYSTEM: &str = "app.system";
+    pub const ON: &str = "app.on";
+    pub const OFF: &str = "app.off";
 }
 
 pub mod config {
@@ -25,6 +35,8 @@ pub mod config {
     pub const SECTION_EDITOR: &str = "config.section_editor";
     pub const SAVING: &str = "config.saving";
     pub const SAVE_CHANGES: &str = "config.save_changes";
+    pub const SAVE_BAR_TITLE: &str = "config.save_bar_title";
+    pub const SAVE_BAR_BODY: &str = "config.save_bar_body";
     pub const LOG_LEVEL_LABEL: &str = "config.log_level_label";
     pub const LOG_LEVEL_HELP: &str = "config.log_level_help";
     pub const LOG_LEVEL_PLACEHOLDER: &str = "config.log_level_placeholder";
@@ -57,6 +69,14 @@ pub mod config {
 
 pub mod dashboard {
     pub const WEB_ROOT: &str = "dashboard.web_root";
+    pub const TITLE: &str = "dashboard.title";
+    pub const SUBTITLE: &str = "dashboard.subtitle";
+    pub const OPEN_LOCALHOST: &str = "dashboard.open_localhost";
+    pub const ENVIRONMENT: &str = "dashboard.environment";
+    pub const ACTIVE_PHP: &str = "dashboard.active_php";
+    pub const GROUP_OPEN: &str = "dashboard.group_open";
+    pub const GROUP_CONFIGURATION: &str = "dashboard.group_configuration";
+    pub const GROUP_SYSTEM: &str = "dashboard.group_system";
     pub const APACHE: &str = "dashboard.apache";
     pub const APACHE_SUBTITLE: &str = "dashboard.apache_subtitle";
     pub const MYSQL: &str = "dashboard.mysql";
@@ -124,6 +144,9 @@ pub mod repos {
     pub const SUBTITLE: &str = "repos.subtitle";
     pub const GITHUB: &str = "repos.github";
     pub const BITBUCKET: &str = "repos.bitbucket";
+    pub const PROVIDER_ACCESS: &str = "repos.provider_access";
+    pub const PROVIDER_COMMAND: &str = "repos.provider_command";
+    pub const REPOS_LOADED: &str = "repos.repos_loaded";
     pub const FETCHING: &str = "repos.fetching";
     pub const FETCH_REPOS: &str = "repos.fetch_repos";
     pub const CHECK_SSH: &str = "repos.check_ssh";
@@ -173,10 +196,17 @@ pub mod ssh_keys {
     pub const PASSPHRASE_LABEL: &str = "ssh_keys.passphrase_label";
     pub const GENERATE_KEY: &str = "ssh_keys.generate_key";
     pub const QUICK_ACTIONS: &str = "ssh_keys.quick_actions";
+    pub const STATUS_SUMMARY: &str = "ssh_keys.status_summary";
+    pub const KEYS_FOUND: &str = "ssh_keys.keys_found";
+    pub const DEFAULT_KEY: &str = "ssh_keys.default_key";
+    pub const PUBLIC_KEYS: &str = "ssh_keys.public_keys";
+    pub const AGENT_LOADED: &str = "ssh_keys.agent_loaded";
+    pub const NONE: &str = "ssh_keys.none";
     pub const ADD_EXISTING: &str = "ssh_keys.add_existing";
     pub const OPEN_SSH_DIR: &str = "ssh_keys.open_ssh_dir";
     pub const REFRESH: &str = "ssh_keys.refresh";
     pub const NO_KEYS: &str = "ssh_keys.no_keys";
+    pub const NO_KEYS_HELP: &str = "ssh_keys.no_keys_help";
     pub const PUB_BADGE: &str = "ssh_keys.pub_badge";
     pub const AGENT_BADGE: &str = "ssh_keys.agent_badge";
     pub const COPY: &str = "ssh_keys.copy";
@@ -206,6 +236,12 @@ pub mod sudo {
 pub mod tools {
     pub const TITLE: &str = "tools.title";
     pub const SUBTITLE: &str = "tools.subtitle";
+    pub const SCAN_SYSTEM: &str = "tools.scan_system";
+    pub const SYSTEM_SCAN: &str = "tools.system_scan";
+    pub const PHP_DETECTED: &str = "tools.php_detected";
+    pub const APACHE_MODULES_DETECTED: &str = "tools.apache_modules_detected";
+    pub const RUNTIME_STATUS: &str = "tools.runtime_status";
+    pub const SCAN_NEEDED: &str = "tools.scan_needed";
     pub const SEARCH_PLACEHOLDER: &str = "tools.search_placeholder";
     pub const SECTION_PHP_VERSIONS: &str = "tools.section_php_versions";
     pub const SECTION_APACHE_MODULES: &str = "tools.section_apache_modules";
@@ -290,12 +326,17 @@ pub mod vhosts {
     pub const TITLE: &str = "vhosts.title";
     pub const SUBTITLE: &str = "vhosts.subtitle";
     pub const CONFIG_FILE: &str = "vhosts.config_file";
+    pub const CONFIG_STATUS: &str = "vhosts.config_status";
+    pub const NOT_CHECKED: &str = "vhosts.not_checked";
+    pub const HOST_COUNT: &str = "vhosts.host_count";
+    pub const PHP_PINNING: &str = "vhosts.php_pinning";
     pub const EDIT_CONFIG: &str = "vhosts.edit_config";
     pub const OPEN_FILE: &str = "vhosts.open_file";
     pub const SCANNING: &str = "vhosts.scanning";
     pub const RELOAD: &str = "vhosts.reload";
     pub const ADD_VHOST: &str = "vhosts.add_vhost";
     pub const NO_PHP_MODULES: &str = "vhosts.no_php_modules";
+    pub const OPEN_PHP_VERSIONS: &str = "vhosts.open_php_versions";
     pub const SELECTED_SUFFIX: &str = "vhosts.selected_suffix";
     pub const SELECT_ALL: &str = "vhosts.select_all";
     pub const CLEAR: &str = "vhosts.clear";

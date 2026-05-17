@@ -9,39 +9,46 @@ use iced::widget::{Space, button, column, container, pick_list, row, scrollable,
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
-    let info_bar = container(
-        row![
-            ui::status_dot(theme::color(theme_keys::TEAL)),
-            Space::with_width(8),
-            text(&tab.distro)
-                .size(12)
+    let header = ui::page_header(
+        tr(keys::TITLE),
+        tr(keys::SUBTITLE),
+        vec![
+            ui::secondary_button(
+                tr(keys::OPEN_LOCALHOST),
+                Message::Dashboard(DashboardMessage::OpenLocalhost),
+            ),
+            ui::primary_button(
+                tr(keys::RESTART_ALL),
+                Message::Dashboard(DashboardMessage::RestartAll),
+            ),
+        ],
+    );
+
+    let environment = container(
+        column![
+            text(tr(keys::ENVIRONMENT))
+                .size(13)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_width(16),
-            sep_vertical(),
-            Space::with_width(16),
-            text(tr(keys::WEB_ROOT))
-                .size(11)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_width(6),
-            text(&tab.web_root)
-                .size(12)
-                .color(theme::color(theme_keys::TEXT_PRIMARY)),
-            Space::with_width(16),
-            sep_vertical(),
-            Space::with_width(16),
-            text(tr(keys::APACHE))
-                .size(11)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_width(6),
-            text(&tab.apache_conf_dir)
-                .size(12)
-                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(10),
+            row![
+                meta_item("OS", &tab.distro),
+                meta_item(tr(keys::WEB_ROOT), &tab.web_root),
+                meta_item(tr(keys::APACHE), &tab.apache_conf_dir),
+                meta_item(
+                    tr(keys::ACTIVE_PHP),
+                    tab.active_php_version
+                        .as_deref()
+                        .unwrap_or(tr(keys::NOT_AVAILABLE_SHORT)),
+                ),
+            ]
+            .spacing(16)
+            .align_y(Alignment::Start),
         ]
-        .align_y(Alignment::Center),
+        .spacing(0),
     )
-    .padding(Padding::from([11, 18]))
+    .padding(Padding::from([16, 18]))
     .width(Length::Fill)
-    .style(ui::surface_style());
+    .style(ui::card_style());
 
     let services = row![
         service_card(
@@ -73,64 +80,88 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     .spacing(12);
 
     let quick_grid = column![
+        quick_group(
+            tr(keys::GROUP_OPEN),
+            &[
+                QuickAction {
+                    label: tr(keys::LOCALHOST),
+                    meta: "http://localhost",
+                    msg: Message::Dashboard(DashboardMessage::OpenLocalhost),
+                },
+                QuickAction {
+                    label: tr(keys::PHPMYADMIN),
+                    meta: "http://localhost/phpmyadmin",
+                    msg: Message::Dashboard(DashboardMessage::OpenPhpMyAdmin),
+                },
+                QuickAction {
+                    label: tr(keys::PROJECTS),
+                    meta: tab.web_root.as_str(),
+                    msg: Message::Dashboard(DashboardMessage::OpenProjectsFolder),
+                },
+            ],
+        ),
+        Space::with_height(14),
+        quick_group(
+            tr(keys::GROUP_CONFIGURATION),
+            &[
+                QuickAction {
+                    label: tr(keys::APACHE_CONFIG),
+                    meta: paths::APACHE_CONF_DIR,
+                    msg: Message::Dashboard(DashboardMessage::NavigateApache2Conf),
+                },
+                QuickAction {
+                    label: tr(keys::SITES_AVAILABLE),
+                    meta: paths::APACHE_SITES_AVAILABLE,
+                    msg: Message::Dashboard(DashboardMessage::NavigateApache2Sites),
+                },
+                QuickAction {
+                    label: tr(keys::DEVPANEL_CONFIG),
+                    meta: paths::DEVPANEL_CONF,
+                    msg: Message::VHosts(crate::messages::VHostsMessage::OpenDevpanelConf),
+                },
+            ],
+        ),
+        Space::with_height(14),
+        quick_group(
+            tr(keys::GROUP_SYSTEM),
+            &[
+                QuickAction {
+                    label: paths::PHP_ETC_DIR,
+                    meta: paths::PHP_ETC_DIR,
+                    msg: Message::Dashboard(DashboardMessage::NavigatePhpDir),
+                },
+                QuickAction {
+                    label: paths::MYSQL_ETC_DIR,
+                    meta: paths::MYSQL_ETC_DIR,
+                    msg: Message::Dashboard(DashboardMessage::NavigateMysqlDir),
+                },
+                QuickAction {
+                    label: paths::HOSTS_FILE,
+                    meta: paths::HOSTS_FILE,
+                    msg: Message::Dashboard(DashboardMessage::NavigateHostsFile),
+                },
+            ],
+        ),
+        Space::with_height(8),
         quick_row(&[
-            (
-                tr(keys::LOCALHOST),
-                Message::Dashboard(DashboardMessage::OpenLocalhost)
-            ),
-            (
-                tr(keys::PHPMYADMIN),
-                Message::Dashboard(DashboardMessage::OpenPhpMyAdmin)
-            ),
-            (
-                tr(keys::PROJECTS),
-                Message::Dashboard(DashboardMessage::OpenProjectsFolder)
-            ),
-        ]),
-        quick_row(&[
-            (
-                tr(keys::APACHE_CONFIG),
-                Message::Dashboard(DashboardMessage::NavigateApache2Conf)
-            ),
-            (
-                tr(keys::SITES_AVAILABLE),
-                Message::Dashboard(DashboardMessage::NavigateApache2Sites)
-            ),
-            (
-                tr(keys::DEVPANEL_CONFIG),
-                Message::VHosts(crate::messages::VHostsMessage::OpenDevpanelConf)
-            ),
-        ]),
-        quick_row(&[
-            (
-                paths::PHP_ETC_DIR,
-                Message::Dashboard(DashboardMessage::NavigatePhpDir)
-            ),
-            (
-                paths::MYSQL_ETC_DIR,
-                Message::Dashboard(DashboardMessage::NavigateMysqlDir)
-            ),
-            (
-                paths::HOSTS_FILE,
-                Message::Dashboard(DashboardMessage::NavigateHostsFile)
-            ),
-        ]),
-        quick_row(&[
-            (
-                tr(keys::WEB_ROOT),
-                Message::Dashboard(DashboardMessage::OpenWebRoot)
-            ),
-            (
-                tr(keys::PHP_INI),
-                Message::Dashboard(DashboardMessage::OpenPhpIni)
-            ),
-            (
-                tr(keys::RESTART_ALL),
-                Message::Dashboard(DashboardMessage::RestartAll)
-            ),
+            QuickAction {
+                label: tr(keys::WEB_ROOT),
+                meta: tab.web_root.as_str(),
+                msg: Message::Dashboard(DashboardMessage::OpenWebRoot),
+            },
+            QuickAction {
+                label: tr(keys::PHP_INI),
+                meta: paths::PHP_ETC_DIR,
+                msg: Message::Dashboard(DashboardMessage::OpenPhpIni),
+            },
+            QuickAction {
+                label: tr(keys::RESTART_ALL),
+                meta: "Apache + MySQL",
+                msg: Message::Dashboard(DashboardMessage::RestartAll),
+            },
         ]),
     ]
-    .spacing(8);
+    .spacing(0);
 
     let failures: Element<Message> = if tab.recent_failures.is_empty() {
         Space::with_height(0).into()
@@ -165,7 +196,9 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
 
     let content = scrollable(
         column![
-            info_bar,
+            header,
+            Space::with_height(18),
+            environment,
             Space::with_height(20),
             services,
             Space::with_height(if tab.recent_failures.is_empty() {
@@ -458,7 +491,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         })
@@ -476,7 +509,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
                     border: Border {
                         color: theme::color(theme_keys::PURPLE_BORDER),
                         width: 1.0,
-                        radius: 7.0.into(),
+                        radius: 6.0.into(),
                     },
                     ..Default::default()
                 }
@@ -485,7 +518,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
                 background: Some(theme::color(theme_keys::PURPLE_BG).into()),
                 text_color: theme::color(theme_keys::PURPLE),
                 border: Border {
-                    radius: 7.0.into(),
+                    radius: 6.0.into(),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -524,23 +557,101 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
     .into()
 }
 
-fn quick_row<'a>(items: &[(&'a str, Message)]) -> Element<'a, Message> {
-    let btns: Vec<Element<Message>> = items
-        .iter()
-        .map(|(label, msg)| {
-            button(
-                text(*label)
-                    .size(13)
-                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
-            )
-            .on_press(msg.clone())
-            .padding(Padding::from([14, 12]))
-            .width(Length::FillPortion(1))
-            .style(ui::ghost_button_style())
-            .into()
-        })
-        .collect();
+struct QuickAction<'a> {
+    label: &'a str,
+    meta: &'a str,
+    msg: Message,
+}
+
+fn quick_row<'a>(items: &[QuickAction<'a>]) -> Element<'a, Message> {
+    let btns: Vec<Element<Message>> =
+        items
+            .iter()
+            .map(|item| {
+                button(
+                    row![
+                        container(Space::with_width(3)).width(3).height(34).style(
+                            |_: &iced::Theme| container::Style {
+                                background: Some(theme::color(theme_keys::TEAL).into()),
+                                border: Border {
+                                    radius: 2.0.into(),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            }
+                        ),
+                        Space::with_width(12),
+                        column![
+                            text(item.label)
+                                .size(13)
+                                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+                            Space::with_height(3),
+                            text(item.meta)
+                                .size(10)
+                                .color(theme::color(theme_keys::TEXT_MUTED)),
+                        ]
+                        .spacing(0)
+                        .width(Length::Fill),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .on_press(item.msg.clone())
+                .padding(Padding::from([10, 12]))
+                .width(Length::FillPortion(1))
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered
+                    | iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                        border: Border {
+                            color: theme::color(theme_keys::BORDER_MED),
+                            width: 1.0,
+                            radius: 6.0.into(),
+                        },
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(theme::color(theme_keys::BG_CARD).into()),
+                        text_color: theme::color(theme_keys::TEXT_SECONDARY),
+                        border: Border {
+                            color: theme::color(theme_keys::BORDER_SUBTLE),
+                            width: 1.0,
+                            radius: 6.0.into(),
+                        },
+                        ..Default::default()
+                    },
+                })
+                .into()
+            })
+            .collect();
     row(btns).spacing(8).into()
+}
+
+fn quick_group<'a>(title: &'a str, items: &[QuickAction<'a>]) -> Element<'a, Message> {
+    column![
+        text(title)
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
+        Space::with_height(8),
+        quick_row(items),
+    ]
+    .spacing(0)
+    .into()
+}
+
+fn meta_item<'a>(label: &'a str, value: &'a str) -> Element<'a, Message> {
+    column![
+        text(label)
+            .size(10)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
+        Space::with_height(3),
+        text(value)
+            .size(12)
+            .color(theme::color(theme_keys::TEXT_PRIMARY)),
+    ]
+    .spacing(0)
+    .width(Length::FillPortion(1))
+    .into()
 }
 
 fn btn_style(
@@ -556,7 +667,7 @@ fn btn_style(
                 border: Border {
                     color: Color::BLACK,
                     width: 1.5,
-                    radius: 7.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             }
@@ -567,20 +678,9 @@ fn btn_style(
             border: Border {
                 color: Color::BLACK,
                 width: 1.5,
-                radius: 7.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         },
     }
-}
-
-fn sep_vertical() -> Element<'static, Message> {
-    container(Space::with_width(1))
-        .width(1)
-        .height(12)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_MED).into()),
-            ..Default::default()
-        })
-        .into()
 }

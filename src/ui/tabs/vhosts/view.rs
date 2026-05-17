@@ -1,7 +1,7 @@
 use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::vhosts as keys, text as tr};
-use crate::messages::{Message, VHostsMessage};
+use crate::messages::{Message, Tab, VHostsMessage};
 use crate::ui::templates::view as ui;
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
@@ -36,75 +36,75 @@ pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
 }
 
 fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
-    let header = column![
-        text(tr(keys::TITLE))
-            .size(22)
-            .color(theme::color(theme_keys::TEXT_PRIMARY)),
-        Space::with_height(4),
-        text(tr(keys::SUBTITLE))
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-    ]
-    .spacing(0);
+    let header = ui::page_header(
+        tr(keys::TITLE),
+        tr(keys::SUBTITLE),
+        vec![
+            ui::secondary_button(
+                tr(keys::OPEN_FILE),
+                Message::VHosts(VHostsMessage::OpenDevpanelConf),
+            ),
+            ui::secondary_button(tr(keys::RELOAD), Message::VHosts(VHostsMessage::Scan)),
+            ui::primary_button(
+                tr(keys::ADD_VHOST),
+                Message::VHosts(VHostsMessage::ShowAddForm),
+            ),
+        ],
+    );
 
     let path_bar = container(
-        row![
-            column![
-                text(tr(keys::CONFIG_FILE))
-                    .size(10)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
-                Space::with_height(2),
-                text(tab.devpanel_conf.as_str())
-                    .size(12)
-                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
+        column![
+            row![
+                ui::metric_card(tr(keys::CONFIG_STATUS), tr(keys::NOT_CHECKED)),
+                ui::metric_card(tr(keys::HOST_COUNT), tab.vhosts.len().to_string()),
+                ui::metric_card(
+                    tr(keys::PHP_PINNING),
+                    if tab.available_php_versions.is_empty() {
+                        tr(keys::NO_MOD_PHP).to_string()
+                    } else {
+                        tab.available_php_versions.join(", ")
+                    }
+                ),
             ]
-            .spacing(0)
-            .width(Length::Fill),
-            icon_btn(
-                tr(keys::EDIT_CONFIG),
-                theme::color(theme_keys::BLUE),
-                theme::color(theme_keys::BLUE_BG),
-                theme::color(theme_keys::BLUE_HOVER),
-                theme::color(theme_keys::BLUE_BORDER),
-                Some(Message::VHosts(VHostsMessage::OpenConfigEditor))
-            ),
-            Space::with_width(8),
-            icon_btn(
-                tr(keys::OPEN_FILE),
-                theme::color(theme_keys::BLUE),
-                theme::color(theme_keys::BLUE_BG),
-                theme::color(theme_keys::BLUE_HOVER),
-                theme::color(theme_keys::BLUE_BORDER),
-                Some(Message::VHosts(VHostsMessage::OpenDevpanelConf))
-            ),
-            Space::with_width(8),
-            icon_btn(
-                if tab.scanning {
-                    tr(keys::SCANNING)
-                } else {
-                    tr(keys::RELOAD)
-                },
-                theme::color(theme_keys::TEAL),
-                theme::color(theme_keys::TEAL_BG),
-                theme::color(theme_keys::TEAL_HOVER),
-                theme::color(theme_keys::TEAL_BORDER),
-                if tab.scanning {
-                    None
-                } else {
-                    Some(Message::VHosts(VHostsMessage::Scan))
-                }
-            ),
-            Space::with_width(8),
-            icon_btn(
-                tr(keys::ADD_VHOST),
-                theme::color(theme_keys::GREEN),
-                theme::color(theme_keys::GREEN_BG),
-                theme::color(theme_keys::GREEN_HOVER),
-                theme::color(theme_keys::GREEN_BG),
-                Some(Message::VHosts(VHostsMessage::ShowAddForm))
-            ),
+            .spacing(12),
+            Space::with_height(12),
+            row![
+                column![
+                    text(tr(keys::CONFIG_FILE))
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                    Space::with_height(2),
+                    text(tab.devpanel_conf.as_str())
+                        .size(12)
+                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
+                ]
+                .spacing(0)
+                .width(Length::Fill),
+                ui::action_button(
+                    tr(keys::EDIT_CONFIG),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
+                    Some(Message::VHosts(VHostsMessage::OpenConfigEditor))
+                ),
+                Space::with_width(8),
+                ui::action_button(
+                    tr(keys::OPEN_FILE),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
+                    Some(Message::VHosts(VHostsMessage::OpenDevpanelConf))
+                ),
+                Space::with_width(8),
+                text(if tab.scanning { tr(keys::SCANNING) } else { "" })
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            ]
+            .align_y(Alignment::Center),
         ]
-        .align_y(Alignment::Center),
+        .spacing(0),
     )
     .padding(Padding::from([12, 16]))
     .width(Length::Fill)
@@ -155,7 +155,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                 border: Border {
                     color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             })
@@ -171,7 +171,9 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                 Space::with_width(8),
                 text(tr(keys::NO_PHP_MODULES))
                     .size(11)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                    .color(theme::color(theme_keys::TEXT_MUTED))
+                    .width(Length::Fill),
+                ui::secondary_button(tr(keys::OPEN_PHP_VERSIONS), Message::SelectTab(Tab::Tools)),
             ]
             .align_y(Alignment::Center),
         )
@@ -182,7 +184,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
             border: Border {
                 color: theme::color(theme_keys::BLUE_BORDER),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         })
@@ -204,7 +206,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                 .size(11)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_width(8),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::SELECT_ALL),
                     theme::color(theme_keys::TEAL),
                     theme::color(theme_keys::TEAL_BG),
@@ -213,7 +215,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                     Some(Message::VHosts(VHostsMessage::SelectAll))
                 ),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::CLEAR),
                     theme::color(theme_keys::TEXT_MUTED),
                     theme::color(theme_keys::BG_SURFACE),
@@ -228,7 +230,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                     .padding(Padding::from([6, 10]))
                     .width(Length::FillPortion(1)),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::APPLY_TAG),
                     theme::color(theme_keys::BLUE),
                     theme::color(theme_keys::BLUE_BG),
@@ -241,7 +243,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
                     }
                 ),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::DELETE_SELECTED),
                     theme::color(theme_keys::RED),
                     theme::color(theme_keys::RED_BG),
@@ -263,22 +265,20 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     };
 
     let body: Element<Message> = if tab.vhosts.is_empty() && !tab.scanning {
-        container(
-            column![
-                text(tr(keys::EMPTY_TITLE))
-                    .size(15)
-                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
-                Space::with_height(8),
-                text(tr(keys::EMPTY_BODY))
-                    .size(13)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
-            ]
-            .align_x(Alignment::Center),
+        ui::empty_state(
+            tr(keys::EMPTY_TITLE),
+            tr(keys::EMPTY_BODY),
+            vec![
+                ui::primary_button(
+                    tr(keys::ADD_VHOST),
+                    Message::VHosts(VHostsMessage::ShowAddForm),
+                ),
+                ui::secondary_button(
+                    tr(keys::OPEN_FILE),
+                    Message::VHosts(VHostsMessage::OpenDevpanelConf),
+                ),
+            ],
         )
-        .width(Length::Fill)
-        .padding(Padding::from([40, 0]))
-        .center_x(Length::Fill)
-        .into()
     } else if tab.scanning {
         container(
             text(tr(keys::SCANNING))
@@ -352,7 +352,7 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
         ]
         .spacing(0)
         .width(Length::Fill),
-        icon_btn(
+        ui::action_button(
             tr(keys::BACK),
             theme::color(theme_keys::TEAL),
             theme::color(theme_keys::TEAL_BG),
@@ -361,7 +361,7 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
             Some(Message::VHosts(VHostsMessage::CloseConfigEditor))
         ),
         Space::with_width(8),
-        icon_btn(
+        ui::action_button(
             if tab.config_loading {
                 tr(keys::SAVING)
             } else {
@@ -417,11 +417,11 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         });
@@ -608,7 +608,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
     let is_confirming = tab.confirm_delete == Some(idx);
     let del_btn: Element<Message> = if is_confirming {
         row![
-            small_btn(
+            ui::compact_action_button(
                 tr(keys::CONFIRM_DELETE),
                 theme::color(theme_keys::RED),
                 theme::color(theme_keys::RED_BG),
@@ -617,7 +617,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
                 Some(Message::VHosts(VHostsMessage::DeleteConfirm(idx)))
             ),
             Space::with_width(6),
-            small_btn(
+            ui::compact_action_button(
                 tr(keys::CANCEL),
                 theme::color(theme_keys::TEXT_MUTED),
                 theme::color(theme_keys::BG_SURFACE),
@@ -629,7 +629,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
         .align_y(Alignment::Center)
         .into()
     } else {
-        small_btn(
+        ui::compact_action_button(
             tr(keys::DELETE),
             theme::color(theme_keys::RED),
             theme::color(theme_keys::RED_BG),
@@ -657,7 +657,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             ui::thin_line(),
             Space::with_height(12),
             row![
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::EDIT),
                     theme::color(theme_keys::BLUE),
                     theme::color(theme_keys::BLUE_BG),
@@ -666,7 +666,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
                     Some(Message::VHosts(VHostsMessage::EditRequest(idx)))
                 ),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::DUPLICATE),
                     theme::color(theme_keys::PURPLE),
                     theme::color(theme_keys::PURPLE_BG),
@@ -675,7 +675,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
                     Some(Message::VHosts(VHostsMessage::DuplicateRequest(idx)))
                 ),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     if vh.https_enabled {
                         tr(keys::HTTPS_OFF)
                     } else {
@@ -688,7 +688,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
                     Some(Message::VHosts(VHostsMessage::ToggleHttps(idx)))
                 ),
                 Space::with_width(6),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::BROWSER),
                     theme::color(theme_keys::TEAL),
                     theme::color(theme_keys::TEAL_BG),
@@ -724,7 +724,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             background: Some(theme::color(theme_keys::GREEN_HOVER).into()),
             text_color: theme::color(theme_keys::GREEN),
             border: Border {
-                radius: 8.0.into(),
+                radius: 6.0.into(),
                 ..Default::default()
             },
             ..Default::default()
@@ -746,7 +746,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         },
@@ -774,7 +774,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
                     .size(13)
                     .color(theme::color(theme_keys::BLUE)),
                 Space::with_width(Length::Fill),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::CANCEL),
                     theme::color(theme_keys::TEXT_MUTED),
                     theme::color(theme_keys::BG_SURFACE),
@@ -836,11 +836,11 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
     )
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
             color: theme::color(theme_keys::BLUE_BORDER),
-            width: 1.5,
-            radius: 10.0.into(),
+            width: 1.0,
+            radius: 6.0.into(),
         },
         ..Default::default()
     })
@@ -873,7 +873,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             background: Some(theme::color(theme_keys::GREEN_HOVER).into()),
             text_color: theme::color(theme_keys::GREEN),
             border: Border {
-                radius: 8.0.into(),
+                radius: 6.0.into(),
                 ..Default::default()
             },
             ..Default::default()
@@ -895,7 +895,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
-                radius: 8.0.into(),
+                radius: 6.0.into(),
             },
             ..Default::default()
         },
@@ -925,7 +925,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
                 .size(14)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 Space::with_width(Length::Fill),
-                small_btn(
+                ui::compact_action_button(
                     tr(keys::CANCEL),
                     theme::color(theme_keys::TEXT_MUTED),
                     theme::color(theme_keys::BG_SURFACE),
@@ -1028,7 +1028,7 @@ where
                         theme::color(theme_keys::PURPLE_BORDER)
                     },
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
             }
         });
@@ -1045,86 +1045,5 @@ where
         .into()
     } else {
         el.into()
-    }
-}
-
-fn small_btn<'a>(
-    label: &'a str,
-    color: Color,
-    bg: Color,
-    bg_hover: Color,
-    border: Color,
-    on_press: Option<Message>,
-) -> Element<'a, Message> {
-    let b = button(text(label).size(12).color(color))
-        .padding(Padding::from([6, 12]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-                iced::widget::button::Style {
-                    background: Some(bg_hover.into()),
-                    text_color: color,
-                    border: Border {
-                        color: border,
-                        width: 1.0,
-                        radius: 7.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }
-            _ => iced::widget::button::Style {
-                background: Some(bg.into()),
-                text_color: color,
-                border: Border {
-                    color: border,
-                    width: 1.0,
-                    radius: 7.0.into(),
-                },
-                ..Default::default()
-            },
-        });
-    if let Some(msg) = on_press {
-        b.on_press(msg).into()
-    } else {
-        b.into()
-    }
-}
-fn icon_btn<'a>(
-    label: &'a str,
-    color: Color,
-    bg: Color,
-    bg_hover: Color,
-    border: Color,
-    on_press: Option<Message>,
-) -> Element<'a, Message> {
-    let b = button(text(label).size(12).color(color))
-        .padding(Padding::from([7, 14]))
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-                iced::widget::button::Style {
-                    background: Some(bg_hover.into()),
-                    text_color: color,
-                    border: Border {
-                        color: border,
-                        width: 1.0,
-                        radius: 8.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }
-            _ => iced::widget::button::Style {
-                background: Some(bg.into()),
-                text_color: color,
-                border: Border {
-                    color: border,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            },
-        });
-    if let Some(msg) = on_press {
-        b.on_press(msg).into()
-    } else {
-        b.into()
     }
 }

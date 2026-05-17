@@ -9,16 +9,14 @@ use iced::widget::{
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
-    let header = column![
-        text(tr(keys::TITLE))
-            .size(22)
-            .color(theme::color(theme_keys::TEXT_PRIMARY)),
-        Space::with_height(4),
-        text(tr(keys::SUBTITLE))
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-    ]
-    .spacing(0);
+    let header = ui::page_header(
+        tr(keys::TITLE),
+        tr(keys::SUBTITLE),
+        vec![ui::primary_button(
+            tr(keys::SAVE_CHANGES),
+            Message::Config(ConfigMessage::Save),
+        )],
+    );
 
     let section_bar = row![
         section_pill(
@@ -59,49 +57,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
         ConfigSection::Editor => section_editor(tab),
     };
 
-    let save_btn = button(
-        text(if tab.saving {
-            tr(keys::SAVING)
-        } else {
-            tr(keys::SAVE_CHANGES)
-        })
-        .size(13)
-        .color(if tab.saving {
-            theme::color(theme_keys::TEXT_MUTED)
-        } else {
-            theme::color(theme_keys::TEAL)
-        }),
-    )
-    .on_press_maybe(if tab.saving {
-        None
-    } else {
-        Some(Message::Config(ConfigMessage::Save))
-    })
-    .padding(Padding::from([10, 24]))
-    .style(move |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
-                text_color: theme::color(theme_keys::TEAL),
-                border: Border {
-                    color: theme::color(theme_keys::TEAL_BORDER),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::TEAL_BG).into()),
-            text_color: theme::color(theme_keys::TEAL),
-            border: Border {
-                color: theme::color(theme_keys::TEAL_BORDER),
-                width: 1.0,
-                radius: 8.0.into(),
-            },
-            ..Default::default()
-        },
-    });
+    let save_bar = save_panel(tab);
 
     let status: Element<Message> = match &tab.status_msg {
         Some((ok, msg)) => {
@@ -133,7 +89,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
                 border: Border {
                     color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             })
@@ -152,12 +108,80 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             Space::with_height(16),
             status,
             Space::with_height(if tab.status_msg.is_some() { 12 } else { 0 }),
-            save_btn,
+            save_bar,
             Space::with_height(24),
         ]
         .spacing(0)
         .padding(Padding::from([22, 24])),
     )
+    .into()
+}
+
+fn save_panel(tab: &ConfigTab) -> Element<'_, Message> {
+    let save_btn = button(
+        text(if tab.saving {
+            tr(keys::SAVING)
+        } else {
+            tr(keys::SAVE_CHANGES)
+        })
+        .size(13)
+        .color(if tab.saving {
+            theme::color(theme_keys::TEXT_MUTED)
+        } else {
+            theme::color(theme_keys::TEAL)
+        }),
+    )
+    .on_press_maybe(if tab.saving {
+        None
+    } else {
+        Some(Message::Config(ConfigMessage::Save))
+    })
+    .padding(Padding::from([10, 24]))
+    .style(move |_, status| match status {
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+            iced::widget::button::Style {
+                background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                text_color: theme::color(theme_keys::TEAL),
+                border: Border {
+                    color: theme::color(theme_keys::TEAL_BORDER),
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                ..Default::default()
+            }
+        }
+        _ => iced::widget::button::Style {
+            background: Some(theme::color(theme_keys::TEAL_BG).into()),
+            text_color: theme::color(theme_keys::TEAL),
+            border: Border {
+                color: theme::color(theme_keys::TEAL_BORDER),
+                width: 1.0,
+                radius: 6.0.into(),
+            },
+            ..Default::default()
+        },
+    });
+
+    container(
+        row![
+            column![
+                text(tr(keys::SAVE_BAR_TITLE))
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY)),
+                Space::with_height(3),
+                text(tr(keys::SAVE_BAR_BODY))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+            ]
+            .spacing(0)
+            .width(Length::Fill),
+            save_btn,
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(Padding::from([12, 16]))
+    .width(Length::Fill)
+    .style(ui::surface_style())
     .into()
 }
 
@@ -346,7 +370,7 @@ fn section_editor(tab: &ConfigTab) -> Element<'_, Message> {
                 border: Border {
                     color: blue_bdr,
                     width: 1.0,
-                    radius: 8.0.into()
+                    radius: 6.0.into()
                 },
                 ..Default::default()
             }),
@@ -385,7 +409,7 @@ fn section_pill<'a>(
                     border: Border {
                         color: theme::color(theme_keys::TEAL_BORDER),
                         width: 1.0,
-                        radius: 8.0.into(),
+                        radius: 6.0.into(),
                     },
                     ..Default::default()
                 }
@@ -396,7 +420,7 @@ fn section_pill<'a>(
                 border: Border {
                     color: border,
                     width: 1.0,
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                 },
                 ..Default::default()
             },
@@ -407,15 +431,7 @@ fn section_pill<'a>(
 fn card(content: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
     container(content.padding(Padding::from([20, 22])))
         .width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 10.0.into(),
-            },
-            ..Default::default()
-        })
+        .style(ui::card_style())
         .into()
 }
 

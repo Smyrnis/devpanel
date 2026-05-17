@@ -120,9 +120,16 @@ impl App {
             Tab::Config => self.config_tab.view(),
         };
 
+        let content_area = column![
+            self.context_bar(),
+            container(tab_content).width(Length::Fill)
+        ]
+        .height(Length::Fill)
+        .spacing(0);
+
         let app_area = row![
             self.sidebar(),
-            container(tab_content)
+            container(content_area)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(|_: &iced::Theme| container::Style {
@@ -203,6 +210,78 @@ impl App {
         .into()
     }
 
+    fn context_bar(&self) -> Element<'_, Message> {
+        container(
+            row![
+                context_item(
+                    tr(keys::ENVIRONMENT),
+                    self.dashboard.distro.as_str(),
+                    theme::color(theme_keys::TEAL),
+                ),
+                context_separator(),
+                context_item(
+                    tr(keys::WEB_ROOT),
+                    self.dashboard.web_root.as_str(),
+                    theme::color(theme_keys::TEXT_SECONDARY),
+                ),
+                context_separator(),
+                context_item(
+                    tr(keys::APACHE),
+                    self.dashboard.apache_conf_dir.as_str(),
+                    theme::color(theme_keys::BLUE),
+                ),
+                context_separator(),
+                context_item(
+                    tr(keys::PHP),
+                    self.dashboard
+                        .active_php_version
+                        .as_deref()
+                        .unwrap_or(tr(keys::NOT_AVAILABLE_SHORT)),
+                    theme::color(theme_keys::PURPLE),
+                ),
+                Space::with_width(Length::Fill),
+                button(
+                    text(tr(keys::REFRESH))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                )
+                .on_press(Message::Dashboard(
+                    crate::messages::DashboardMessage::RefreshStatus
+                ))
+                .padding(Padding::from([6, 12]))
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                        border: Border {
+                            radius: 6.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: None,
+                        text_color: theme::color(theme_keys::TEXT_MUTED),
+                        ..Default::default()
+                    },
+                }),
+            ]
+            .align_y(Alignment::Center),
+        )
+        .padding(Padding::from([10, 18]))
+        .width(Length::Fill)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 0.0,
+                radius: 0.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
+    }
+
     fn sidebar(&self) -> Element<'_, Message> {
         let logo = container(
             column![
@@ -230,12 +309,33 @@ impl App {
                     .spacing(0),
                 ]
                 .align_y(Alignment::Center),
+                Space::with_height(10),
+                container(
+                    text(tr(keys::LOCAL_ENVIRONMENT))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                )
+                .padding(Padding::from([4, 10]))
+                .style(|_: &iced::Theme| container::Style {
+                    background: Some(theme::color(theme_keys::BG_CARD).into()),
+                    border: Border {
+                        color: theme::color(theme_keys::BORDER_SUBTLE),
+                        width: 1.0,
+                        radius: 6.0.into(),
+                    },
+                    ..Default::default()
+                }),
             ]
-            .spacing(0),
+            .spacing(0)
+            .align_x(Alignment::Start),
         )
         .padding(Padding::from([22, 16]));
 
         let nav = column![
+            text(tr(keys::NAVIGATION))
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(6),
             self.nav_item(tr(keys::NAV_DASHBOARD), Tab::Dashboard),
             self.nav_item(tr(keys::NAV_REPOS), Tab::Repos),
             self.nav_item(tr(keys::NAV_VHOSTS), Tab::VHosts),
@@ -243,8 +343,8 @@ impl App {
             self.nav_item(tr(keys::NAV_TOOLS), Tab::Tools),
             self.nav_item(tr(keys::NAV_CONFIG), Tab::Config),
         ]
-        .spacing(2)
-        .padding(Padding::from([0, 8]));
+        .spacing(3)
+        .padding(Padding::from([0, 12]));
 
         let sudo_indicator: Element<Message> = if self.sudo.cached_password.is_some() {
             column![
@@ -279,7 +379,7 @@ impl App {
                         .into()
                     ),
                     border: Border {
-                        radius: 8.0.into(),
+                        radius: 6.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -344,7 +444,7 @@ impl App {
                     .into(),
                 ),
                 border: Border {
-                    radius: 8.0.into(),
+                    radius: 6.0.into(),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -354,6 +454,14 @@ impl App {
 
         let bottom = container(
             column![
+                text(tr(keys::SYSTEM))
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                Space::with_height(6),
+                sidebar_status_row(tr(keys::APACHE), self.dashboard.apache_running),
+                Space::with_height(5),
+                sidebar_status_row("MySQL", self.dashboard.mysql_running),
+                Space::with_height(10),
                 sudo_indicator,
                 Space::with_height(10),
                 button(
@@ -378,7 +486,7 @@ impl App {
                         background: Some(theme::color(theme_keys::BG_HOVER).into()),
                         text_color: theme::color(theme_keys::TEXT_PRIMARY),
                         border: Border {
-                            radius: 8.0.into(),
+                            radius: 6.0.into(),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -423,12 +531,7 @@ impl App {
     fn nav_item<'a>(&self, label: &'a str, tab: Tab) -> Element<'a, Message> {
         let active = self.active_tab == tab;
         let bg = if active {
-            Color {
-                r: 0.060,
-                g: 0.185,
-                b: 0.175,
-                a: 1.0,
-            }
+            theme::color(theme_keys::TEAL_BG)
         } else {
             Color::TRANSPARENT
         };
@@ -437,44 +540,107 @@ impl App {
         } else {
             theme::color(theme_keys::TEXT_SECONDARY)
         };
-        let icon_color = if active {
-            theme::color(theme_keys::TEAL)
-        } else {
-            theme::color(theme_keys::TEXT_MUTED)
-        };
-        button(
-            row![
-                text("").size(12).color(icon_color),
-                Space::with_width(10),
-                text(label).size(13).color(text_color),
-            ]
-            .align_y(Alignment::Center),
-        )
-        .on_press(Message::SelectTab(tab))
-        .padding(Padding::from([10, 12]))
-        .width(Length::Fill)
-        .style(move |_, status| match status {
-            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                border: Border {
-                    radius: 8.0.into(),
+        let accent =
+            container(Space::with_width(3))
+                .width(3)
+                .height(22)
+                .style(move |_: &iced::Theme| container::Style {
+                    background: Some(
+                        if active {
+                            theme::color(theme_keys::TEAL)
+                        } else {
+                            Color::TRANSPARENT
+                        }
+                        .into(),
+                    ),
+                    border: Border {
+                        radius: 2.0.into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                });
+
+        let content = row![
+            accent,
+            Space::with_width(12),
+            text(label).size(13).color(text_color),
+        ]
+        .align_y(Alignment::Center);
+
+        button(row![content, Space::with_width(Length::Fill),].align_y(Alignment::Center))
+            .on_press(Message::SelectTab(tab))
+            .padding(Padding::from([8, 10]))
+            .width(Length::Fill)
+            .style(move |_, status| match status {
+                iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                    border: Border {
+                        radius: 6.0.into(),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
-                ..Default::default()
-            },
-            _ => iced::widget::button::Style {
-                background: Some(bg.into()),
-                text_color,
-                border: Border {
-                    radius: 8.0.into(),
+                _ => iced::widget::button::Style {
+                    background: Some(bg.into()),
+                    text_color,
+                    border: Border {
+                        radius: 6.0.into(),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
-                ..Default::default()
-            },
+            })
+            .into()
+    }
+}
+
+fn sidebar_status_row<'a>(label: &'a str, running: bool) -> Element<'a, Message> {
+    let color = if running {
+        theme::color(theme_keys::GREEN)
+    } else {
+        theme::color(theme_keys::TEXT_MUTED)
+    };
+    row![
+        ui::status_dot(color),
+        Space::with_width(7),
+        text(label)
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
+        Space::with_width(Length::Fill),
+        text(if running { tr(keys::ON) } else { tr(keys::OFF) })
+            .size(10)
+            .color(color),
+    ]
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn context_item<'a>(label: &'a str, value: &'a str, accent: Color) -> Element<'a, Message> {
+    row![
+        ui::status_dot(accent),
+        Space::with_width(7),
+        text(label)
+            .size(10)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
+        Space::with_width(5),
+        text(value)
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_SECONDARY)),
+    ]
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn context_separator<'a>() -> Element<'a, Message> {
+    container(Space::with_width(1))
+        .width(1)
+        .height(18)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
+            ..Default::default()
         })
         .into()
-    }
 }
 
 fn notification_card(toast: &Toast) -> Element<'_, Message> {
@@ -534,7 +700,7 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
         border: Border {
             color: border_color,
             width: 1.0,
-            radius: 8.0.into(),
+            radius: 6.0.into(),
         },
         shadow: iced::Shadow {
             color: Color {
