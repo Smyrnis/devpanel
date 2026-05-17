@@ -1,26 +1,51 @@
 use super::{ConfigSection, ConfigTab};
-use crate::core::theme::*;
+use crate::core::theme::{self, theme_map as theme_keys};
+use crate::lang::{lang_map::config as keys, text as tr};
 use crate::messages::{ConfigMessage, Message};
-use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{
+    Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
+};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     let header = column![
-        text("Configuration").size(22).color(TEXT_PRIMARY),
+        text(tr(keys::TITLE))
+            .size(22)
+            .color(theme::color(theme_keys::TEXT_PRIMARY)),
         Space::with_height(4),
-        text("Persistent preferences — stored in ~/.config/devpanel/devpanel.db")
+        text(tr(keys::SUBTITLE))
             .size(13)
-            .color(TEXT_MUTED),
+            .color(theme::color(theme_keys::TEXT_MUTED)),
     ]
     .spacing(0);
 
     let section_bar = row![
-        section_pill("Apache", ConfigSection::Apache, &tab.active_section),
-        section_pill("PHP", ConfigSection::Php, &tab.active_section),
-        section_pill("Projects", ConfigSection::Projects, &tab.active_section),
-        section_pill("UI", ConfigSection::Ui, &tab.active_section),
-        section_pill("SSH", ConfigSection::Ssh, &tab.active_section),
-        section_pill("Editor", ConfigSection::Editor, &tab.active_section),
+        section_pill(
+            tr(keys::SECTION_APACHE),
+            ConfigSection::Apache,
+            &tab.active_section
+        ),
+        section_pill(
+            tr(keys::SECTION_PHP),
+            ConfigSection::Php,
+            &tab.active_section
+        ),
+        section_pill(
+            tr(keys::SECTION_PROJECTS),
+            ConfigSection::Projects,
+            &tab.active_section
+        ),
+        section_pill(tr(keys::SECTION_UI), ConfigSection::Ui, &tab.active_section),
+        section_pill(
+            tr(keys::SECTION_SSH),
+            ConfigSection::Ssh,
+            &tab.active_section
+        ),
+        section_pill(
+            tr(keys::SECTION_EDITOR),
+            ConfigSection::Editor,
+            &tab.active_section
+        ),
     ]
     .spacing(8);
 
@@ -35,12 +60,16 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
 
     let save_btn = button(
         text(if tab.saving {
-            "Saving…"
+            tr(keys::SAVING)
         } else {
-            "Save Changes"
+            tr(keys::SAVE_CHANGES)
         })
         .size(13)
-        .color(if tab.saving { TEXT_MUTED } else { TEAL }),
+        .color(if tab.saving {
+            theme::color(theme_keys::TEXT_MUTED)
+        } else {
+            theme::color(theme_keys::TEAL)
+        }),
     )
     .on_press_maybe(if tab.saving {
         None
@@ -51,10 +80,10 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     .style(move |_, status| match status {
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             iced::widget::button::Style {
-                background: Some(TEAL_HOVER.into()),
-                text_color: TEAL,
+                background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                text_color: theme::color(theme_keys::TEAL),
                 border: Border {
-                    color: TEAL_BORDER,
+                    color: theme::color(theme_keys::TEAL_BORDER),
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -62,10 +91,10 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             }
         }
         _ => iced::widget::button::Style {
-            background: Some(TEAL_BG.into()),
-            text_color: TEAL,
+            background: Some(theme::color(theme_keys::TEAL_BG).into()),
+            text_color: theme::color(theme_keys::TEAL),
             border: Border {
-                color: TEAL_BORDER,
+                color: theme::color(theme_keys::TEAL_BORDER),
                 width: 1.0,
                 radius: 8.0.into(),
             },
@@ -76,15 +105,23 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
     let status: Element<Message> = match &tab.status_msg {
         Some((ok, msg)) => {
             let (color, bg) = if *ok {
-                (GREEN, GREEN_BG)
+                (
+                    theme::color(theme_keys::GREEN),
+                    theme::color(theme_keys::GREEN_BG),
+                )
             } else {
-                (RED, RED_BG)
+                (
+                    theme::color(theme_keys::RED),
+                    theme::color(theme_keys::RED_BG),
+                )
             };
             container(
                 row![
                     dot(color),
                     Space::with_width(8),
-                    text(msg.as_str()).size(12).color(TEXT_SECONDARY),
+                    text(msg.as_str())
+                        .size(12)
+                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 ]
                 .align_y(Alignment::Center),
             )
@@ -93,7 +130,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             .style(move |_: &iced::Theme| container::Style {
                 background: Some(bg.into()),
                 border: Border {
-                    color: BORDER_SUBTLE,
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -126,16 +163,19 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
 fn section_apache(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
-            setting_label("Log level", "warn / error / info / debug"),
+            setting_label(tr(keys::LOG_LEVEL_LABEL), tr(keys::LOG_LEVEL_HELP)),
             Space::with_height(5),
-            text_input("warn", &tab.settings.apache_log_level)
-                .on_input(|v| Message::Config(ConfigMessage::ApacheLogLevelChanged(v)))
-                .padding(Padding::from([8, 10]))
-                .size(13),
+            text_input(
+                tr(keys::LOG_LEVEL_PLACEHOLDER),
+                &tab.settings.apache_log_level
+            )
+            .on_input(|v| Message::Config(ConfigMessage::ApacheLogLevelChanged(v)))
+            .padding(Padding::from([8, 10]))
+            .size(13),
             Space::with_height(16),
             setting_toggle(
-                "Auto-reload Apache on config save",
-                "When enabled, Apache is reloaded every time devpanel.conf is saved.",
+                tr(keys::APACHE_AUTO_RELOAD_LABEL),
+                tr(keys::APACHE_AUTO_RELOAD_HELP),
                 tab.settings.apache_auto_reload,
                 |v| Message::Config(ConfigMessage::ApacheAutoReloadChanged(v)),
             ),
@@ -148,8 +188,8 @@ fn section_php(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
             setting_label(
-                "Default PHP version",
-                "e.g. 8.2 — used as fallback in new VHosts"
+                tr(keys::PHP_DEFAULT_VERSION_LABEL),
+                tr(keys::PHP_DEFAULT_VERSION_HELP)
             ),
             Space::with_height(5),
             text_input("8.2", &tab.settings.php_default_version)
@@ -158,8 +198,8 @@ fn section_php(tab: &ConfigTab) -> Element<'_, Message> {
                 .size(13),
             Space::with_height(16),
             setting_toggle(
-                "Enable display_errors for development",
-                "Sets display_errors = On in PHP INI for local dev convenience.",
+                tr(keys::DISPLAY_ERRORS_LABEL),
+                tr(keys::DISPLAY_ERRORS_HELP),
                 tab.settings.php_display_errors,
                 |v| Message::Config(ConfigMessage::PhpDisplayErrorsChanged(v)),
             ),
@@ -171,15 +211,15 @@ fn section_php(tab: &ConfigTab) -> Element<'_, Message> {
 fn section_projects(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
-            setting_label(
-                "Open command",
-                "Command used to open a project folder (e.g. xdg-open, code, nautilus)"
-            ),
+            setting_label(tr(keys::OPEN_COMMAND_LABEL), tr(keys::OPEN_COMMAND_HELP)),
             Space::with_height(5),
-            text_input("xdg-open", &tab.settings.projects_open_command)
-                .on_input(|v| Message::Config(ConfigMessage::ProjectsOpenCommandChanged(v)))
-                .padding(Padding::from([8, 10]))
-                .size(13),
+            text_input(
+                tr(keys::OPEN_COMMAND_PLACEHOLDER),
+                &tab.settings.projects_open_command
+            )
+            .on_input(|v| Message::Config(ConfigMessage::ProjectsOpenCommandChanged(v)))
+            .padding(Padding::from([8, 10]))
+            .size(13),
         ]
         .spacing(0),
     )
@@ -189,15 +229,15 @@ fn section_ui(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
             setting_toggle(
-                "Confirm before deleting VHosts",
-                "Shows a confirmation step before any virtual host is removed.",
+                tr(keys::CONFIRM_DELETE_LABEL),
+                tr(keys::CONFIRM_DELETE_HELP),
                 tab.settings.ui_confirm_deletes,
                 |v| Message::Config(ConfigMessage::UiConfirmDeletesChanged(v)),
             ),
             Space::with_height(16),
             setting_label(
-                "Toast notification duration (ms)",
-                "How long success/error banners stay visible"
+                tr(keys::TOAST_DURATION_LABEL),
+                tr(keys::TOAST_DURATION_HELP)
             ),
             Space::with_height(5),
             text_input("4000", &tab.settings.ui_toast_duration_ms.to_string())
@@ -209,11 +249,31 @@ fn section_ui(tab: &ConfigTab) -> Element<'_, Message> {
                 .size(13),
             Space::with_height(16),
             setting_toggle(
-                "Show setup log warnings on startup",
-                "Surfaces post-install WARN/ERROR entries from the DevPanel setup log.",
+                tr(keys::SHOW_SETUP_WARNINGS_LABEL),
+                tr(keys::SHOW_SETUP_WARNINGS_HELP),
                 tab.settings.ui_show_setup_log,
                 |v| Message::Config(ConfigMessage::UiShowSetupLogChanged(v)),
             ),
+            Space::with_height(16),
+            setting_label(tr(keys::LANGUAGE_LABEL), tr(keys::LANGUAGE_HELP)),
+            Space::with_height(5),
+            pick_list(
+                &tab.available_languages[..],
+                Some(tab.settings.ui_language.clone()),
+                |v| Message::Config(ConfigMessage::UiLanguageChanged(v))
+            )
+            .padding(Padding::from([8, 10]))
+            .width(Length::Fixed(220.0)),
+            Space::with_height(16),
+            setting_label(tr(keys::THEME_LABEL), tr(keys::THEME_HELP)),
+            Space::with_height(5),
+            pick_list(
+                &tab.available_themes[..],
+                Some(tab.settings.ui_theme.clone()),
+                |v| Message::Config(ConfigMessage::UiThemeChanged(v))
+            )
+            .padding(Padding::from([8, 10]))
+            .width(Length::Fixed(220.0)),
         ]
         .spacing(0),
     )
@@ -222,12 +282,18 @@ fn section_ui(tab: &ConfigTab) -> Element<'_, Message> {
 fn section_ssh(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
-            setting_label("Default key type", "Ed25519 / RSA 4096 / ECDSA 521"),
+            setting_label(
+                tr(keys::DEFAULT_KEY_TYPE_LABEL),
+                tr(keys::DEFAULT_KEY_TYPE_HELP)
+            ),
             Space::with_height(5),
-            text_input("Ed25519", &tab.settings.ssh_default_key_type)
-                .on_input(|v| Message::Config(ConfigMessage::SshDefaultKeyTypeChanged(v)))
-                .padding(Padding::from([8, 10]))
-                .size(13),
+            text_input(
+                tr(keys::DEFAULT_KEY_TYPE_PLACEHOLDER),
+                &tab.settings.ssh_default_key_type
+            )
+            .on_input(|v| Message::Config(ConfigMessage::SshDefaultKeyTypeChanged(v)))
+            .padding(Padding::from([8, 10]))
+            .size(13),
         ]
         .spacing(0),
     )
@@ -250,22 +316,25 @@ fn section_editor(tab: &ConfigTab) -> Element<'_, Message> {
     card(
         column![
             setting_label(
-                "Editor command",
-                "Command used to open files (e.g. code, vim, gedit, xdg-open)"
+                tr(keys::EDITOR_COMMAND_LABEL),
+                tr(keys::EDITOR_COMMAND_HELP)
             ),
             Space::with_height(5),
-            text_input("xdg-open", &tab.settings.editor_command)
-                .on_input(|v| Message::Config(ConfigMessage::EditorCommandChanged(v)))
-                .padding(Padding::from([8, 10]))
-                .size(13),
+            text_input(
+                tr(keys::OPEN_COMMAND_PLACEHOLDER),
+                &tab.settings.editor_command
+            )
+            .on_input(|v| Message::Config(ConfigMessage::EditorCommandChanged(v)))
+            .padding(Padding::from([8, 10]))
+            .size(13),
             Space::with_height(12),
             container(
                 row![
-                    text("i").size(10).color(BLUE),
+                    text("i").size(10).color(theme::color(theme_keys::BLUE)),
                     Space::with_width(8),
-                    text("Used by 'Open File' buttons throughout the app.")
+                    text(tr(keys::EDITOR_OPEN_FILE_NOTE))
                         .size(11)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
             )
@@ -292,9 +361,17 @@ fn section_pill<'a>(
 ) -> Element<'a, Message> {
     let is_active = &section == active;
     let (color, bg, border) = if is_active {
-        (TEAL, TEAL_BG, TEAL_BORDER)
+        (
+            theme::color(theme_keys::TEAL),
+            theme::color(theme_keys::TEAL_BG),
+            theme::color(theme_keys::TEAL_BORDER),
+        )
     } else {
-        (TEXT_MUTED, BG_SURFACE, BORDER_SUBTLE)
+        (
+            theme::color(theme_keys::TEXT_MUTED),
+            theme::color(theme_keys::BG_SURFACE),
+            theme::color(theme_keys::BORDER_SUBTLE),
+        )
     };
     button(text(label).size(12).color(color))
         .on_press(Message::Config(ConfigMessage::SetSection(section)))
@@ -302,10 +379,10 @@ fn section_pill<'a>(
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {
-                    background: Some(TEAL_HOVER.into()),
-                    text_color: TEAL,
+                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEAL),
                     border: Border {
-                        color: TEAL_BORDER,
+                        color: theme::color(theme_keys::TEAL_BORDER),
                         width: 1.0,
                         radius: 8.0.into(),
                     },
@@ -330,9 +407,9 @@ fn card(content: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
     container(content.padding(Padding::from([20, 22])))
         .width(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BG_CARD.into()),
+            background: Some(theme::color(theme_keys::BG_CARD).into()),
             border: Border {
-                color: BORDER_SUBTLE,
+                color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
                 radius: 10.0.into(),
             },
@@ -343,9 +420,13 @@ fn card(content: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
 
 fn setting_label<'a>(label: &'a str, hint: &'a str) -> Element<'a, Message> {
     column![
-        text(label).size(13).color(TEXT_PRIMARY),
+        text(label)
+            .size(13)
+            .color(theme::color(theme_keys::TEXT_PRIMARY)),
         Space::with_height(2),
-        text(hint).size(11).color(TEXT_MUTED),
+        text(hint)
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
     ]
     .spacing(0)
     .into()
@@ -362,9 +443,13 @@ where
 {
     row![
         column![
-            text(label).size(13).color(TEXT_PRIMARY),
+            text(label)
+                .size(13)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(2),
-            text(hint).size(11).color(TEXT_MUTED),
+            text(hint)
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .width(Length::Fill),

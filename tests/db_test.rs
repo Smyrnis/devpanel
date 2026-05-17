@@ -162,6 +162,8 @@ fn user_settings_load_uses_defaults_on_fresh_db() {
     assert!(us.apache_auto_reload);
     assert!(us.ui_confirm_deletes);
     assert_eq!(us.ui_toast_duration_ms, 4000);
+    assert_eq!(us.ui_language, defaults::UI_LANGUAGE);
+    assert_eq!(us.ui_theme, defaults::UI_THEME);
     assert_eq!(us.ssh_default_key_type, defaults::SSH_DEFAULT_KEY_TYPE);
 }
 #[test]
@@ -169,6 +171,8 @@ fn user_settings_default_matches_db_defaults() {
     let us = UserSettings::default();
     assert_eq!(us.apache_log_level, defaults::APACHE_LOG_LEVEL);
     assert_eq!(us.ui_toast_duration_ms, 4000);
+    assert_eq!(us.ui_language, defaults::UI_LANGUAGE);
+    assert_eq!(us.ui_theme, defaults::UI_THEME);
     assert_eq!(us.ssh_default_key_type, defaults::SSH_DEFAULT_KEY_TYPE);
 }
 #[test]
@@ -183,6 +187,8 @@ fn user_settings_save_then_load_is_identity() {
         ui_confirm_deletes: false,
         ui_toast_duration_ms: 2000,
         ui_show_setup_log: false,
+        ui_language: "de".into(),
+        ui_theme: "light".into(),
         ssh_default_key_type: "RSA 4096".into(),
         editor_command: "vim".into(),
     };
@@ -191,6 +197,8 @@ fn user_settings_save_then_load_is_identity() {
     assert_eq!(reloaded.apache_log_level, original.apache_log_level);
     assert_eq!(reloaded.apache_auto_reload, original.apache_auto_reload);
     assert_eq!(reloaded.ui_toast_duration_ms, original.ui_toast_duration_ms);
+    assert_eq!(reloaded.ui_language, original.ui_language);
+    assert_eq!(reloaded.ui_theme, original.ui_theme);
     assert_eq!(reloaded.editor_command, original.editor_command);
 }
 #[test]

@@ -13,6 +13,8 @@ pub struct UserSettings {
     pub ui_confirm_deletes: bool,
     pub ui_toast_duration_ms: u32,
     pub ui_show_setup_log: bool,
+    pub ui_language: String,
+    pub ui_theme: String,
     pub ssh_default_key_type: String,
     pub editor_command: String,
 }
@@ -28,6 +30,8 @@ impl Default for UserSettings {
             ui_confirm_deletes: true,
             ui_toast_duration_ms: 4000,
             ui_show_setup_log: true,
+            ui_language: defaults::UI_LANGUAGE.to_string(),
+            ui_theme: defaults::UI_THEME.to_string(),
             ssh_default_key_type: defaults::SSH_DEFAULT_KEY_TYPE.to_string(),
             editor_command: defaults::EDITOR_COMMAND.to_string(),
         }
@@ -48,6 +52,8 @@ impl UserSettings {
             ui_confirm_deletes: db.get_bool(keys::UI_CONFIRM_DELETES, true),
             ui_toast_duration_ms: db.get_u32(keys::UI_TOAST_DURATION_MS, 4000),
             ui_show_setup_log: db.get_bool(keys::UI_SHOW_SETUP_LOG, true),
+            ui_language: db.get_or(keys::UI_LANGUAGE, defaults::UI_LANGUAGE),
+            ui_theme: db.get_or(keys::UI_THEME, defaults::UI_THEME),
             ssh_default_key_type: db
                 .get_or(keys::SSH_DEFAULT_KEY_TYPE, defaults::SSH_DEFAULT_KEY_TYPE),
             editor_command: db.get_or(keys::EDITOR_COMMAND, defaults::EDITOR_COMMAND),
@@ -63,6 +69,8 @@ impl UserSettings {
         db.set_bool(keys::UI_CONFIRM_DELETES, self.ui_confirm_deletes)?;
         db.set_u32(keys::UI_TOAST_DURATION_MS, self.ui_toast_duration_ms)?;
         db.set_bool(keys::UI_SHOW_SETUP_LOG, self.ui_show_setup_log)?;
+        db.set(keys::UI_LANGUAGE, &self.ui_language)?;
+        db.set(keys::UI_THEME, &self.ui_theme)?;
         db.set(keys::SSH_DEFAULT_KEY_TYPE, &self.ssh_default_key_type)?;
         db.set(keys::EDITOR_COMMAND, &self.editor_command)?;
         Ok(())

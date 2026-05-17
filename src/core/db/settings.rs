@@ -12,6 +12,8 @@ pub mod keys {
     pub const UI_CONFIRM_DELETES: &str = "ui.confirm_deletes";
     pub const UI_TOAST_DURATION_MS: &str = "ui.toast_duration_ms";
     pub const UI_SHOW_SETUP_LOG: &str = "ui.show_setup_log_on_warn";
+    pub const UI_LANGUAGE: &str = "ui.language";
+    pub const UI_THEME: &str = "ui.theme";
     pub const SSH_DEFAULT_KEY_TYPE: &str = "ssh.default_key_type";
     pub const EDITOR_COMMAND: &str = "editor.command";
 }
@@ -26,6 +28,8 @@ pub mod defaults {
     pub const UI_CONFIRM_DELETES: &str = "true";
     pub const UI_TOAST_DURATION_MS: &str = "4000";
     pub const UI_SHOW_SETUP_LOG: &str = "true";
+    pub const UI_LANGUAGE: &str = "en";
+    pub const UI_THEME: &str = "dark";
     pub const SSH_DEFAULT_KEY_TYPE: &str = "Ed25519";
     pub const EDITOR_COMMAND: &str = "xdg-open";
 }

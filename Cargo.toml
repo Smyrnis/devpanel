@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.9.13"
+version = "0.9.15"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -32,6 +32,7 @@ rusqlite          = { version = "0.31", features = ["bundled"] }
 rusqlite_migration = "1.2"
 thiserror         = "2"
 notify            = "6"
+serde_json        = "1"
 
 [dev-dependencies]
 tempfile = "3"
@@ -53,6 +54,8 @@ assets = [
   ["devpanel.jpg",                         "usr/share/pixmaps/devpanel.png",  "644"],
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
+  ["share/languages/en.json",          "usr/share/devpanel/languages/",   "644"],
+  ["share/themes/dark.json",           "usr/share/devpanel/themes/",      "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
   ["installation/devpanel-setup.sh",   "usr/share/devpanel/installation/","755"],
   ["installation/lib/log.sh",          "usr/share/devpanel/installation/lib/","755"],

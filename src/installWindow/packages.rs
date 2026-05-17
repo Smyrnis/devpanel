@@ -1,53 +1,55 @@
+use crate::lang::lang_map::install as keys;
+
 pub(super) struct InstallItem {
     pub package: &'static str,
-    pub purpose: &'static str,
+    pub purpose_key: &'static str,
     pub core: bool,
 }
 
 pub(super) const INSTALL_ITEMS: &[InstallItem] = &[
     InstallItem {
         package: "apache2",
-        purpose: "HTTP server",
+        purpose_key: keys::PURPOSE_HTTP_SERVER,
         core: true,
     },
     InstallItem {
         package: "libapache2-mod-php",
-        purpose: "PHP module for Apache",
+        purpose_key: keys::PURPOSE_APACHE_PHP_MODULE,
         core: true,
     },
     InstallItem {
         package: "php8.2",
-        purpose: "PHP 8.2 CLI + common extensions",
+        purpose_key: keys::PURPOSE_PHP_COMMON,
         core: true,
     },
     InstallItem {
         package: "php8.2-cli",
-        purpose: "PHP command-line interface",
+        purpose_key: keys::PURPOSE_PHP_CLI,
         core: true,
     },
     InstallItem {
         package: "php8.2-common",
-        purpose: "Shared PHP extensions",
+        purpose_key: keys::PURPOSE_SHARED_PHP_EXTENSIONS,
         core: true,
     },
     InstallItem {
         package: "php8.2-mysql",
-        purpose: "MySQL / MariaDB driver",
+        purpose_key: keys::PURPOSE_MYSQL_DRIVER,
         core: false,
     },
     InstallItem {
         package: "php8.2-xml",
-        purpose: "XML / DOM / SimpleXML support",
+        purpose_key: keys::PURPOSE_XML_SUPPORT,
         core: false,
     },
     InstallItem {
         package: "php8.2-mbstring",
-        purpose: "Multibyte string functions",
+        purpose_key: keys::PURPOSE_MBSTRING,
         core: false,
     },
     InstallItem {
         package: "mysql-server",
-        purpose: "MySQL / MariaDB database server",
+        purpose_key: keys::PURPOSE_MYSQL_SERVER,
         core: false,
     },
 ];

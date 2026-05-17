@@ -1,5 +1,6 @@
 use super::{KeyType, SshKeysTab, StatusKind};
-use crate::core::theme::*;
+use crate::core::theme::{self, theme_map as theme_keys};
+use crate::lang::{lang_map::ssh_keys as keys, text as tr};
 use crate::messages::{Message, SshKeysMessage};
 use iced::widget::{Space, button, column, container, radio, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
@@ -8,11 +9,13 @@ pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
     scrollable(
         column![
             column![
-                text("SSH Key Manager").size(22).color(TEXT_PRIMARY),
+                text(tr(keys::TITLE))
+                    .size(22)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(4),
-                text("Generate and manage SSH keys for this machine")
+                text(tr(keys::SUBTITLE))
                     .size(13)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0),
             Space::with_height(22),
@@ -30,26 +33,35 @@ pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
 
 fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     let type_row = row![
-        radio("Ed25519", KeyType::Ed25519, Some(tab.key_type), |_| {
-            Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Ed25519))
-        }),
+        radio(
+            tr(keys::KEY_ED25519),
+            KeyType::Ed25519,
+            Some(tab.key_type),
+            |_| { Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Ed25519)) }
+        ),
         Space::with_width(14),
-        radio("RSA 4096", KeyType::Rsa4096, Some(tab.key_type), |_| {
-            Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Rsa4096))
-        }),
+        radio(
+            tr(keys::KEY_RSA_4096),
+            KeyType::Rsa4096,
+            Some(tab.key_type),
+            |_| { Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Rsa4096)) }
+        ),
         Space::with_width(14),
-        radio("ECDSA", KeyType::Ecdsa, Some(tab.key_type), |_| {
-            Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Ecdsa))
-        }),
+        radio(
+            tr(keys::KEY_ECDSA),
+            KeyType::Ecdsa,
+            Some(tab.key_type),
+            |_| { Message::SshKeys(SshKeysMessage::KeyTypeChanged(KeyType::Ecdsa)) }
+        ),
     ]
     .align_y(Alignment::Center);
 
     let pass_row = row![
         text_input(
             if tab.show_passphrase {
-                "passphrase"
+                tr(keys::PASSPHRASE_PLACEHOLDER)
             } else {
-                "(hidden)"
+                tr(keys::HIDDEN_PLACEHOLDER)
             },
             &tab.passphrase
         )
@@ -58,12 +70,19 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .padding(10)
         .size(13)
         .width(Length::Fill),
-        button(text(if tab.show_passphrase { "Hide" } else { "Show" }).size(12))
-            .on_press(Message::SshKeys(SshKeysMessage::TogglePassphrase(
-                !tab.show_passphrase
-            )))
-            .padding(Padding::from([10, 14]))
-            .style(ghost_style()),
+        button(
+            text(if tab.show_passphrase {
+                tr(keys::HIDE)
+            } else {
+                tr(keys::SHOW)
+            })
+            .size(12)
+        )
+        .on_press(Message::SshKeys(SshKeysMessage::TogglePassphrase(
+            !tab.show_passphrase
+        )))
+        .padding(Padding::from([10, 14]))
+        .style(ghost_style()),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -72,55 +91,59 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(1)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BORDER_SUBTLE.into()),
+            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
             ..Default::default()
         });
 
     container(
         column![
-            text("Generate New Key").size(14).color(TEXT_SECONDARY),
+            text(tr(keys::GENERATE_PANEL_TITLE))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(18),
-            lbl("Email address"),
+            lbl(tr(keys::EMAIL_LABEL)),
             Space::with_height(5),
-            text_input("user@example.com", &tab.email)
+            text_input(tr(keys::EMAIL_PLACEHOLDER), &tab.email)
                 .on_input(|v| Message::SshKeys(SshKeysMessage::EmailChanged(v)))
                 .padding(10)
                 .size(13),
             Space::with_height(14),
-            lbl("Key filename"),
+            lbl(tr(keys::KEY_FILENAME_LABEL)),
             Space::with_height(5),
-            text_input("id_ed25519", &tab.key_name)
+            text_input(tr(keys::KEY_FILENAME_PLACEHOLDER), &tab.key_name)
                 .on_input(|v| Message::SshKeys(SshKeysMessage::KeyNameChanged(v)))
                 .padding(10)
                 .size(13),
             Space::with_height(14),
-            lbl("Key type"),
+            lbl(tr(keys::KEY_TYPE_LABEL)),
             Space::with_height(8),
             type_row,
             Space::with_height(14),
-            lbl("Passphrase (optional)"),
+            lbl(tr(keys::PASSPHRASE_LABEL)),
             Space::with_height(5),
             pass_row,
             Space::with_height(20),
             divider,
             Space::with_height(16),
-            button(text("Generate Key").size(13))
+            button(text(tr(keys::GENERATE_KEY)).size(13))
                 .on_press(Message::SshKeys(SshKeysMessage::GenerateKey))
                 .padding(Padding::from([10, 22]))
-                .style(btn_style(ACCENT)),
+                .style(btn_style(theme::color(theme_keys::ACCENT))),
             Space::with_height(16),
-            text("Quick Actions").size(11).color(TEXT_MUTED),
+            text(tr(keys::QUICK_ACTIONS))
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(8),
             row![
-                button(text("Add Existing").size(12))
+                button(text(tr(keys::ADD_EXISTING)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::AddExisting))
                     .padding(Padding::from([8, 14]))
                     .style(ghost_style()),
-                button(text("Open ~/.ssh").size(12))
+                button(text(tr(keys::OPEN_SSH_DIR)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::OpenDir))
                     .padding(Padding::from([8, 14]))
                     .style(ghost_style()),
-                button(text("Refresh").size(12))
+                button(text(tr(keys::REFRESH)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::ListKeys))
                     .padding(Padding::from([8, 14]))
                     .style(ghost_style()),
@@ -139,9 +162,9 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     let entries: Vec<Element<Message>> = if tab.keys_list.is_empty() {
         vec![
             container(
-                text("No keys found. Click Refresh.")
+                text(tr(keys::NO_KEYS))
                     .size(13)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             )
             .padding(Padding::from([20, 16]))
             .into(),
@@ -151,59 +174,71 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             .iter()
             .map(|k| {
                 let pub_badge: Element<Message> = if k.has_pub {
-                    container(text(".pub").size(10).color(GREEN))
-                        .padding(Padding::from([3, 8]))
-                        .style(|_: &iced::Theme| container::Style {
-                            background: Some(
-                                Color {
-                                    r: 0.050,
-                                    g: 0.160,
-                                    b: 0.090,
-                                    a: 1.0,
-                                }
-                                .into(),
-                            ),
-                            border: Border {
-                                radius: 20.0.into(),
-                                ..Default::default()
-                            },
+                    container(
+                        text(tr(keys::PUB_BADGE))
+                            .size(10)
+                            .color(theme::color(theme_keys::GREEN)),
+                    )
+                    .padding(Padding::from([3, 8]))
+                    .style(|_: &iced::Theme| container::Style {
+                        background: Some(
+                            Color {
+                                r: 0.050,
+                                g: 0.160,
+                                b: 0.090,
+                                a: 1.0,
+                            }
+                            .into(),
+                        ),
+                        border: Border {
+                            radius: 20.0.into(),
                             ..Default::default()
-                        })
-                        .into()
+                        },
+                        ..Default::default()
+                    })
+                    .into()
                 } else {
                     Space::with_width(0).into()
                 };
                 let agent_badge: Element<Message> = if k.loaded_in_agent {
-                    container(text("agent").size(10).color(TEAL))
-                        .padding(Padding::from([3, 8]))
-                        .style(|_: &iced::Theme| container::Style {
-                            background: Some(
-                                Color {
-                                    r: 0.040,
-                                    g: 0.160,
-                                    b: 0.150,
-                                    a: 1.0,
-                                }
-                                .into(),
-                            ),
-                            border: Border {
-                                radius: 20.0.into(),
-                                ..Default::default()
-                            },
+                    container(
+                        text(tr(keys::AGENT_BADGE))
+                            .size(10)
+                            .color(theme::color(theme_keys::TEAL)),
+                    )
+                    .padding(Padding::from([3, 8]))
+                    .style(|_: &iced::Theme| container::Style {
+                        background: Some(
+                            Color {
+                                r: 0.040,
+                                g: 0.160,
+                                b: 0.150,
+                                a: 1.0,
+                            }
+                            .into(),
+                        ),
+                        border: Border {
+                            radius: 20.0.into(),
                             ..Default::default()
-                        })
-                        .into()
+                        },
+                        ..Default::default()
+                    })
+                    .into()
                 } else {
                     Space::with_width(0).into()
                 };
                 let copy_btn: Element<Message> = if k.has_pub {
-                    button(text("Copy").size(11).color(TEXT_PRIMARY))
-                        .on_press(Message::SshKeys(SshKeysMessage::CopyPublicKey(
-                            k.path.clone(),
-                        )))
-                        .padding(Padding::from([5, 10]))
-                        .style(ghost_style())
-                        .into()
+                    button(
+                        text(tr(keys::COPY))
+                            .size(11)
+                            .color(theme::color(theme_keys::TEXT_PRIMARY)),
+                    )
+                    .on_press(Message::SshKeys(SshKeysMessage::CopyPublicKey(
+                        k.path.clone(),
+                    )))
+                    .padding(Padding::from([5, 10]))
+                    .style(ghost_style())
+                    .into()
                 } else {
                     Space::with_width(0).into()
                 };
@@ -211,8 +246,8 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
                     "{}{}",
                     k.created
                         .as_deref()
-                        .map(|d| format!("created {}", d))
-                        .unwrap_or_else(|| "created n/a".into()),
+                        .map(|d| format!("{} {}", tr(keys::CREATED_PREFIX), d))
+                        .unwrap_or_else(|| tr(keys::CREATED_UNKNOWN).into()),
                     k.fingerprint
                         .as_deref()
                         .map(|f| format!(" · {}", f))
@@ -222,11 +257,17 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
                 container(
                     row![
                         column![
-                            text(&k.name).size(13).color(TEXT_PRIMARY),
+                            text(&k.name)
+                                .size(13)
+                                .color(theme::color(theme_keys::TEXT_PRIMARY)),
                             Space::with_height(2),
-                            text(&k.path).size(10).color(TEXT_MUTED),
+                            text(&k.path)
+                                .size(10)
+                                .color(theme::color(theme_keys::TEXT_MUTED)),
                             Space::with_height(2),
-                            text(meta).size(10).color(TEXT_MUTED),
+                            text(meta)
+                                .size(10)
+                                .color(theme::color(theme_keys::TEXT_MUTED)),
                         ]
                         .spacing(0)
                         .width(Length::Fill),
@@ -240,9 +281,9 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
                 .padding(Padding::from([11, 14]))
                 .width(Length::Fill)
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(BG_SURFACE.into()),
+                    background: Some(theme::color(theme_keys::BG_SURFACE).into()),
                     border: Border {
-                        color: BORDER_SUBTLE,
+                        color: theme::color(theme_keys::BORDER_SUBTLE),
                         width: 1.0,
                         radius: 8.0.into(),
                     },
@@ -256,20 +297,20 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     container(
         column![
             row![
-                text("SSH Keys")
+                text(tr(keys::KEYS_PANEL_TITLE))
                     .size(14)
-                    .color(TEXT_SECONDARY)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY))
                     .width(Length::Fill),
                 container(
                     text(format!("{}", tab.keys_list.len()))
                         .size(11)
-                        .color(TEXT_MUTED)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
                 )
                 .padding(Padding::from([3, 8]))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(BG_SURFACE.into()),
+                    background: Some(theme::color(theme_keys::BG_SURFACE).into()),
                     border: Border {
-                        color: BORDER_SUBTLE,
+                        color: theme::color(theme_keys::BORDER_SUBTLE),
                         width: 1.0,
                         radius: 20.0.into()
                     },
@@ -294,7 +335,7 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
     }
     let (color, border_color, icon) = match tab.status_kind {
         StatusKind::Success => (
-            GREEN,
+            theme::color(theme_keys::GREEN),
             Color {
                 r: 0.070,
                 g: 0.210,
@@ -304,7 +345,7 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
             "+",
         ),
         StatusKind::Error => (
-            RED,
+            theme::color(theme_keys::RED),
             Color {
                 r: 0.300,
                 g: 0.090,
@@ -314,7 +355,7 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
             "x",
         ),
         StatusKind::Info => (
-            BLUE,
+            theme::color(theme_keys::BLUE),
             Color {
                 r: 0.080,
                 g: 0.140,
@@ -323,11 +364,15 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
             },
             "i",
         ),
-        StatusKind::None => (TEXT_MUTED, BORDER_SUBTLE, ""),
+        StatusKind::None => (
+            theme::color(theme_keys::TEXT_MUTED),
+            theme::color(theme_keys::BORDER_SUBTLE),
+            "",
+        ),
     };
     container(
         row![
-            container(text(icon).size(10).color(Color::WHITE))
+            container(text(icon).size(10).color(theme::color(theme_keys::WHITE)))
                 .padding(Padding::from([3, 6]))
                 .style(move |_: &iced::Theme| container::Style {
                     background: Some(color.into()),
@@ -338,14 +383,16 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
                     ..Default::default()
                 }),
             Space::with_width(10),
-            text(&tab.status_message).size(13).color(TEXT_PRIMARY),
+            text(&tab.status_message)
+                .size(13)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
         ]
         .align_y(Alignment::Center),
     )
     .padding(Padding::from([12, 16]))
     .width(Length::Fill)
     .style(move |_: &iced::Theme| container::Style {
-        background: Some(BG_CARD.into()),
+        background: Some(theme::color(theme_keys::BG_CARD).into()),
         border: Border {
             color: border_color,
             width: 1.0,
@@ -358,9 +405,9 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_: &iced::Theme| container::Style {
-        background: Some(BG_CARD.into()),
+        background: Some(theme::color(theme_keys::BG_CARD).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 10.0.into(),
         },
@@ -374,7 +421,7 @@ fn btn_style(
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             iced::widget::button::Style {
                 background: Some(Color::from_rgba(bg.r, bg.g, bg.b, 0.82).into()),
-                text_color: Color::WHITE,
+                text_color: theme::color(theme_keys::WHITE),
                 border: Border {
                     radius: 8.0.into(),
                     ..Default::default()
@@ -388,7 +435,7 @@ fn btn_style(
         }
         _ => iced::widget::button::Style {
             background: Some(bg.into()),
-            text_color: Color::WHITE,
+            text_color: theme::color(theme_keys::WHITE),
             border: Border {
                 radius: 8.0.into(),
                 ..Default::default()
@@ -402,10 +449,10 @@ fn ghost_style()
     |_, status| match status {
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             iced::widget::button::Style {
-                background: Some(BG_HOVER.into()),
-                text_color: TEXT_PRIMARY,
+                background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                text_color: theme::color(theme_keys::TEXT_PRIMARY),
                 border: Border {
-                    color: BORDER_MED,
+                    color: theme::color(theme_keys::BORDER_MED),
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -413,10 +460,10 @@ fn ghost_style()
             }
         }
         _ => iced::widget::button::Style {
-            background: Some(BG_CARD.into()),
-            text_color: TEXT_SECONDARY,
+            background: Some(theme::color(theme_keys::BG_CARD).into()),
+            text_color: theme::color(theme_keys::TEXT_SECONDARY),
             border: Border {
-                color: BORDER_SUBTLE,
+                color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
                 radius: 8.0.into(),
             },
@@ -425,5 +472,8 @@ fn ghost_style()
     }
 }
 fn lbl<'a>(s: &'a str) -> Element<'a, Message> {
-    text(s).size(11).color(TEXT_MUTED).into()
+    text(s)
+        .size(11)
+        .color(theme::color(theme_keys::TEXT_MUTED))
+        .into()
 }

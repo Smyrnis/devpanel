@@ -215,6 +215,8 @@ pub enum ConfigMessage {
     UiConfirmDeletesChanged(bool),
     UiToastDurationChanged(u32),
     UiShowSetupLogChanged(bool),
+    UiLanguageChanged(String),
+    UiThemeChanged(String),
     SshDefaultKeyTypeChanged(String),
     EditorCommandChanged(String),
 }

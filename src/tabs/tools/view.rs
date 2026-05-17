@@ -2,7 +2,8 @@ use super::{
     ApacheModule, InstalledTools, PhpExtension, PhpRelease, PhpStatus, ToolSection, ToolsTab,
 };
 use crate::core::paths;
-use crate::core::theme::*;
+use crate::core::theme::{self, theme_map as theme_keys};
+use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
@@ -11,35 +12,34 @@ pub fn render(tab: &ToolsTab) -> Element<'_, Message> {
     scrollable(
         column![
             column![
-                text("Tools").size(22).color(TEXT_PRIMARY),
+                text(tr(keys::TITLE))
+                    .size(22)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(4),
-                text("Manage PHP, Apache modules, extensions and database")
+                text(tr(keys::SUBTITLE))
                     .size(13)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0),
             Space::with_height(18),
             section_tabs(tab),
             Space::with_height(10),
-            text_input(
-                "Search PHP extensions, Apache modules, and tools...",
-                &tab.tool_search
-            )
-            .on_input(|v| Message::Tools(ToolsMessage::ToolSearchChanged(v)))
-            .padding(Padding::from([7, 12]))
-            .size(12)
-            .style(|_, _| iced::widget::text_input::Style {
-                background: BG_SURFACE.into(),
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 8.0.into()
-                },
-                icon: TEXT_MUTED,
-                placeholder: TEXT_MUTED,
-                value: TEXT_PRIMARY,
-                selection: TEAL,
-            }),
+            text_input(tr(keys::SEARCH_PLACEHOLDER), &tab.tool_search)
+                .on_input(|v| Message::Tools(ToolsMessage::ToolSearchChanged(v)))
+                .padding(Padding::from([7, 12]))
+                .size(12)
+                .style(|_, _| iced::widget::text_input::Style {
+                    background: theme::color(theme_keys::BG_SURFACE).into(),
+                    border: Border {
+                        color: theme::color(theme_keys::BORDER_SUBTLE),
+                        width: 1.0,
+                        radius: 8.0.into()
+                    },
+                    icon: theme::color(theme_keys::TEXT_MUTED),
+                    placeholder: theme::color(theme_keys::TEXT_MUTED),
+                    value: theme::color(theme_keys::TEXT_PRIMARY),
+                    selection: theme::color(theme_keys::TEAL),
+                }),
             Space::with_height(16),
             match tab.active_section {
                 ToolSection::Php => php_panel(tab),
@@ -70,20 +70,28 @@ pub fn render(tab: &ToolsTab) -> Element<'_, Message> {
 
 fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
     let sections = [
-        (ToolSection::Php, "PHP Versions"),
-        (ToolSection::ApacheMods, "Apache Modules"),
-        (ToolSection::PhpExts, "PHP Extensions"),
-        (ToolSection::Runtimes, "Runtimes"),
-        (ToolSection::Database, "Database CLI"),
+        (ToolSection::Php, tr(keys::SECTION_PHP_VERSIONS)),
+        (ToolSection::ApacheMods, tr(keys::SECTION_APACHE_MODULES)),
+        (ToolSection::PhpExts, tr(keys::SECTION_PHP_EXTENSIONS)),
+        (ToolSection::Runtimes, tr(keys::SECTION_RUNTIMES)),
+        (ToolSection::Database, tr(keys::SECTION_DATABASE)),
     ];
     let tabs: Vec<Element<Message>> = sections
         .iter()
         .map(|(sec, label)| {
             let active = *sec == tab.active_section;
             let (color, bg, bg_hover) = if active {
-                (TEAL, TEAL_BG, TEAL_HOVER)
+                (
+                    theme::color(theme_keys::TEAL),
+                    theme::color(theme_keys::TEAL_BG),
+                    theme::color(theme_keys::TEAL_HOVER),
+                )
             } else {
-                (TEXT_MUTED, BG_SURFACE, BG_HOVER)
+                (
+                    theme::color(theme_keys::TEXT_MUTED),
+                    theme::color(theme_keys::BG_SURFACE),
+                    theme::color(theme_keys::BG_HOVER),
+                )
             };
             let msg = match sec {
                 ToolSection::Php => Message::Tools(ToolsMessage::SetSection(ToolSection::Php)),
@@ -109,7 +117,11 @@ fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
                         background: Some(bg_hover.into()),
                         text_color: color,
                         border: Border {
-                            color: if active { TEAL_BORDER } else { BORDER_SUBTLE },
+                            color: if active {
+                                theme::color(theme_keys::TEAL_BORDER)
+                            } else {
+                                theme::color(theme_keys::BORDER_SUBTLE)
+                            },
                             width: 1.0,
                             radius: 8.0.into(),
                         },
@@ -119,7 +131,11 @@ fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
                         background: Some(bg.into()),
                         text_color: color,
                         border: Border {
-                            color: if active { TEAL_BORDER } else { BORDER_SUBTLE },
+                            color: if active {
+                                theme::color(theme_keys::TEAL_BORDER)
+                            } else {
+                                theme::color(theme_keys::BORDER_SUBTLE)
+                            },
                             width: 1.0,
                             radius: 8.0.into(),
                         },
@@ -133,45 +149,55 @@ fn section_tabs(tab: &ToolsTab) -> Element<'_, Message> {
 }
 
 fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
-    let scan_lbl = if tab.scanning { "Scanning…" } else { "Scan" };
+    let scan_lbl = if tab.scanning {
+        tr(keys::SCANNING)
+    } else {
+        tr(keys::SCAN)
+    };
     let header = row![
         column![
-            text("PHP Versions").size(14).color(TEXT_SECONDARY),
+            text(tr(keys::SECTION_PHP_VERSIONS))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(3),
-            text("Install / switch PHP via apt · enable Apache PHP module per version")
+            text(tr(keys::PHP_VERSIONS_HELP))
                 .size(11)
-                .color(TEXT_MUTED),
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .width(Length::Fill),
-        button(text(scan_lbl).size(12).color(TEAL))
-            .on_press_maybe(if tab.scanning {
-                None
-            } else {
-                Some(Message::Tools(ToolsMessage::ScanPhp))
-            })
-            .padding(Padding::from([7, 14]))
-            .style(|_, status| match status {
-                iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                    iced::widget::button::Style {
-                        background: Some(TEAL_HOVER.into()),
-                        text_color: TEAL,
-                        border: Border {
-                            radius: 8.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                _ => iced::widget::button::Style {
-                    background: Some(TEAL_BG.into()),
-                    text_color: TEAL,
+        button(
+            text(scan_lbl)
+                .size(12)
+                .color(theme::color(theme_keys::TEAL))
+        )
+        .on_press_maybe(if tab.scanning {
+            None
+        } else {
+            Some(Message::Tools(ToolsMessage::ScanPhp))
+        })
+        .padding(Padding::from([7, 14]))
+        .style(|_, status| match status {
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+                iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEAL),
                     border: Border {
                         radius: 8.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
                 },
-            }),
+            _ => iced::widget::button::Style {
+                background: Some(theme::color(theme_keys::TEAL_BG).into()),
+                text_color: theme::color(theme_keys::TEAL),
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        }),
     ]
     .align_y(Alignment::Center);
 
@@ -183,68 +209,122 @@ fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .map(php_row)
         .collect();
 
-    container(column![
-        header, Space::with_height(18), thin_line(), Space::with_height(14),
-        container(row![
-            Space::with_width(19 + 12),
-            text("Version / apt status").size(10).color(TEXT_MUTED).width(Length::Fill),
-            text("Apache mod").size(10).color(TEXT_MUTED).width(160),
-            Space::with_width(12),
-            text("apt action").size(10).color(TEXT_MUTED),
-        ].align_y(Alignment::Center)).padding(Padding::from([0, 14])),
-        Space::with_height(6),
-        column(rows).spacing(8),
-        Space::with_height(16),
-        container(row![
-            text("i").size(10).color(BLUE), Space::with_width(8),
-            column![
-                text("Requires ondrej/php PPA for multiple PHP versions.").size(11).color(TEXT_MUTED),
-                Space::with_height(3),
-                text("Apache mod: enables libapache2-mod-phpX.Y so Apache serves that PHP version directly.").size(11).color(TEXT_MUTED),
-            ].spacing(0),
-        ].align_y(Alignment::Start)).padding(Padding::from([10, 12])).width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style { background: Some(BLUE_BG.into()),
-            border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() }),
-    ].spacing(0).padding(Padding::from([22, 22]))).width(Length::Fill).style(card_style()).into()
+    container(
+        column![
+            header,
+            Space::with_height(18),
+            thin_line(),
+            Space::with_height(14),
+            container(
+                row![
+                    Space::with_width(19 + 12),
+                    text(tr(keys::VERSION_APT_STATUS))
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                        .width(Length::Fill),
+                    text(tr(keys::APACHE_MOD))
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                        .width(160),
+                    Space::with_width(12),
+                    text(tr(keys::APT_ACTION))
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                ]
+                .align_y(Alignment::Center)
+            )
+            .padding(Padding::from([0, 14])),
+            Space::with_height(6),
+            column(rows).spacing(8),
+            Space::with_height(16),
+            container(
+                row![
+                    text("i").size(10).color(theme::color(theme_keys::BLUE)),
+                    Space::with_width(8),
+                    column![
+                        text(tr(keys::PHP_PPA_NOTE))
+                            .size(11)
+                            .color(theme::color(theme_keys::TEXT_MUTED)),
+                        Space::with_height(3),
+                        text(tr(keys::APACHE_MOD_NOTE))
+                            .size(11)
+                            .color(theme::color(theme_keys::TEXT_MUTED)),
+                    ]
+                    .spacing(0),
+                ]
+                .align_y(Alignment::Start)
+            )
+            .padding(Padding::from([10, 12]))
+            .width(Length::Fill)
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BLUE_BG).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BLUE_BORDER),
+                    width: 1.0,
+                    radius: 8.0.into()
+                },
+                ..Default::default()
+            }),
+        ]
+        .spacing(0)
+        .padding(Padding::from([22, 22])),
+    )
+    .width(Length::Fill)
+    .style(card_style())
+    .into()
 }
 
 fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
     let (status_color, status_label) = match r.status {
-        PhpStatus::Installed => (GREEN, "Installed"),
-        PhpStatus::Available => (TEXT_MUTED, "Available"),
-        PhpStatus::Unknown => (TEXT_MUTED, "Unknown"),
+        PhpStatus::Installed => (theme::color(theme_keys::GREEN), tr(keys::STATUS_INSTALLED)),
+        PhpStatus::Available => (
+            theme::color(theme_keys::TEXT_MUTED),
+            tr(keys::STATUS_AVAILABLE),
+        ),
+        PhpStatus::Unknown => (
+            theme::color(theme_keys::TEXT_MUTED),
+            tr(keys::STATUS_UNKNOWN),
+        ),
     };
     let is_php56 = r.version == "5.6";
 
     let active_badge: Element<Message> = if r.is_active {
-        container(text("Active").size(10).color(TEAL))
-            .padding(Padding::from([3, 8]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(TEAL_BG.into()),
-                border: Border {
-                    radius: 20.0.into(),
-                    ..Default::default()
-                },
+        container(
+            text(tr(keys::ACTIVE))
+                .size(10)
+                .color(theme::color(theme_keys::TEAL)),
+        )
+        .padding(Padding::from([3, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::TEAL_BG).into()),
+            border: Border {
+                radius: 20.0.into(),
                 ..Default::default()
-            })
-            .into()
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
         Space::with_width(0).into()
     };
 
     let eol_badge: Element<Message> = if is_php56 {
-        container(text("EOL").size(9).color(YELLOW))
-            .padding(Padding::from([3, 7]))
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(YELLOW_BG.into()),
-                border: Border {
-                    color: YELLOW_BORDER,
-                    width: 1.0,
-                    radius: 20.0.into(),
-                },
-                ..Default::default()
-            })
-            .into()
+        container(
+            text(tr(keys::EOL))
+                .size(9)
+                .color(theme::color(theme_keys::YELLOW)),
+        )
+        .padding(Padding::from([3, 7]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::YELLOW_BG).into()),
+            border: Border {
+                color: theme::color(theme_keys::YELLOW_BORDER),
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
         Space::with_width(0).into()
     };
@@ -253,17 +333,17 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
 
     let apt_btn: Element<Message> = match r.status {
         PhpStatus::Installed => small_action_btn(
-            "Remove",
-            RED,
-            RED_BG,
-            RED_HOVER,
+            tr(keys::REMOVE),
+            theme::color(theme_keys::RED),
+            theme::color(theme_keys::RED_BG),
+            theme::color(theme_keys::RED_HOVER),
             Message::Tools(ToolsMessage::RemovePhp(r.version.clone())),
         ),
         _ => small_action_btn(
-            "Install",
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
+            tr(keys::INSTALL),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
             Message::Tools(ToolsMessage::InstallPhp(r.version.clone())),
         ),
     };
@@ -271,37 +351,44 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
     let mod_name = format!("php{}", r.version);
     let (mod_dot_color, mod_status_lbl) = if r.apache_mod_available {
         if r.apache_mod_enabled {
-            (GREEN, "enabled")
+            (theme::color(theme_keys::GREEN), tr(keys::STATUS_ENABLED))
         } else {
-            (YELLOW, "disabled")
+            (theme::color(theme_keys::YELLOW), tr(keys::STATUS_DISABLED))
         }
     } else {
-        (BORDER_SUBTLE, "not available")
+        (
+            theme::color(theme_keys::BORDER_SUBTLE),
+            tr(keys::STATUS_NOT_AVAILABLE),
+        )
     };
     let mod_dot = status_dot(mod_dot_color);
 
     let apache_btn: Element<Message> = if r.apache_mod_available {
         if r.apache_mod_enabled {
             small_action_btn(
-                "Disable mod",
-                RED,
-                RED_BG,
-                RED_HOVER,
+                tr(keys::DISABLE_MOD),
+                theme::color(theme_keys::RED),
+                theme::color(theme_keys::RED_BG),
+                theme::color(theme_keys::RED_HOVER),
                 Message::Tools(ToolsMessage::DisableApacheMod(mod_name)),
             )
         } else {
             small_action_btn(
-                "Enable mod",
-                BLUE,
-                BLUE_BG,
-                BLUE_HOVER,
+                tr(keys::ENABLE_MOD),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
                 Message::Tools(ToolsMessage::EnableApacheMod(mod_name)),
             )
         }
     } else {
-        container(text("no apache mod").size(10).color(TEXT_MUTED))
-            .padding(Padding::from([6, 0]))
-            .into()
+        container(
+            text(tr(keys::NO_APACHE_MOD))
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        )
+        .padding(Padding::from([6, 0]))
+        .into()
     };
 
     let card: Element<Message> = container(
@@ -312,7 +399,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
                 row![
                     text(format!("PHP {}", r.version))
                         .size(14)
-                        .color(TEXT_PRIMARY),
+                        .color(theme::color(theme_keys::TEXT_PRIMARY)),
                     Space::with_width(8),
                     active_badge,
                     Space::with_width(4),
@@ -328,7 +415,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
                 .width(1)
                 .height(34)
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(BORDER_SUBTLE.into()),
+                    background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
                     ..Default::default()
                 }),
             Space::with_width(12),
@@ -336,7 +423,9 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
                 row![
                     mod_dot,
                     Space::with_width(6),
-                    text(mod_status_lbl).size(10).color(TEXT_MUTED)
+                    text(mod_status_lbl)
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
                 ]
                 .align_y(Alignment::Center),
                 Space::with_height(5),
@@ -352,9 +441,9 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
     .padding(Padding::from([12, 14]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -367,20 +456,20 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
             Space::with_height(4),
             container(
                 row![
-                    text("!").size(9).color(YELLOW),
+                    text("!").size(9).color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(6),
-                    text("Requires ondrej/php PPA:  sudo add-apt-repository ppa:ondrej/php")
+                    text(tr(keys::PHP56_PPA_HINT))
                         .size(10)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
             )
             .padding(Padding::from([6, 14]))
             .width(Length::Fill)
             .style(|_: &iced::Theme| container::Style {
-                background: Some(YELLOW_BG.into()),
+                background: Some(theme::color(theme_keys::YELLOW_BG).into()),
                 border: Border {
-                    color: YELLOW_BORDER,
+                    color: theme::color(theme_keys::YELLOW_BORDER),
                     width: 1.0,
                     radius: 6.0.into()
                 },
@@ -398,51 +487,59 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
 
 fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let scan_lbl = if tab.mods_scanning {
-        "Scanning…"
+        tr(keys::SCANNING)
     } else {
-        "Scan"
+        tr(keys::SCAN)
     };
     let header = row![
         column![
-            text("Apache Modules").size(14).color(TEXT_SECONDARY),
+            text(tr(keys::SECTION_APACHE_MODULES))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(3),
             text(format!(
-                "All modules in {} - enable or disable via a2enmod / a2dismod",
-                paths::APACHE_MODS_AVAILABLE
+                "{} {} - {}",
+                tr(keys::APACHE_MODULES_HELP_PREFIX),
+                paths::APACHE_MODS_AVAILABLE,
+                tr(keys::APACHE_MODULES_HELP_SUFFIX),
             ))
             .size(11)
-            .color(TEXT_MUTED),
+            .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .width(Length::Fill),
-        button(text(scan_lbl).size(12).color(TEAL))
-            .on_press_maybe(if tab.mods_scanning {
-                None
-            } else {
-                Some(Message::Tools(ToolsMessage::ScanApacheMods))
-            })
-            .padding(Padding::from([7, 14]))
-            .style(|_, status| match status {
-                iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                    iced::widget::button::Style {
-                        background: Some(TEAL_HOVER.into()),
-                        text_color: TEAL,
-                        border: Border {
-                            radius: 8.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                _ => iced::widget::button::Style {
-                    background: Some(TEAL_BG.into()),
-                    text_color: TEAL,
+        button(
+            text(scan_lbl)
+                .size(12)
+                .color(theme::color(theme_keys::TEAL))
+        )
+        .on_press_maybe(if tab.mods_scanning {
+            None
+        } else {
+            Some(Message::Tools(ToolsMessage::ScanApacheMods))
+        })
+        .padding(Padding::from([7, 14]))
+        .style(|_, status| match status {
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+                iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEAL),
                     border: Border {
                         radius: 8.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
                 },
-            }),
+            _ => iced::widget::button::Style {
+                background: Some(theme::color(theme_keys::TEAL_BG).into()),
+                text_color: theme::color(theme_keys::TEAL),
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        }),
     ]
     .align_y(Alignment::Center);
 
@@ -450,21 +547,21 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let enabled = tab.apache_mods.iter().filter(|m| m.enabled).count();
 
     let filter_row = row![
-        text_input("Filter modules…", &tab.mod_filter)
+        text_input(tr(keys::FILTER_MODULES), &tab.mod_filter)
             .on_input(|v| Message::Tools(ToolsMessage::ModFilterChanged(v)))
             .padding(Padding::from([7, 12]))
             .size(12)
             .style(|_, _| iced::widget::text_input::Style {
-                background: BG_SURFACE.into(),
+                background: theme::color(theme_keys::BG_SURFACE).into(),
                 border: Border {
-                    color: BORDER_SUBTLE,
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
                     radius: 8.0.into()
                 },
-                icon: TEXT_MUTED,
-                placeholder: TEXT_MUTED,
-                value: TEXT_PRIMARY,
-                selection: TEAL,
+                icon: theme::color(theme_keys::TEXT_MUTED),
+                placeholder: theme::color(theme_keys::TEXT_MUTED),
+                value: theme::color(theme_keys::TEXT_PRIMARY),
+                selection: theme::color(theme_keys::TEAL),
             })
             .width(Length::Fill),
     ];
@@ -483,14 +580,17 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let body: Element<Message> = if total == 0 {
         container(
             column![
-                text("No modules found.").size(13).color(TEXT_MUTED),
+                text(tr(keys::NO_MODULES))
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(6),
                 text(format!(
-                    "Click Scan to read {}",
+                    "{} {}",
+                    tr(keys::CLICK_SCAN_TO_READ),
                     paths::APACHE_MODS_AVAILABLE
                 ))
                 .size(11)
-                .color(TEXT_MUTED),
+                .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0),
         )
@@ -507,19 +607,21 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(14),
             if total > 0 {
                 row![
-                    status_dot(GREEN),
+                    status_dot(theme::color(theme_keys::GREEN)),
                     Space::with_width(6),
-                    text(format!("{} enabled", enabled))
+                    text(format!("{} {}", enabled, tr(keys::ENABLED_SUFFIX)))
                         .size(11)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
-                    status_dot(BORDER_MED),
+                    status_dot(theme::color(theme_keys::BORDER_MED)),
                     Space::with_width(6),
-                    text(format!("{} disabled", total - enabled))
+                    text(format!("{} {}", total - enabled, tr(keys::DISABLED_SUFFIX)))
                         .size(11)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
-                    text(format!("{} total", total)).size(11).color(TEXT_MUTED),
+                    text(format!("{} {}", total, tr(keys::TOTAL_SUFFIX)))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
             } else {
@@ -534,22 +636,20 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(16),
             container(
                 row![
-                    text("!").size(10).color(YELLOW),
+                    text("!").size(10).color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(8),
-                    text(
-                        "Enabling/disabling modules requires sudo and reloads Apache automatically."
-                    )
-                    .size(11)
-                    .color(TEXT_MUTED),
+                    text(tr(keys::MODULES_SUDO_NOTE))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
             )
             .padding(Padding::from([10, 12]))
             .width(Length::Fill)
             .style(|_: &iced::Theme| container::Style {
-                background: Some(YELLOW_BG.into()),
+                background: Some(theme::color(theme_keys::YELLOW_BG).into()),
                 border: Border {
-                    color: YELLOW_BORDER,
+                    color: theme::color(theme_keys::YELLOW_BORDER),
                     width: 1.0,
                     radius: 8.0.into()
                 },
@@ -566,24 +666,27 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
 fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
     let (dot_color, status_text) = if m.enabled {
-        (GREEN, "enabled")
+        (theme::color(theme_keys::GREEN), tr(keys::STATUS_ENABLED))
     } else {
-        (BORDER_MED, "disabled")
+        (
+            theme::color(theme_keys::BORDER_MED),
+            tr(keys::STATUS_DISABLED),
+        )
     };
     let action: Element<Message> = if m.enabled {
         small_action_btn(
-            "Disable",
-            RED,
-            RED_BG,
-            RED_HOVER,
+            tr(keys::DISABLE),
+            theme::color(theme_keys::RED),
+            theme::color(theme_keys::RED_BG),
+            theme::color(theme_keys::RED_HOVER),
             Message::Tools(ToolsMessage::DisableApacheMod(m.name.clone())),
         )
     } else {
         small_action_btn(
-            "Enable",
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
+            tr(keys::ENABLE),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
             Message::Tools(ToolsMessage::EnableApacheMod(m.name.clone())),
         )
     };
@@ -592,7 +695,9 @@ fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
             status_dot(dot_color),
             Space::with_width(12),
             column![
-                text(format!("mod_{}", m.name)).size(13).color(TEXT_PRIMARY),
+                text(format!("mod_{}", m.name))
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(2),
                 text(status_text).size(11).color(dot_color),
             ]
@@ -605,9 +710,16 @@ fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
     .padding(Padding::from([10, 14]))
     .width(Length::Fill)
     .style(move |_: &iced::Theme| container::Style {
-        background: Some(if m.enabled { BG_SURFACE } else { BG_BASE }.into()),
+        background: Some(
+            if m.enabled {
+                theme::color(theme_keys::BG_SURFACE)
+            } else {
+                theme::color(theme_keys::BG_BASE)
+            }
+            .into(),
+        ),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -622,42 +734,55 @@ fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .iter()
         .find(|r| r.is_active)
         .map(|r| r.version.clone());
-    let ver_label = active_ver.as_deref().unwrap_or("active");
+    let ver_label = active_ver
+        .as_deref()
+        .unwrap_or(tr(keys::ACTIVE_VERSION_FALLBACK));
 
     let header = row![
         column![
-            text("PHP Extensions").size(14).color(TEXT_SECONDARY),
+            text(tr(keys::SECTION_PHP_EXTENSIONS))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(3),
-            text(format!("Install extensions for PHP {} via apt", ver_label))
-                .size(11)
-                .color(TEXT_MUTED),
+            text(format!(
+                "{} {} {}",
+                tr(keys::PHP_EXTENSIONS_HELP_PREFIX),
+                ver_label,
+                tr(keys::PHP_EXTENSIONS_HELP_SUFFIX)
+            ))
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
         .width(Length::Fill),
-        button(text("Scan").size(12).color(TEAL))
-            .on_press(Message::Tools(ToolsMessage::ScanPhpExts))
-            .padding(Padding::from([7, 14]))
-            .style(|_, status| match status {
-                iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                    iced::widget::button::Style {
-                        background: Some(TEAL_HOVER.into()),
-                        text_color: TEAL,
-                        border: Border {
-                            radius: 8.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                _ => iced::widget::button::Style {
-                    background: Some(TEAL_BG.into()),
-                    text_color: TEAL,
+        button(
+            text(tr(keys::SCAN))
+                .size(12)
+                .color(theme::color(theme_keys::TEAL))
+        )
+        .on_press(Message::Tools(ToolsMessage::ScanPhpExts))
+        .padding(Padding::from([7, 14]))
+        .style(|_, status| match status {
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
+                iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEAL),
                     border: Border {
                         radius: 8.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
                 },
-            }),
+            _ => iced::widget::button::Style {
+                background: Some(theme::color(theme_keys::TEAL_BG).into()),
+                text_color: theme::color(theme_keys::TEAL),
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        }),
     ]
     .align_y(Alignment::Center);
 
@@ -668,23 +793,52 @@ fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .filter(|e| q.is_empty() || e.name.contains(&q) || e.pkg_suffix.contains(&q))
         .map(|e| php_ext_row(e, &active_ver))
         .collect();
-    container(column![
-        header, Space::with_height(18), thin_line(), Space::with_height(14),
-        column(rows).spacing(8), Space::with_height(16),
-        container(row![
-            text("i").size(10).color(BLUE), Space::with_width(8),
-            text("Extensions are installed for the currently active PHP version. Scan PHP Versions first.").size(11).color(TEXT_MUTED),
-        ].align_y(Alignment::Center)).padding(Padding::from([10, 12])).width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style { background: Some(BLUE_BG.into()),
-            border: Border { color: BLUE_BORDER, width: 1.0, radius: 8.0.into() }, ..Default::default() }),
-    ].spacing(0).padding(Padding::from([22, 22]))).width(Length::Fill).style(card_style()).into()
+    container(
+        column![
+            header,
+            Space::with_height(18),
+            thin_line(),
+            Space::with_height(14),
+            column(rows).spacing(8),
+            Space::with_height(16),
+            container(
+                row![
+                    text("i").size(10).color(theme::color(theme_keys::BLUE)),
+                    Space::with_width(8),
+                    text(tr(keys::PHP_EXTENSIONS_NOTE))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                ]
+                .align_y(Alignment::Center)
+            )
+            .padding(Padding::from([10, 12]))
+            .width(Length::Fill)
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BLUE_BG).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BLUE_BORDER),
+                    width: 1.0,
+                    radius: 8.0.into()
+                },
+                ..Default::default()
+            }),
+        ]
+        .spacing(0)
+        .padding(Padding::from([22, 22])),
+    )
+    .width(Length::Fill)
+    .style(card_style())
+    .into()
 }
 
 fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Element<'a, Message> {
     let (dot_color, status_text) = if ext.installed {
-        (GREEN, "Installed")
+        (theme::color(theme_keys::GREEN), tr(keys::STATUS_INSTALLED))
     } else {
-        (TEXT_MUTED, "Not installed")
+        (
+            theme::color(theme_keys::TEXT_MUTED),
+            tr(keys::STATUS_NOT_INSTALLED),
+        )
     };
     let pkg = match active_ver {
         Some(ver) => format!("php{}-{}", ver, ext.name),
@@ -692,18 +846,18 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
     };
     let action: Element<Message> = if ext.installed {
         small_action_btn(
-            "Remove",
-            RED,
-            RED_BG,
-            RED_HOVER,
+            tr(keys::REMOVE),
+            theme::color(theme_keys::RED),
+            theme::color(theme_keys::RED_BG),
+            theme::color(theme_keys::RED_HOVER),
             Message::Tools(ToolsMessage::RemovePhpExt(pkg)),
         )
     } else {
         small_action_btn(
-            "Install",
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
+            tr(keys::INSTALL),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
             Message::Tools(ToolsMessage::InstallPhpExt(pkg)),
         )
     };
@@ -713,9 +867,13 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
             Space::with_width(12),
             column![
                 row![
-                    text(ext.name.as_str()).size(13).color(TEXT_PRIMARY),
+                    text(ext.name.as_str())
+                        .size(13)
+                        .color(theme::color(theme_keys::TEXT_PRIMARY)),
                     Space::with_width(8),
-                    text(ext.pkg_suffix.as_str()).size(10).color(TEXT_MUTED),
+                    text(ext.pkg_suffix.as_str())
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center),
                 Space::with_height(2),
@@ -730,9 +888,9 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
     .padding(Padding::from([12, 14]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -744,20 +902,20 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
 fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let note = container(
         row![
-            text("").size(10).color(YELLOW),
+            text("").size(10).color(theme::color(theme_keys::YELLOW)),
             Space::with_width(8),
-            text("Opens your system terminal as root.")
+            text(tr(keys::TERMINAL_ROOT_NOTE))
                 .size(11)
-                .color(TEXT_MUTED),
+                .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .align_y(Alignment::Center),
     )
     .padding(Padding::from([10, 12]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(YELLOW_BG.into()),
+        background: Some(theme::color(theme_keys::YELLOW_BG).into()),
         border: Border {
-            color: YELLOW_BORDER,
+            color: theme::color(theme_keys::YELLOW_BORDER),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -765,60 +923,66 @@ fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     });
 
     let status_row: Element<Message> = if !tab.db_status.is_empty() {
-        container(text(&tab.db_status).size(12).color(TEXT_SECONDARY))
-            .padding(Padding::from([10, 12]))
-            .width(Length::Fill)
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(BG_SURFACE.into()),
-                border: Border {
-                    color: BORDER_SUBTLE,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            })
-            .into()
+        container(
+            text(&tab.db_status)
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
+        )
+        .padding(Padding::from([10, 12]))
+        .width(Length::Fill)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        })
+        .into()
     } else {
         Space::with_height(0).into()
     };
 
     container(
         column![
-            text("Database CLI").size(14).color(TEXT_SECONDARY),
+            text(tr(keys::SECTION_DATABASE))
+                .size(14)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(3),
-            text("Launch a MySQL/MariaDB shell in your terminal")
+            text(tr(keys::DATABASE_HELP))
                 .size(11)
-                .color(TEXT_MUTED),
+                .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(18),
             thin_line(),
             Space::with_height(14),
             db_btn(
-                "MySQL / MariaDB",
-                "Open root shell in terminal",
-                BLUE,
-                BLUE_BG,
-                BLUE_HOVER,
-                BLUE_BORDER,
+                tr(keys::MYSQL_MARIADB),
+                tr(keys::MYSQL_MARIADB_HELP),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
+                theme::color(theme_keys::BLUE_BORDER),
                 Message::Tools(ToolsMessage::OpenMysqlCli)
             ),
             Space::with_height(8),
             db_btn(
-                "MariaDB (explicit)",
-                "Forces mariadb binary if installed",
-                PURPLE,
-                PURPLE_BG,
-                PURPLE_HOVER,
-                PURPLE_BORDER,
+                tr(keys::MARIADB_EXPLICIT),
+                tr(keys::MARIADB_EXPLICIT_HELP),
+                theme::color(theme_keys::PURPLE),
+                theme::color(theme_keys::PURPLE_BG),
+                theme::color(theme_keys::PURPLE_HOVER),
+                theme::color(theme_keys::PURPLE_BORDER),
                 Message::Tools(ToolsMessage::OpenMariadbCli)
             ),
             Space::with_height(8),
             db_btn(
-                "MySQL (socket auth)",
-                "Connect via unix socket, no password",
-                TEAL,
-                TEAL_BG,
-                TEAL_HOVER,
-                TEAL_BORDER,
+                tr(keys::MYSQL_SOCKET),
+                tr(keys::MYSQL_SOCKET_HELP),
+                theme::color(theme_keys::TEAL),
+                theme::color(theme_keys::TEAL_BG),
+                theme::color(theme_keys::TEAL_HOVER),
+                theme::color(theme_keys::TEAL_BORDER),
                 Message::Tools(ToolsMessage::OpenMysqlSocket)
             ),
             Space::with_height(16),
@@ -855,9 +1019,9 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
     if cards.is_empty() {
         cards.push(
             container(
-                text("No tools match your search")
+                text(tr(keys::NO_TOOLS_MATCH))
                     .size(13)
-                    .color(TEXT_MUTED),
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             )
             .padding(Padding::from([20, 16]))
             .into(),
@@ -868,24 +1032,24 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             row![
                 column![
-                    text("Composer, Node.js, Redis")
+                    text(tr(keys::COMPOSER_NODE_REDIS))
                         .size(14)
-                        .color(TEXT_SECONDARY),
+                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
                     Space::with_height(3),
-                    text("Detect common development tools and manage Redis")
+                    text(tr(keys::RUNTIMES_HELP))
                         .size(11)
-                        .color(TEXT_MUTED),
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .spacing(0)
                 .width(Length::Fill),
                 button(
                     text(if tab.tools_scanning {
-                        "Scanning..."
+                        tr(keys::SCANNING)
                     } else {
-                        "Scan"
+                        tr(keys::SCAN)
                     })
                     .size(12)
-                    .color(TEAL)
+                    .color(theme::color(theme_keys::TEAL))
                 )
                 .on_press_maybe(if tab.tools_scanning {
                     None
@@ -896,8 +1060,8 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
                 .style(|_, status| match status {
                     iced::widget::button::Status::Hovered
                     | iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                        background: Some(TEAL_HOVER.into()),
-                        text_color: TEAL,
+                        background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                        text_color: theme::color(theme_keys::TEAL),
                         border: Border {
                             radius: 8.0.into(),
                             ..Default::default()
@@ -905,8 +1069,8 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
                         ..Default::default()
                     },
                     _ => iced::widget::button::Style {
-                        background: Some(TEAL_BG.into()),
-                        text_color: TEAL,
+                        background: Some(theme::color(theme_keys::TEAL_BG).into()),
+                        text_color: theme::color(theme_keys::TEAL),
                         border: Border {
                             radius: 8.0.into(),
                             ..Default::default()
@@ -931,28 +1095,35 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
 fn runtime_composer_card(tools: &InstalledTools) -> Element<'_, Message> {
     let installed = tools.composer_version.is_some();
-    let subtitle = tools.composer_version.as_deref().unwrap_or("Not installed");
+    let subtitle = tools
+        .composer_version
+        .as_deref()
+        .unwrap_or(tr(keys::NOT_INSTALLED));
     let action = if installed {
         small_action_btn(
-            "Update",
-            BLUE,
-            BLUE_BG,
-            BLUE_HOVER,
+            tr(keys::UPDATE),
+            theme::color(theme_keys::BLUE),
+            theme::color(theme_keys::BLUE_BG),
+            theme::color(theme_keys::BLUE_HOVER),
             Message::Tools(ToolsMessage::UpdateComposer),
         )
     } else {
         small_action_btn(
-            "Install",
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
+            tr(keys::INSTALL),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
             Message::Tools(ToolsMessage::InstallComposer),
         )
     };
     runtime_card(
-        "Composer".into(),
+        tr(keys::COMPOSER).into(),
         subtitle.into(),
-        if installed { GREEN } else { TEXT_MUTED },
+        if installed {
+            theme::color(theme_keys::GREEN)
+        } else {
+            theme::color(theme_keys::TEXT_MUTED)
+        },
         action,
     )
 }
@@ -961,27 +1132,30 @@ fn runtime_node_card(tools: &InstalledTools) -> Element<'_, Message> {
     let node = tools
         .node_version
         .as_deref()
-        .unwrap_or("Node not installed");
-    let npm = tools.npm_version.as_deref().unwrap_or("npm not installed");
+        .unwrap_or(tr(keys::NODE_NOT_INSTALLED));
+    let npm = tools
+        .npm_version
+        .as_deref()
+        .unwrap_or(tr(keys::NPM_NOT_INSTALLED));
     let nvm = if tools.nvm_available {
-        "nvm available"
+        tr(keys::NVM_AVAILABLE)
     } else {
-        "nvm not found"
+        tr(keys::NVM_NOT_FOUND)
     };
     let action = small_action_btn(
-        "nvm command",
-        PURPLE,
-        PURPLE_BG,
-        PURPLE_HOVER,
+        tr(keys::NVM_COMMAND),
+        theme::color(theme_keys::PURPLE),
+        theme::color(theme_keys::PURPLE_BG),
+        theme::color(theme_keys::PURPLE_HOVER),
         Message::Tools(ToolsMessage::CopyNvmInstallCommand),
     );
     runtime_card(
-        "Node.js".into(),
+        tr(keys::NODE_JS).into(),
         format!("{} / {} / {}", node, npm, nvm),
         if tools.node_version.is_some() {
-            GREEN
+            theme::color(theme_keys::GREEN)
         } else {
-            TEXT_MUTED
+            theme::color(theme_keys::TEXT_MUTED)
         },
         action,
     )
@@ -989,10 +1163,11 @@ fn runtime_node_card(tools: &InstalledTools) -> Element<'_, Message> {
 
 fn runtime_redis_card(tools: &InstalledTools) -> Element<'_, Message> {
     let status = if !tools.redis_installed {
-        "Redis not installed".to_string()
+        tr(keys::REDIS_NOT_INSTALLED).to_string()
     } else if tools.redis_running {
         format!(
-            "Running{}",
+            "{}{}",
+            tr(keys::REDIS_RUNNING),
             tools
                 .redis_memory
                 .as_deref()
@@ -1000,32 +1175,32 @@ fn runtime_redis_card(tools: &InstalledTools) -> Element<'_, Message> {
                 .unwrap_or_default()
         )
     } else {
-        "Installed, stopped".into()
+        tr(keys::REDIS_STOPPED).into()
     };
     let action = if tools.redis_running {
         small_action_btn(
-            "Stop",
-            RED,
-            RED_BG,
-            RED_HOVER,
+            tr(keys::STOP),
+            theme::color(theme_keys::RED),
+            theme::color(theme_keys::RED_BG),
+            theme::color(theme_keys::RED_HOVER),
             Message::Tools(ToolsMessage::RedisStop),
         )
     } else {
         small_action_btn(
-            "Start",
-            GREEN,
-            GREEN_BG,
-            GREEN_HOVER,
+            tr(keys::START),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
             Message::Tools(ToolsMessage::RedisStart),
         )
     };
     runtime_card(
-        "Redis".into(),
+        tr(keys::REDIS).into(),
         status,
         if tools.redis_running {
-            GREEN
+            theme::color(theme_keys::GREEN)
         } else {
-            TEXT_MUTED
+            theme::color(theme_keys::TEXT_MUTED)
         },
         action,
     )
@@ -1042,9 +1217,13 @@ fn runtime_card(
             status_dot(color),
             Space::with_width(12),
             column![
-                text(title).size(13).color(TEXT_PRIMARY),
+                text(title)
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(2),
-                text(subtitle).size(11).color(TEXT_MUTED),
+                text(subtitle)
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
             .width(Length::Fill),
@@ -1055,9 +1234,9 @@ fn runtime_card(
     .padding(Padding::from([12, 14]))
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -1075,10 +1254,16 @@ fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .install_log
         .iter()
         .map(|(ok, msg)| {
-            let (prefix, color) = if *ok { ("OK  ", GREEN) } else { ("ERR ", RED) };
+            let (prefix, color) = if *ok {
+                (tr(keys::LOG_OK), theme::color(theme_keys::GREEN))
+            } else {
+                (tr(keys::LOG_ERR), theme::color(theme_keys::RED))
+            };
             row![
                 text(prefix).size(11).color(color),
-                text(msg.as_str()).size(12).color(TEXT_SECONDARY)
+                text(msg.as_str())
+                    .size(12)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY))
             ]
             .into()
         })
@@ -1087,29 +1272,33 @@ fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
     container(
         column![
             row![
-                text("Activity Log")
+                text(tr(keys::ACTIVITY_LOG))
                     .size(12)
-                    .color(TEXT_MUTED)
+                    .color(theme::color(theme_keys::TEXT_MUTED))
                     .width(Length::Fill),
-                button(text("Clear").size(11).color(TEXT_MUTED))
-                    .on_press(Message::Tools(ToolsMessage::ClearLog))
-                    .padding(Padding::from([4, 10]))
-                    .style(|_, status| match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                            background: Some(BG_HOVER.into()),
-                            text_color: TEXT_PRIMARY,
-                            border: Border {
-                                radius: 6.0.into(),
-                                ..Default::default()
-                            },
+                button(
+                    text(tr(keys::CLEAR))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED))
+                )
+                .on_press(Message::Tools(ToolsMessage::ClearLog))
+                .padding(Padding::from([4, 10]))
+                .style(|_, status| match status {
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                        border: Border {
+                            radius: 6.0.into(),
                             ..Default::default()
                         },
-                        _ => iced::widget::button::Style {
-                            background: None,
-                            text_color: TEXT_MUTED,
-                            ..Default::default()
-                        },
-                    }),
+                        ..Default::default()
+                    },
+                    _ => iced::widget::button::Style {
+                        background: None,
+                        text_color: theme::color(theme_keys::TEXT_MUTED),
+                        ..Default::default()
+                    },
+                }),
             ]
             .align_y(Alignment::Center),
             Space::with_height(10),
@@ -1120,9 +1309,9 @@ fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
     )
     .width(Length::Fill)
     .style(|_: &iced::Theme| container::Style {
-        background: Some(BG_SURFACE.into()),
+        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 8.0.into(),
         },
@@ -1163,7 +1352,7 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
     container(
         column![
             row![
-                text("⚠ PHP Not Found").size(13).color(Color {
+                text(tr(keys::PHP_NOT_FOUND)).size(13).color(Color {
                     r: 1.0,
                     g: 0.650,
                     b: 0.0,
@@ -1173,12 +1362,17 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             Space::with_height(10),
-            text("The ondrej/php PPA is not installed. Run these commands to add it:")
+            text(tr(keys::PHP_PPA_MISSING))
                 .size(12)
-                .color(TEXT_SECONDARY),
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(12),
             container(
-                scrollable(text(fix_commands.clone()).size(10).color(BORDER_MED)).height(180)
+                scrollable(
+                    text(fix_commands.clone())
+                        .size(10)
+                        .color(theme::color(theme_keys::BORDER_MED))
+                )
+                .height(180)
             )
             .padding(Padding::from([12, 14]))
             .style(|_: &iced::Theme| container::Style {
@@ -1192,36 +1386,40 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
                     .into()
                 ),
                 border: Border {
-                    color: BORDER_SUBTLE,
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
                     radius: 6.0.into()
                 },
                 ..Default::default()
             }),
             Space::with_height(10),
-            button(text("Get Text File").size(11).color(TEXT_PRIMARY))
-                .on_press(Message::Tools(ToolsMessage::CopyFixCommands(fix_commands)))
-                .padding(Padding::from([6, 12]))
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(BLUE_HOVER.into()),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
+            button(
+                text(tr(keys::GET_TEXT_FILE))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY))
+            )
+            .on_press(Message::Tools(ToolsMessage::CopyFixCommands(fix_commands)))
+            .padding(Padding::from([6, 12]))
+            .style(|_, status| match status {
+                iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::BLUE_HOVER).into()),
+                    text_color: theme::color(theme_keys::WHITE),
+                    border: Border {
+                        radius: 6.0.into(),
                         ..Default::default()
                     },
-                    _ => iced::widget::button::Style {
-                        background: Some(BLUE_BG.into()),
-                        text_color: TEXT_PRIMARY,
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
+                    ..Default::default()
+                },
+                _ => iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::BLUE_BG).into()),
+                    text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                    border: Border {
+                        radius: 6.0.into(),
                         ..Default::default()
                     },
-                }),
+                    ..Default::default()
+                },
+            }),
         ]
         .spacing(0),
     )
@@ -1254,9 +1452,9 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
 fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
     |_| container::Style {
-        background: Some(BG_CARD.into()),
+        background: Some(theme::color(theme_keys::BG_CARD).into()),
         border: Border {
-            color: BORDER_SUBTLE,
+            color: theme::color(theme_keys::BORDER_SUBTLE),
             width: 1.0,
             radius: 10.0.into(),
         },
@@ -1268,7 +1466,7 @@ fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
         .width(Length::Fill)
         .height(1)
         .style(|_: &iced::Theme| container::Style {
-            background: Some(BORDER_SUBTLE.into()),
+            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
             ..Default::default()
         })
 }
@@ -1343,9 +1541,13 @@ fn db_btn<'a>(
                 }),
             Space::with_width(12),
             column![
-                text(title).size(13).color(TEXT_PRIMARY),
+                text(title)
+                    .size(13)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(2),
-                text(subtitle).size(11).color(TEXT_MUTED),
+                text(subtitle)
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
             .width(Length::Fill),
@@ -1359,9 +1561,9 @@ fn db_btn<'a>(
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             iced::widget::button::Style {
                 background: Some(bg_hover.into()),
-                text_color: TEXT_PRIMARY,
+                text_color: theme::color(theme_keys::TEXT_PRIMARY),
                 border: Border {
-                    color: BORDER_MED,
+                    color: theme::color(theme_keys::BORDER_MED),
                     width: 1.0,
                     radius: 8.0.into(),
                 },
@@ -1370,9 +1572,9 @@ fn db_btn<'a>(
         }
         _ => iced::widget::button::Style {
             background: Some(bg.into()),
-            text_color: TEXT_PRIMARY,
+            text_color: theme::color(theme_keys::TEXT_PRIMARY),
             border: Border {
-                color: BORDER_SUBTLE,
+                color: theme::color(theme_keys::BORDER_SUBTLE),
                 width: 1.0,
                 radius: 8.0.into(),
             },

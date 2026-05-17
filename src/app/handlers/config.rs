@@ -35,6 +35,8 @@ impl App {
                 self.config_tab.apply_save_result(ok, msg.clone());
                 if ok && let Ok(db) = DevPanelDb::open() {
                     let loaded = UserSettings::load(&db);
+                    crate::lang::set_language(&loaded.ui_language);
+                    crate::core::theme::set_theme(&loaded.ui_theme);
                     self.config_tab.settings = loaded;
                     self.db = Some(db);
                 }
@@ -71,6 +73,14 @@ impl App {
             }
             ConfigMessage::UiShowSetupLogChanged(v) => {
                 self.config_tab.settings.ui_show_setup_log = v;
+                Task::none()
+            }
+            ConfigMessage::UiLanguageChanged(v) => {
+                self.config_tab.settings.ui_language = v;
+                Task::none()
+            }
+            ConfigMessage::UiThemeChanged(v) => {
+                self.config_tab.settings.ui_theme = v;
                 Task::none()
             }
             ConfigMessage::SshDefaultKeyTypeChanged(v) => {
