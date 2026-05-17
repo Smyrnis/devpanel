@@ -2,6 +2,7 @@ use super::{ConfigSection, ConfigTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::config as keys, text as tr};
 use crate::messages::{ConfigMessage, Message};
+use crate::ui::templates::view as ui;
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
 };
@@ -117,7 +118,7 @@ pub fn render(tab: &ConfigTab) -> Element<'_, Message> {
             };
             container(
                 row![
-                    dot(color),
+                    ui::status_dot(color),
                     Space::with_width(8),
                     text(msg.as_str())
                         .size(12)
@@ -458,18 +459,4 @@ where
     ]
     .align_y(Alignment::Center)
     .into()
-}
-
-fn dot(color: Color) -> iced::widget::Container<'static, Message> {
-    container(Space::with_width(6))
-        .width(6)
-        .height(6)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 3.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
 }

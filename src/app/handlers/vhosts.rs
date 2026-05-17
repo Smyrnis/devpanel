@@ -17,7 +17,7 @@ impl App {
             VHostsMessage::Scan => {
                 self.vhosts.scanning = true;
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                     Message::VHosts(VHostsMessage::ScanDone(v))
                 })
             }
@@ -72,7 +72,7 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                    Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                         Message::VHosts(VHostsMessage::ScanDone(v))
                     }),
                 ])
@@ -91,7 +91,7 @@ impl App {
                 let php = self.vhosts.form.php_version.clone();
                 let https_enabled = self.vhosts.form.https_enabled;
                 let idx = match self.vhosts.form.mode {
-                    crate::tabs::vhosts::FormMode::Edit(i) => i,
+                    crate::ui::tabs::vhosts::FormMode::Edit(i) => i,
                     _ => return Task::none(),
                 };
                 self.trigger_sudo(boxed(VHostEditCommand {
@@ -110,7 +110,7 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                    Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                         Message::VHosts(VHostsMessage::ScanDone(v))
                     }),
                 ])
@@ -162,7 +162,7 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                    Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                         Message::VHosts(VHostsMessage::ScanDone(v))
                     }),
                 ])
@@ -224,16 +224,16 @@ impl App {
             }
 
             VHostsMessage::OpenConfigEditor => {
-                self.vhosts.view_mode = crate::tabs::vhosts::VHostView::ConfigEditor;
+                self.vhosts.view_mode = crate::ui::tabs::vhosts::VHostView::ConfigEditor;
                 self.vhosts.config_loading = true;
                 let conf = self.vhosts.devpanel_conf.clone();
-                Task::perform(crate::tabs::vhosts::load_config_file(conf), |text| {
+                Task::perform(crate::ui::tabs::vhosts::load_config_file(conf), |text| {
                     Message::VHosts(VHostsMessage::ConfigLoaded(text))
                 })
             }
 
             VHostsMessage::CloseConfigEditor => {
-                self.vhosts.view_mode = crate::tabs::vhosts::VHostView::List;
+                self.vhosts.view_mode = crate::ui::tabs::vhosts::VHostView::List;
                 Task::none()
             }
 
@@ -250,15 +250,15 @@ impl App {
                 let conf = self.vhosts.devpanel_conf.clone();
                 let reload_editor = matches!(
                     self.vhosts.view_mode,
-                    crate::tabs::vhosts::VHostView::ConfigEditor
+                    crate::ui::tabs::vhosts::VHostView::ConfigEditor
                 );
-                let scan = Task::perform(crate::tabs::vhosts::scan_vhosts(conf.clone()), |v| {
+                let scan = Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf.clone()), |v| {
                     Message::VHosts(VHostsMessage::ScanDone(v))
                 });
                 if reload_editor {
                     Task::batch([
                         scan,
-                        Task::perform(crate::tabs::vhosts::load_config_file(conf), |text| {
+                        Task::perform(crate::ui::tabs::vhosts::load_config_file(conf), |text| {
                             Message::VHosts(VHostsMessage::ConfigLoaded(text))
                         }),
                     ])
@@ -296,7 +296,7 @@ impl App {
                 if ok {
                     Task::batch([
                         self.show_toast(msg, ok),
-                        Task::perform(crate::tabs::vhosts::scan_vhosts(conf), |v| {
+                        Task::perform(crate::ui::tabs::vhosts::scan_vhosts(conf), |v| {
                             Message::VHosts(VHostsMessage::ScanDone(v))
                         }),
                     ])

@@ -2,6 +2,7 @@ use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::vhosts as keys, text as tr};
 use crate::messages::{Message, VHostsMessage};
+use crate::ui::templates::view as ui;
 use iced::widget::{
     Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
     text_input,
@@ -107,7 +108,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     )
     .padding(Padding::from([12, 16]))
     .width(Length::Fill)
-    .style(surface_style());
+    .style(ui::surface_style());
 
     let form_el: Element<Message> = if tab.form.mode == FormMode::Hidden {
         Space::with_height(0).into()
@@ -257,7 +258,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
         )
         .padding(Padding::from([10, 14]))
         .width(Length::Fill)
-        .style(surface_style())
+        .style(ui::surface_style())
         .into()
     };
 
@@ -653,7 +654,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
             ]
             .align_y(Alignment::Center),
             Space::with_height(14),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(12),
             row![
                 small_btn(
@@ -704,7 +705,7 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
     )
     .padding(Padding::from([16, 18]))
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -784,7 +785,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
             ]
             .align_y(Alignment::Center),
             Space::with_height(14),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             row![
                 column![
@@ -935,7 +936,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             Space::with_height(16),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(16),
             column![
                 text(tr(keys::SERVER_NAME_HELP))
@@ -990,7 +991,7 @@ fn add_form_widget(tab: &VHostsTab) -> Element<'_, Message> {
         .padding(Padding::from([20, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -1047,37 +1048,6 @@ where
     }
 }
 
-fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 8.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-}
 fn small_btn<'a>(
     label: &'a str,
     color: Color,

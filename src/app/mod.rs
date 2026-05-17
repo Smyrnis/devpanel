@@ -10,10 +10,11 @@ use crate::core::{
 };
 use crate::lang::{lang_map::app as keys, text as tr};
 use crate::messages::{Message, SudoMessage, Tab};
-use crate::tabs::{
+use crate::ui::tabs::{
     config::ConfigTab, dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab,
     tools::ToolsTab, vhosts::VHostsTab,
 };
+use crate::ui::templates::view as ui;
 
 use iced::widget::{Space, button, column, container, row, stack, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Task};
@@ -73,7 +74,7 @@ impl App {
         };
         (
             app,
-            Task::perform(crate::tabs::dashboard::probe_services(), |r| r),
+            Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
         )
     }
 
@@ -103,7 +104,7 @@ impl App {
 
     pub fn view(&self) -> Element<'_, Message> {
         if self.first_run_state == FirstRunState::Visible {
-            return crate::install_window::view(
+            return crate::ui::install_window::view(
                 self.first_run_options,
                 self.first_run_installing,
                 &self.first_run_log_lines,
@@ -401,11 +402,11 @@ impl App {
         container(
             column![
                 logo,
-                divider(),
+                ui::divider(),
                 Space::with_height(10),
                 nav,
                 Space::with_height(Length::Fill),
-                divider(),
+                ui::divider(),
                 bottom,
             ]
             .height(Length::Fill),
@@ -474,17 +475,6 @@ impl App {
         })
         .into()
     }
-}
-
-fn divider<'a>() -> Element<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-        .into()
 }
 
 fn notification_card(toast: &Toast) -> Element<'_, Message> {

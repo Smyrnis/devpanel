@@ -4,13 +4,14 @@ use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::dashboard as keys, text as tr};
 use crate::messages::DashboardMessage;
 use crate::messages::Message;
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, column, container, pick_list, row, scrollable, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
 pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     let info_bar = container(
         row![
-            status_dot(theme::color(theme_keys::TEAL)),
+            ui::status_dot(theme::color(theme_keys::TEAL)),
             Space::with_width(8),
             text(&tab.distro)
                 .size(12)
@@ -40,7 +41,7 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     )
     .padding(Padding::from([11, 18]))
     .width(Length::Fill)
-    .style(surface_style());
+    .style(ui::surface_style());
 
     let services = row![
         service_card(
@@ -156,7 +157,9 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
         )
         .padding(Padding::from([14, 16]))
         .width(Length::Fill)
-        .style(card_style(theme::color(theme_keys::BTN_DANGER)))
+        .style(ui::card_style_with_border(theme::color(
+            theme_keys::BTN_DANGER,
+        )))
         .into()
     };
 
@@ -204,7 +207,7 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
                         )
                         .on_press(Message::Dashboard(DashboardMessage::ClosePhpInfo))
                         .padding(Padding::from([6, 12]))
-                        .style(ghost_btn_style()),
+                        .style(ui::ghost_button_style()),
                     ]
                     .align_y(Alignment::Center),
                     Space::with_height(10),
@@ -219,7 +222,9 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
             )
             .padding(Padding::from([16, 18]))
             .width(Length::Fill)
-            .style(card_style(theme::color(theme_keys::PURPLE_BORDER))),
+            .style(ui::card_style_with_border(theme::color(
+                theme_keys::PURPLE_BORDER
+            ))),
         ]
         .spacing(0)
         .into()
@@ -281,7 +286,7 @@ fn service_card<'a>(
         Space::with_width(Length::Fill),
         container(
             row![
-                status_dot(status_color),
+                ui::status_dot(status_color),
                 Space::with_width(5),
                 text(status_label).size(11).color(status_color),
             ]
@@ -349,7 +354,7 @@ fn service_card<'a>(
             .size(11)
             .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(16),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             btn_row,
         ]
@@ -357,7 +362,7 @@ fn service_card<'a>(
     )
     .padding(Padding::from([18, 18]))
     .width(Length::FillPortion(1))
-    .style(card_style(card_border))
+    .style(ui::card_style_with_border(card_border))
     .into()
 }
 
@@ -369,7 +374,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
 
     let running_dot = container(
         row![
-            status_dot(theme::color(theme_keys::PURPLE)),
+            ui::status_dot(theme::color(theme_keys::PURPLE)),
             Space::with_width(5),
             text(version_text)
                 .size(11)
@@ -499,7 +504,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
                 .size(12)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(16),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             text(tr(keys::ACTIVE_VERSION))
                 .size(11)
@@ -513,7 +518,9 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
     )
     .padding(Padding::from([18, 18]))
     .width(Length::FillPortion(1))
-    .style(card_style(theme::color(theme_keys::BORDER_SUBTLE)))
+    .style(ui::card_style_with_border(theme::color(
+        theme_keys::BORDER_SUBTLE,
+    )))
     .into()
 }
 
@@ -529,35 +536,11 @@ fn quick_row<'a>(items: &[(&'a str, Message)]) -> Element<'a, Message> {
             .on_press(msg.clone())
             .padding(Padding::from([14, 12]))
             .width(Length::FillPortion(1))
-            .style(ghost_btn_style())
+            .style(ui::ghost_button_style())
             .into()
         })
         .collect();
     row(btns).spacing(8).into()
-}
-
-fn card_style(border_color: Color) -> impl Fn(&iced::Theme) -> container::Style {
-    move |_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: border_color,
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
-fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 8.0.into(),
-        },
-        ..Default::default()
-    }
 }
 
 fn btn_style(
@@ -589,59 +572,6 @@ fn btn_style(
             ..Default::default()
         },
     }
-}
-
-fn ghost_btn_style()
--> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-    |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_MED),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            text_color: theme::color(theme_keys::TEXT_SECONDARY),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 8.0.into(),
-            },
-            ..Default::default()
-        },
-    }
-}
-
-fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-}
-
-fn status_dot(color: Color) -> Element<'static, Message> {
-    container(Space::with_width(6))
-        .width(6)
-        .height(6)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 3.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .into()
 }
 
 fn sep_vertical() -> Element<'static, Message> {

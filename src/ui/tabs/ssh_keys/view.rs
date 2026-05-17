@@ -2,6 +2,7 @@ use super::{KeyType, SshKeysTab, StatusKind};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::ssh_keys as keys, text as tr};
 use crate::messages::{Message, SshKeysMessage};
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, column, container, radio, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
@@ -82,7 +83,7 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             !tab.show_passphrase
         )))
         .padding(Padding::from([10, 14]))
-        .style(ghost_style()),
+        .style(ui::ghost_button_style()),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -138,15 +139,15 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
                 button(text(tr(keys::ADD_EXISTING)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::AddExisting))
                     .padding(Padding::from([8, 14]))
-                    .style(ghost_style()),
+                    .style(ui::ghost_button_style()),
                 button(text(tr(keys::OPEN_SSH_DIR)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::OpenDir))
                     .padding(Padding::from([8, 14]))
-                    .style(ghost_style()),
+                    .style(ui::ghost_button_style()),
                 button(text(tr(keys::REFRESH)).size(12))
                     .on_press(Message::SshKeys(SshKeysMessage::ListKeys))
                     .padding(Padding::from([8, 14]))
-                    .style(ghost_style()),
+                    .style(ui::ghost_button_style()),
             ]
             .spacing(8),
         ]
@@ -154,7 +155,7 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::FillPortion(3))
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -237,7 +238,7 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
                         k.path.clone(),
                     )))
                     .padding(Padding::from([5, 10]))
-                    .style(ghost_style())
+                    .style(ui::ghost_button_style())
                     .into()
                 } else {
                     Space::with_width(0).into()
@@ -325,7 +326,7 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::FillPortion(2))
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -403,17 +404,6 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
     .into()
 }
 
-fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
 fn btn_style(
     bg: Color,
 ) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
@@ -439,33 +429,6 @@ fn btn_style(
             border: Border {
                 radius: 8.0.into(),
                 ..Default::default()
-            },
-            ..Default::default()
-        },
-    }
-}
-fn ghost_style()
--> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-    |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_MED),
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::BG_CARD).into()),
-            text_color: theme::color(theme_keys::TEXT_SECONDARY),
-            border: Border {
-                color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 1.0,
-                radius: 8.0.into(),
             },
             ..Default::default()
         },

@@ -8,12 +8,12 @@ use crate::core::system::{open_terminal_at, xdg_open};
 
 use crate::messages::{Message, ReposMessage};
 
-use crate::tabs::repos::SshStatus;
+use crate::ui::tabs::repos::SshStatus;
 
 impl App {
     pub(crate) fn handle_repos(&mut self, msg: ReposMessage) -> Task<Message> {
         match msg {
-            ReposMessage::CheckSsh => Task::perform(crate::tabs::repos::check_ssh(), |r| {
+            ReposMessage::CheckSsh => Task::perform(crate::ui::tabs::repos::check_ssh(), |r| {
                 Message::Repos(ReposMessage::SshChecked(
                     r.github_ok,
                     r.github_msg,
@@ -39,7 +39,7 @@ impl App {
             ReposMessage::Fetch => {
                 self.repos.fetching = true;
                 let root = self.repos.repos_root.clone();
-                Task::perform(crate::tabs::repos::fetch_remote_repos(root), |repos| {
+                Task::perform(crate::ui::tabs::repos::fetch_remote_repos(root), |repos| {
                     Message::Repos(ReposMessage::FetchDone(repos))
                 })
             }
@@ -63,7 +63,7 @@ impl App {
                 let root = self.repos.repos_root.clone();
                 let result_url = ssh_url.clone();
                 Task::perform(
-                    crate::tabs::repos::clone_repo(ssh_url, name, root),
+                    crate::ui::tabs::repos::clone_repo(ssh_url, name, root),
                     move |result| {
                         let (ok, msg) = result_status(result);
                         Message::Repos(ReposMessage::CloneDone(ok, msg, result_url.clone()))

@@ -2,6 +2,7 @@ use super::{Provider, ProviderFilter, RemoteRepo, ReposTab, SshStatus};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::repos as keys, text as tr};
 use crate::messages::{Message, ReposMessage};
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
@@ -81,7 +82,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     )
     .padding(Padding::from([12, 16]))
     .width(Length::Fill)
-    .style(surface_style());
+    .style(ui::surface_style());
 
     let filter_bar: Element<Message> = if !tab.remote_repos.is_empty() {
         container(
@@ -110,7 +111,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
         )
         .padding(Padding::from([10, 16]))
         .width(Length::Fill)
-        .style(surface_style())
+        .style(ui::surface_style())
         .into()
     } else {
         Space::with_height(0).into()
@@ -131,7 +132,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
             };
             container(
                 row![
-                    dot(color),
+                    ui::status_dot(color),
                     Space::with_width(8),
                     text(msg.as_str())
                         .size(12)
@@ -287,7 +288,7 @@ fn ssh_pill<'a>(label: &'a str, status: &'a SshStatus) -> Element<'a, Message> {
     };
     container(
         row![
-            dot(dot_color),
+            ui::status_dot(dot_color),
             Space::with_width(6),
             text(label)
                 .size(11)
@@ -628,7 +629,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
             Space::with_height(6),
             ssh_row,
             Space::with_height(14),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(12),
             row![Space::with_width(Length::Fill), action_btn].align_y(Alignment::Center),
         ]
@@ -636,7 +637,7 @@ fn repo_card<'a>(repo: &'a RemoteRepo) -> Element<'a, Message> {
     )
     .padding(Padding::from([16, 18]))
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -651,50 +652,6 @@ fn small_nav<'a>(label: &'a str, on_press: Option<Message>) -> Element<'a, Messa
     )
 }
 
-fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 8.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-}
-fn dot(color: Color) -> iced::widget::Container<'static, Message> {
-    container(Space::with_width(6))
-        .width(6)
-        .height(6)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 3.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-}
 fn icon_btn<'a>(
     label: &'a str,
     color: Color,

@@ -74,7 +74,7 @@ pub enum DashboardMessage {
 pub enum SshKeysMessage {
     EmailChanged(String),
     KeyNameChanged(String),
-    KeyTypeChanged(crate::tabs::ssh_keys::KeyType),
+    KeyTypeChanged(crate::ui::tabs::ssh_keys::KeyType),
     PassphraseChanged(String),
     TogglePassphrase(bool),
     GenerateKey,
@@ -83,7 +83,7 @@ pub enum SshKeysMessage {
     AddExistingDone(bool, String),
     OpenDir,
     ListKeys,
-    KeysListed(Vec<crate::tabs::ssh_keys::KeyEntry>),
+    KeysListed(Vec<crate::ui::tabs::ssh_keys::KeyEntry>),
     CopyPublicKey(String),
     CopyPublicKeyDone(bool, String),
 }
@@ -91,7 +91,7 @@ pub enum SshKeysMessage {
 #[derive(Debug, Clone)]
 pub enum ToolsMessage {
     ScanPhp,
-    ScanDone(Vec<(String, crate::tabs::tools::PhpStatus, bool, bool, bool)>),
+    ScanDone(Vec<(String, crate::ui::tabs::tools::PhpStatus, bool, bool, bool)>),
     InstallPhp(String),
     RemovePhp(String),
     PhpOpDone(bool, String),
@@ -101,10 +101,10 @@ pub enum ToolsMessage {
     ClearLog,
     CopyFixCommands(String),
     CopyDone,
-    SetSection(crate::tabs::tools::ToolSection),
+    SetSection(crate::ui::tabs::tools::ToolSection),
     ToolSearchChanged(String),
     ScanInstalledTools,
-    InstalledToolsScanned(crate::tabs::tools::InstalledTools),
+    InstalledToolsScanned(crate::ui::tabs::tools::InstalledTools),
     InstallComposer,
     UpdateComposer,
     ComposerDone(bool, String),
@@ -113,7 +113,7 @@ pub enum ToolsMessage {
     RedisStop,
     RedisDone(bool, String),
     ScanApacheMods,
-    ScanApacheModsDone(Vec<crate::tabs::tools::ApacheModule>),
+    ScanApacheModsDone(Vec<crate::ui::tabs::tools::ApacheModule>),
     ModFilterChanged(String),
     EnableApacheMod(String),
     DisableApacheMod(String),
@@ -130,7 +130,7 @@ pub enum ReposMessage {
     CheckSsh,
     SshChecked(bool, String, bool, String),
     Fetch,
-    FetchDone(Vec<crate::tabs::repos::RemoteRepo>),
+    FetchDone(Vec<crate::ui::tabs::repos::RemoteRepo>),
     NextPage,
     PrevPage,
     Clone { ssh_url: String, name: String },
@@ -138,14 +138,14 @@ pub enum ReposMessage {
     OpenCloned(String),
     OpenEditor(String),
     SearchChanged(String),
-    SetFilter(crate::tabs::repos::ProviderFilter),
+    SetFilter(crate::ui::tabs::repos::ProviderFilter),
     OpenRoot,
 }
 
 #[derive(Debug, Clone)]
 pub enum VHostsMessage {
     Scan,
-    ScanDone(Vec<crate::tabs::vhosts::VHostEntry>),
+    ScanDone(Vec<crate::ui::tabs::vhosts::VHostEntry>),
     ShowAddForm,
     HideForm,
     FormServerNameChanged(String),
@@ -204,7 +204,7 @@ pub enum FirstRunMessage {
 
 #[derive(Debug, Clone)]
 pub enum ConfigMessage {
-    SetSection(crate::tabs::config::ConfigSection),
+    SetSection(crate::ui::tabs::config::ConfigSection),
     Save,
     SaveDone(bool, String),
     ApacheLogLevelChanged(String),

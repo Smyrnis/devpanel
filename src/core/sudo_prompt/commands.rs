@@ -81,7 +81,7 @@ impl SudoCommand for PhpSwitchCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) =
-                result_status(crate::tabs::tools::switch_php(self.version, password).await);
+                result_status(crate::ui::tabs::tools::switch_php(self.version, password).await);
             Message::Dashboard(DashboardMessage::PhpSwitchResult(ok, msg))
         })
     }
@@ -97,7 +97,7 @@ impl SudoCommand for PhpInstallCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::tools::apt_php_op(self.version, self.install, password).await,
+                crate::ui::tabs::tools::apt_php_op(self.version, self.install, password).await,
             );
             Message::Tools(ToolsMessage::PhpOpDone(ok, msg))
         })
@@ -117,7 +117,7 @@ impl SudoCommand for VHostAddCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::add_vhost(
+                crate::ui::tabs::vhosts::add_vhost(
                     self.devpanel_conf,
                     self.server_name,
                     self.document_root,
@@ -146,7 +146,7 @@ impl SudoCommand for VHostEditCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::edit_vhost(
+                crate::ui::tabs::vhosts::edit_vhost(
                     self.devpanel_conf,
                     self.index,
                     self.server_name,
@@ -172,7 +172,8 @@ impl SudoCommand for VHostDeleteCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::delete_vhost(self.devpanel_conf, self.index, password).await,
+                crate::ui::tabs::vhosts::delete_vhost(self.devpanel_conf, self.index, password)
+                    .await,
             );
             Message::VHosts(VHostsMessage::DeleteDone(ok, msg))
         })
@@ -189,8 +190,12 @@ impl SudoCommand for VHostBulkDeleteCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::bulk_delete_vhosts(self.devpanel_conf, self.indexes, password)
-                    .await,
+                crate::ui::tabs::vhosts::bulk_delete_vhosts(
+                    self.devpanel_conf,
+                    self.indexes,
+                    password,
+                )
+                .await,
             );
             Message::VHosts(VHostsMessage::DeleteDone(ok, msg))
         })
@@ -207,7 +212,8 @@ impl SudoCommand for VHostToggleHttpsCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::toggle_https(self.devpanel_conf, self.index, password).await,
+                crate::ui::tabs::vhosts::toggle_https(self.devpanel_conf, self.index, password)
+                    .await,
             );
             Message::VHosts(VHostsMessage::SaveEditDone(ok, msg))
         })
@@ -224,7 +230,7 @@ impl SudoCommand for SaveConfigCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::vhosts::save_config_file(self.path, self.content, password).await,
+                crate::ui::tabs::vhosts::save_config_file(self.path, self.content, password).await,
             );
             Message::VHosts(VHostsMessage::SaveConfigDone(ok, msg))
         })
@@ -244,7 +250,7 @@ impl SudoCommand for ApacheModToggleCommand {
             let enable = self.enable;
             let result_name = name.clone();
             let (ok, msg) = result_status(
-                crate::tabs::tools::toggle_apache_module(name, enable, password).await,
+                crate::ui::tabs::tools::toggle_apache_module(name, enable, password).await,
             );
             Message::Tools(ToolsMessage::ApacheModDone(ok, msg, result_name, enable))
         })
@@ -261,7 +267,7 @@ impl SudoCommand for AptPackageCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) = result_status(
-                crate::tabs::tools::apt_package_op(self.package, self.install, password).await,
+                crate::ui::tabs::tools::apt_package_op(self.package, self.install, password).await,
             );
             Message::Tools(ToolsMessage::PhpExtDone(ok, msg))
         })
@@ -277,7 +283,7 @@ impl SudoCommand for ComposerCommand {
         let password = password.to_string();
         Box::pin(async move {
             let (ok, msg) =
-                result_status(crate::tabs::tools::composer_op(self.update, password).await);
+                result_status(crate::ui::tabs::tools::composer_op(self.update, password).await);
             Message::Tools(ToolsMessage::ComposerDone(ok, msg))
         })
     }
@@ -291,8 +297,9 @@ impl SudoCommand for RedisServiceCommand {
     fn execute(self: Box<Self>, password: &str) -> Pin<Box<dyn Future<Output = Message> + Send>> {
         let password = password.to_string();
         Box::pin(async move {
-            let (ok, msg) =
-                result_status(crate::tabs::tools::redis_service_op(self.action, password).await);
+            let (ok, msg) = result_status(
+                crate::ui::tabs::tools::redis_service_op(self.action, password).await,
+            );
             Message::Tools(ToolsMessage::RedisDone(ok, msg))
         })
     }

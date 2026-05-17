@@ -5,6 +5,7 @@ use crate::core::paths;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
+use crate::ui::templates::view as ui;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
@@ -213,7 +214,7 @@ fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             header,
             Space::with_height(18),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             container(
                 row![
@@ -270,7 +271,7 @@ fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -329,7 +330,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
         Space::with_width(0).into()
     };
 
-    let dot = status_dot(status_color);
+    let dot = ui::status_dot(status_color);
 
     let apt_btn: Element<Message> = match r.status {
         PhpStatus::Installed => small_action_btn(
@@ -361,7 +362,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
             tr(keys::STATUS_NOT_AVAILABLE),
         )
     };
-    let mod_dot = status_dot(mod_dot_color);
+    let mod_dot = ui::status_dot(mod_dot_color);
 
     let apache_btn: Element<Message> = if r.apache_mod_available {
         if r.apache_mod_enabled {
@@ -607,13 +608,13 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(14),
             if total > 0 {
                 row![
-                    status_dot(theme::color(theme_keys::GREEN)),
+                    ui::status_dot(theme::color(theme_keys::GREEN)),
                     Space::with_width(6),
                     text(format!("{} {}", enabled, tr(keys::ENABLED_SUFFIX)))
                         .size(11)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
-                    status_dot(theme::color(theme_keys::BORDER_MED)),
+                    ui::status_dot(theme::color(theme_keys::BORDER_MED)),
                     Space::with_width(6),
                     text(format!("{} {}", total - enabled, tr(keys::DISABLED_SUFFIX)))
                         .size(11)
@@ -630,7 +631,7 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(10),
             filter_row,
             Space::with_height(14),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(10),
             body,
             Space::with_height(16),
@@ -660,7 +661,7 @@ fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -692,7 +693,7 @@ fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
     };
     container(
         row![
-            status_dot(dot_color),
+            ui::status_dot(dot_color),
             Space::with_width(12),
             column![
                 text(format!("mod_{}", m.name))
@@ -797,7 +798,7 @@ fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             header,
             Space::with_height(18),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             column(rows).spacing(8),
             Space::with_height(16),
@@ -827,7 +828,7 @@ fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -863,7 +864,7 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
     };
     container(
         row![
-            status_dot(dot_color),
+            ui::status_dot(dot_color),
             Space::with_width(12),
             column![
                 row![
@@ -954,7 +955,7 @@ fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
                 .size(11)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(18),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             db_btn(
                 tr(keys::MYSQL_MARIADB),
@@ -998,7 +999,7 @@ fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -1081,7 +1082,7 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             Space::with_height(18),
-            thin_line(),
+            ui::thin_line(),
             Space::with_height(14),
             column(cards).spacing(8),
         ]
@@ -1089,7 +1090,7 @@ fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .padding(Padding::from([22, 22])),
     )
     .width(Length::Fill)
-    .style(card_style())
+    .style(ui::card_style())
     .into()
 }
 
@@ -1214,7 +1215,7 @@ fn runtime_card(
 ) -> Element<'_, Message> {
     container(
         row![
-            status_dot(color),
+            ui::status_dot(color),
             Space::with_width(12),
             column![
                 text(title)
@@ -1450,39 +1451,6 @@ fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
     .into()
 }
 
-fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
-    |_| container::Style {
-        background: Some(theme::color(theme_keys::BG_CARD).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 10.0.into(),
-        },
-        ..Default::default()
-    }
-}
-fn thin_line<'a>() -> iced::widget::Container<'a, Message> {
-    container(Space::with_height(1))
-        .width(Length::Fill)
-        .height(1)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BORDER_SUBTLE).into()),
-            ..Default::default()
-        })
-}
-fn status_dot(color: Color) -> iced::widget::Container<'static, Message> {
-    container(Space::with_width(7))
-        .width(7)
-        .height(7)
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(color.into()),
-            border: Border {
-                radius: 4.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-}
 fn small_action_btn<'a>(
     label: &'a str,
     color: Color,
