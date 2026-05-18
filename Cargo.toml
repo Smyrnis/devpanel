@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.9.17"
+version = "0.12.23"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -25,6 +25,7 @@ production = []
 
 [dependencies]
 iced              = { version = "0.13", features = ["tokio", "image"] }
+iced_font_awesome = "0.2"
 tokio             = { version = "1",    features = ["full"] }
 rfd               = "0.15"
 image             = "0.25"

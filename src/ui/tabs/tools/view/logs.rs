@@ -3,7 +3,7 @@ use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
 use crate::ui::tabs::tools::ToolsTab;
 use iced::widget::{Space, button, column, container, row, scrollable, text};
-use iced::{Alignment, Border, Color, Element, Length, Padding};
+use iced::{Alignment, Border, Element, Length, Padding};
 
 pub(super) fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
     if tab.install_log.is_empty() {
@@ -112,12 +112,9 @@ pub(super) fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
     container(
         column![
             row![
-                text(tr(keys::PHP_NOT_FOUND)).size(13).color(Color {
-                    r: 1.0,
-                    g: 0.650,
-                    b: 0.0,
-                    a: 1.0
-                }),
+                text(tr(keys::PHP_NOT_FOUND))
+                    .size(13)
+                    .color(theme::color(theme_keys::ORANGE)),
                 Space::with_width(Length::Fill),
             ]
             .align_y(Alignment::Center),
@@ -136,15 +133,7 @@ pub(super) fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
             )
             .padding(Padding::from([12, 14]))
             .style(|_: &iced::Theme| container::Style {
-                background: Some(
-                    Color {
-                        r: 0.08,
-                        g: 0.08,
-                        b: 0.08,
-                        a: 1.0
-                    }
-                    .into()
-                ),
+                background: Some(theme::color(theme_keys::BG_CARD).into()),
                 border: Border {
                     color: theme::color(theme_keys::BORDER_SUBTLE),
                     width: 1.0,
@@ -186,22 +175,9 @@ pub(super) fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
     .width(Length::Fill)
     .padding(Padding::from([16, 18]))
     .style(|_: &iced::Theme| container::Style {
-        background: Some(
-            Color {
-                r: 0.200,
-                g: 0.120,
-                b: 0.080,
-                a: 1.0,
-            }
-            .into(),
-        ),
+        background: Some(theme::color(theme_keys::YELLOW_BG).into()),
         border: Border {
-            color: Color {
-                r: 1.0,
-                g: 0.650,
-                b: 0.0,
-                a: 1.0,
-            },
+            color: theme::color(theme_keys::YELLOW_BORDER),
             width: 1.0,
             radius: 6.0.into(),
         },

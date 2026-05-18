@@ -10,6 +10,7 @@ use crate::core::{
 };
 use crate::lang::{lang_map::app as keys, text as tr};
 use crate::messages::{Message, SudoMessage, Tab};
+use crate::ui::icons::{self, Icon};
 use crate::ui::tabs::{
     config::ConfigTab, dashboard::DashboardTab, repos::ReposTab, ssh_keys::SshKeysTab,
     tools::ToolsTab, vhosts::VHostsTab,
@@ -17,7 +18,9 @@ use crate::ui::tabs::{
 use crate::ui::templates::prelude as ui;
 
 use iced::widget::{Space, button, column, container, row, stack, text};
-use iced::{Alignment, Border, Color, Element, Length, Padding, Task};
+use iced::{Alignment, Border, Color, Element, Length, Padding, Size, Task};
+
+const SIDEBAR_COLLAPSE_WIDTH: f32 = 786.0;
 
 #[derive(Clone)]
 pub struct Toast {
@@ -43,6 +46,7 @@ pub struct App {
     pub first_run_installing: bool,
     pub first_run_log_lines: Vec<String>,
     pub setup_issues_checked: bool,
+    pub window_size: Size,
 }
 
 impl App {
@@ -71,6 +75,7 @@ impl App {
             first_run_installing: false,
             first_run_log_lines: Vec::new(),
             setup_issues_checked: false,
+            window_size: Size::new(1040.0, 660.0),
         };
         (
             app,
@@ -99,6 +104,7 @@ impl App {
             iced::time::every(std::time::Duration::from_secs(1))
                 .map(|_| Message::FirstRun(crate::messages::FirstRunMessage::ProgressTick)),
             crate::core::file_watcher::vhost_config(self.vhosts.devpanel_conf.clone()),
+            iced::window::resize_events().map(|(_id, size)| Message::WindowResized(size)),
         ])
     }
 
@@ -111,13 +117,14 @@ impl App {
             );
         }
 
+        let compact = self.is_compact();
         let tab_content: Element<Message> = match &self.active_tab {
-            Tab::Dashboard => self.dashboard.view(),
-            Tab::SshKeys => self.ssh_keys.view(),
-            Tab::Tools => self.tools.view(),
-            Tab::Repos => self.repos.view(),
-            Tab::VHosts => self.vhosts.view(),
-            Tab::Config => self.config_tab.view(),
+            Tab::Dashboard => self.dashboard.view(compact),
+            Tab::SshKeys => self.ssh_keys.view(compact),
+            Tab::Tools => self.tools.view(compact),
+            Tab::Repos => self.repos.view(compact),
+            Tab::VHosts => self.vhosts.view(compact),
+            Tab::Config => self.config_tab.view(compact),
         };
 
         let content_area = column![
@@ -148,6 +155,10 @@ impl App {
         } else {
             base.into()
         }
+    }
+
+    fn is_compact(&self) -> bool {
+        self.window_size.width < SIDEBAR_COLLAPSE_WIDTH
     }
 
     fn notification_overlay(&self) -> Element<'_, Message> {
@@ -211,6 +222,34 @@ impl App {
     }
 
     fn context_bar(&self) -> Element<'_, Message> {
+        let compact = self.is_compact();
+        let apache_item: Element<Message> = if compact {
+            Space::with_width(0).into()
+        } else {
+            row![
+                context_separator(),
+                context_item(
+                    tr(keys::APACHE),
+                    self.dashboard.apache_conf_dir.as_str(),
+                    theme::color(theme_keys::BLUE),
+                ),
+            ]
+            .align_y(Alignment::Center)
+            .into()
+        };
+        let refresh_button: Element<Message> = if compact {
+            ui::secondary_icon_only_button(
+                Icon::Refresh,
+                Message::Dashboard(crate::messages::DashboardMessage::RefreshStatus),
+            )
+        } else {
+            ui::secondary_icon_button(
+                Icon::Refresh,
+                tr(keys::REFRESH),
+                Message::Dashboard(crate::messages::DashboardMessage::RefreshStatus),
+            )
+        };
+
         container(
             row![
                 context_item(
@@ -224,12 +263,7 @@ impl App {
                     self.dashboard.web_root.as_str(),
                     theme::color(theme_keys::TEXT_SECONDARY),
                 ),
-                context_separator(),
-                context_item(
-                    tr(keys::APACHE),
-                    self.dashboard.apache_conf_dir.as_str(),
-                    theme::color(theme_keys::BLUE),
-                ),
+                apache_item,
                 context_separator(),
                 context_item(
                     tr(keys::PHP),
@@ -240,31 +274,7 @@ impl App {
                     theme::color(theme_keys::PURPLE),
                 ),
                 Space::with_width(Length::Fill),
-                button(
-                    text(tr(keys::REFRESH))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED))
-                )
-                .on_press(Message::Dashboard(
-                    crate::messages::DashboardMessage::RefreshStatus
-                ))
-                .padding(Padding::from([6, 12]))
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    _ => iced::widget::button::Style {
-                        background: None,
-                        text_color: theme::color(theme_keys::TEXT_MUTED),
-                        ..Default::default()
-                    },
-                }),
+                refresh_button,
             ]
             .align_y(Alignment::Center),
         )
@@ -274,7 +284,7 @@ impl App {
             background: Some(theme::color(theme_keys::BG_SURFACE).into()),
             border: Border {
                 color: theme::color(theme_keys::BORDER_SUBTLE),
-                width: 0.0,
+                width: 1.0,
                 radius: 0.0.into(),
             },
             ..Default::default()
@@ -283,9 +293,10 @@ impl App {
     }
 
     fn sidebar(&self) -> Element<'_, Message> {
-        let logo = container(
-            column![
-                row![
+        let compact = self.is_compact();
+        let logo: Element<Message> = if compact {
+            container(
+                column![
                     container(Space::with_width(3))
                         .width(3)
                         .height(26)
@@ -297,54 +308,102 @@ impl App {
                             },
                             ..Default::default()
                         }),
-                    Space::with_width(10),
-                    column![
-                        text(tr(keys::LOGO_DEV))
-                            .size(19)
-                            .color(theme::color(theme_keys::TEAL)),
-                        text(tr(keys::LOGO_PANEL))
-                            .size(19)
-                            .color(theme::color(theme_keys::TEXT_PRIMARY)),
-                    ]
-                    .spacing(0),
+                    Space::with_height(14),
+                    icons::solid(Icon::Dashboard, 18.0, theme::color(theme_keys::TEAL)),
                 ]
-                .align_y(Alignment::Center),
-                Space::with_height(10),
-                container(
-                    text(tr(keys::LOCAL_ENVIRONMENT))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED))
-                )
-                .padding(Padding::from([4, 10]))
-                .style(|_: &iced::Theme| container::Style {
-                    background: Some(theme::color(theme_keys::BG_CARD).into()),
-                    border: Border {
-                        color: theme::color(theme_keys::BORDER_SUBTLE),
-                        width: 1.0,
-                        radius: 6.0.into(),
-                    },
-                    ..Default::default()
-                }),
-            ]
-            .spacing(0)
-            .align_x(Alignment::Start),
-        )
-        .padding(Padding::from([22, 16]));
+                .align_x(Alignment::Center),
+            )
+            .padding(Padding::from([18, 0]))
+            .into()
+        } else {
+            container(
+                column![
+                    row![
+                        container(Space::with_width(3)).width(3).height(26).style(
+                            |_: &iced::Theme| container::Style {
+                                background: Some(theme::color(theme_keys::TEAL).into()),
+                                border: Border {
+                                    radius: 2.0.into(),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            }
+                        ),
+                        Space::with_width(10),
+                        column![
+                            text(tr(keys::LOGO_DEV))
+                                .size(19)
+                                .color(theme::color(theme_keys::TEAL)),
+                            text(tr(keys::LOGO_PANEL))
+                                .size(19)
+                                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+                        ]
+                        .spacing(0),
+                    ]
+                    .align_y(Alignment::Center),
+                    Space::with_height(10),
+                    container(
+                        row![
+                            icons::solid(Icon::Check, 10.0, theme::color(theme_keys::GREEN)),
+                            Space::with_width(7),
+                            text(tr(keys::LOCAL_ENVIRONMENT))
+                                .size(11)
+                                .color(theme::color(theme_keys::GREEN)),
+                            Space::with_width(Length::Fill),
+                            icons::solid(
+                                Icon::ChevronDown,
+                                9.0,
+                                theme::color(theme_keys::TEXT_MUTED)
+                            ),
+                        ]
+                        .align_y(Alignment::Center)
+                    )
+                    .padding(Padding::from([4, 10]))
+                    .width(Length::Fill)
+                    .style(|_: &iced::Theme| container::Style {
+                        background: Some(theme::color(theme_keys::BG_CARD).into()),
+                        border: Border {
+                            color: theme::color(theme_keys::BORDER_SUBTLE),
+                            width: 1.0,
+                            radius: 6.0.into(),
+                        },
+                        ..Default::default()
+                    }),
+                ]
+                .spacing(0)
+                .align_x(Alignment::Start),
+            )
+            .padding(Padding::from([22, 16]))
+            .into()
+        };
 
-        let nav = column![
-            text(tr(keys::NAVIGATION))
-                .size(10)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(6),
-            self.nav_item(tr(keys::NAV_DASHBOARD), Tab::Dashboard),
-            self.nav_item(tr(keys::NAV_REPOS), Tab::Repos),
-            self.nav_item(tr(keys::NAV_VHOSTS), Tab::VHosts),
-            self.nav_item(tr(keys::NAV_SSH_KEYS), Tab::SshKeys),
-            self.nav_item(tr(keys::NAV_TOOLS), Tab::Tools),
-            self.nav_item(tr(keys::NAV_CONFIG), Tab::Config),
-        ]
-        .spacing(3)
-        .padding(Padding::from([0, 12]));
+        let nav = if compact {
+            column![
+                self.nav_item(Icon::Dashboard, tr(keys::NAV_DASHBOARD), Tab::Dashboard),
+                self.nav_item(Icon::Repo, tr(keys::NAV_REPOS), Tab::Repos),
+                self.nav_item(Icon::Globe, tr(keys::NAV_VHOSTS), Tab::VHosts),
+                self.nav_item(Icon::Key, tr(keys::NAV_SSH_KEYS), Tab::SshKeys),
+                self.nav_item(Icon::Tools, tr(keys::NAV_TOOLS), Tab::Tools),
+                self.nav_item(Icon::Config, tr(keys::NAV_CONFIG), Tab::Config),
+            ]
+            .spacing(5)
+            .padding(Padding::from([0, 8]))
+        } else {
+            column![
+                text(tr(keys::NAVIGATION))
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                Space::with_height(6),
+                self.nav_item(Icon::Dashboard, tr(keys::NAV_DASHBOARD), Tab::Dashboard),
+                self.nav_item(Icon::Repo, tr(keys::NAV_REPOS), Tab::Repos),
+                self.nav_item(Icon::Globe, tr(keys::NAV_VHOSTS), Tab::VHosts),
+                self.nav_item(Icon::Key, tr(keys::NAV_SSH_KEYS), Tab::SshKeys),
+                self.nav_item(Icon::Tools, tr(keys::NAV_TOOLS), Tab::Tools),
+                self.nav_item(Icon::Config, tr(keys::NAV_CONFIG), Tab::Config),
+            ]
+            .spacing(3)
+            .padding(Padding::from([0, 12]))
+        };
 
         let sudo_indicator: Element<Message> = if self.sudo.cached_password.is_some() {
             column![
@@ -369,15 +428,7 @@ impl App {
                 )
                 .padding(Padding::from([6, 10]))
                 .style(|_: &iced::Theme| container::Style {
-                    background: Some(
-                        Color {
-                            r: 0.050,
-                            g: 0.160,
-                            b: 0.090,
-                            a: 1.0
-                        }
-                        .into()
-                    ),
+                    background: Some(theme::color(theme_keys::GREEN_BG).into()),
                     border: Border {
                         radius: 6.0.into(),
                         ..Default::default()
@@ -434,15 +485,7 @@ impl App {
             )
             .padding(Padding::from([6, 10]))
             .style(|_: &iced::Theme| container::Style {
-                background: Some(
-                    Color {
-                        r: 0.190,
-                        g: 0.160,
-                        b: 0.040,
-                        a: 1.0,
-                    }
-                    .into(),
-                ),
+                background: Some(theme::color(theme_keys::YELLOW_BG).into()),
                 border: Border {
                     radius: 6.0.into(),
                     ..Default::default()
@@ -452,60 +495,85 @@ impl App {
             .into()
         };
 
-        let bottom = container(
-            column![
-                text(tr(keys::SYSTEM))
-                    .size(10)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
-                Space::with_height(6),
-                sidebar_status_row(tr(keys::APACHE), self.dashboard.apache_running),
-                Space::with_height(5),
-                sidebar_status_row("MySQL", self.dashboard.mysql_running),
-                Space::with_height(10),
-                sudo_indicator,
-                Space::with_height(10),
-                button(
-                    row![
-                        text("R")
-                            .size(11)
-                            .color(theme::color(theme_keys::TEXT_MUTED)),
-                        Space::with_width(6),
-                        text(tr(keys::REFRESH))
-                            .size(12)
-                            .color(theme::color(theme_keys::TEXT_MUTED)),
-                    ]
-                    .align_y(Alignment::Center)
-                )
-                .on_press(Message::Dashboard(
-                    crate::messages::DashboardMessage::RefreshStatus
-                ))
-                .padding(Padding::from([8, 12]))
-                .width(Length::Fill)
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                        border: Border {
-                            radius: 6.0.into(),
+        let bottom: Element<Message> = if compact {
+            container(
+                column![
+                    ui::status_dot(if self.dashboard.apache_running {
+                        theme::color(theme_keys::GREEN)
+                    } else {
+                        theme::color(theme_keys::TEXT_MUTED)
+                    }),
+                    Space::with_height(10),
+                    ui::status_dot(if self.dashboard.mysql_running {
+                        theme::color(theme_keys::GREEN)
+                    } else {
+                        theme::color(theme_keys::TEXT_MUTED)
+                    }),
+                    Space::with_height(14),
+                    ui::secondary_icon_only_button(
+                        Icon::Refresh,
+                        Message::Dashboard(crate::messages::DashboardMessage::RefreshStatus),
+                    ),
+                ]
+                .align_x(Alignment::Center),
+            )
+            .padding(Padding::from([10, 0]))
+            .into()
+        } else {
+            container(
+                column![
+                    text(tr(keys::SYSTEM))
+                        .size(10)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                    Space::with_height(6),
+                    sidebar_status_row(tr(keys::APACHE), self.dashboard.apache_running),
+                    Space::with_height(5),
+                    sidebar_status_row("MySQL", self.dashboard.mysql_running),
+                    Space::with_height(10),
+                    sudo_indicator,
+                    Space::with_height(10),
+                    button(
+                        row![
+                            icons::solid(Icon::Refresh, 11.0, theme::color(theme_keys::TEXT_MUTED)),
+                            Space::with_width(8),
+                            text(tr(keys::REFRESH))
+                                .size(12)
+                                .color(theme::color(theme_keys::TEXT_MUTED)),
+                        ]
+                        .align_y(Alignment::Center)
+                    )
+                    .on_press(Message::Dashboard(
+                        crate::messages::DashboardMessage::RefreshStatus
+                    ))
+                    .padding(Padding::from([8, 12]))
+                    .width(Length::Fill)
+                    .style(|_, status| match status {
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                            background: Some(theme::color(theme_keys::BG_HOVER).into()),
+                            text_color: theme::color(theme_keys::TEXT_PRIMARY),
+                            border: Border {
+                                radius: 6.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
-                        ..Default::default()
-                    },
-                    _ => iced::widget::button::Style {
-                        background: None,
-                        text_color: theme::color(theme_keys::TEXT_MUTED),
-                        ..Default::default()
-                    },
-                }),
-                Space::with_height(8),
-                text(format!("v{}", env!("CARGO_PKG_VERSION")))
-                    .size(11)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
-            ]
-            .spacing(0)
-            .align_x(Alignment::Start),
-        )
-        .padding(Padding::from([10, 14]));
+                        _ => iced::widget::button::Style {
+                            background: None,
+                            text_color: theme::color(theme_keys::TEXT_MUTED),
+                            ..Default::default()
+                        },
+                    }),
+                    Space::with_height(8),
+                    text(format!("v{}", env!("CARGO_PKG_VERSION")))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                ]
+                .spacing(0)
+                .align_x(Alignment::Start),
+            )
+            .padding(Padding::from([10, 14]))
+            .into()
+        };
 
         container(
             column![
@@ -519,16 +587,22 @@ impl App {
             ]
             .height(Length::Fill),
         )
-        .width(192)
+        .width(if compact { 64 } else { 192 })
         .height(Length::Fill)
         .style(|_: &iced::Theme| container::Style {
             background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 0.0.into(),
+            },
             ..Default::default()
         })
         .into()
     }
 
-    fn nav_item<'a>(&self, label: &'a str, tab: Tab) -> Element<'a, Message> {
+    fn nav_item<'a>(&self, icon: Icon, label: &'a str, tab: Tab) -> Element<'a, Message> {
+        let compact = self.is_compact();
         let active = self.active_tab == tab;
         let bg = if active {
             theme::color(theme_keys::TEAL_BG)
@@ -560,12 +634,26 @@ impl App {
                     ..Default::default()
                 });
 
-        let content = row![
-            accent,
-            Space::with_width(12),
-            text(label).size(13).color(text_color),
-        ]
-        .align_y(Alignment::Center);
+        let content: Element<Message> = if compact {
+            row![
+                accent,
+                Space::with_width(Length::Fill),
+                icons::solid_box(icon, 15.0, text_color, 18.0),
+                Space::with_width(Length::Fill),
+            ]
+            .align_y(Alignment::Center)
+            .into()
+        } else {
+            row![
+                accent,
+                Space::with_width(10),
+                icons::solid_box(icon, 14.0, text_color, 17.0),
+                Space::with_width(10),
+                text(label).size(13).color(text_color),
+            ]
+            .align_y(Alignment::Center)
+            .into()
+        };
 
         button(row![content, Space::with_width(Length::Fill),].align_y(Alignment::Center))
             .on_press(Message::SelectTab(tab))
@@ -647,22 +735,12 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
     let (accent, border_color) = if toast.ok {
         (
             theme::color(theme_keys::GREEN),
-            Color {
-                r: 0.070,
-                g: 0.210,
-                b: 0.110,
-                a: 1.0,
-            },
+            theme::color(theme_keys::GREEN_HOVER),
         )
     } else {
         (
             theme::color(theme_keys::RED),
-            Color {
-                r: 0.300,
-                g: 0.090,
-                b: 0.080,
-                a: 1.0,
-            },
+            theme::color(theme_keys::RED_BORDER),
         )
     };
     let seconds = (toast.remaining_ms / 1000).max(1);
@@ -703,10 +781,7 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
             radius: 6.0.into(),
         },
         shadow: iced::Shadow {
-            color: Color {
-                a: 0.4,
-                ..Color::BLACK
-            },
+            color: theme::color(theme_keys::SHADOW_HEAVY),
             offset: iced::Vector::new(0.0, 8.0),
             blur_radius: 24.0,
         },

@@ -2,6 +2,7 @@ use super::shared::small_action_btn;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
+use crate::ui::icons::Icon;
 use crate::ui::tabs::tools::{PhpExtension, ToolsTab};
 use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, column, container, row, text};
@@ -80,27 +81,16 @@ pub(super) fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(14),
             column(rows).spacing(8),
             Space::with_height(16),
-            container(
-                row![
-                    text("i").size(10).color(theme::color(theme_keys::BLUE)),
-                    Space::with_width(8),
-                    text(tr(keys::PHP_EXTENSIONS_NOTE))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED)),
-                ]
-                .align_y(Alignment::Center)
-            )
-            .padding(Padding::from([10, 12]))
-            .width(Length::Fill)
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(theme::color(theme_keys::BLUE_BG).into()),
-                border: Border {
-                    color: theme::color(theme_keys::BLUE_BORDER),
-                    width: 1.0,
-                    radius: 6.0.into()
-                },
-                ..Default::default()
-            }),
+            ui::info_banner(
+                Icon::Info,
+                text(tr(keys::PHP_EXTENSIONS_NOTE))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED))
+                    .into(),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_BORDER),
+            ),
         ]
         .spacing(0)
         .padding(Padding::from([22, 22])),

@@ -7,6 +7,10 @@ impl App {
     pub fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectTab(tab) => self.handle_select_tab(tab),
+            Message::WindowResized(size) => {
+                self.window_size = size;
+                Task::none()
+            }
             Message::NotificationTick => self.handle_notification_tick(),
             Message::DismissAllNotifications => self.handle_dismiss_all_notifications(),
             Message::Dashboard(m) => self.handle_dashboard(m),

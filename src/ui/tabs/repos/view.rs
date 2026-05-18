@@ -2,6 +2,7 @@ use super::{Provider, ProviderFilter, RemoteRepo, ReposTab, SshStatus};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::repos as keys, text as tr};
 use crate::messages::{Message, ReposMessage};
+use crate::ui::icons::{self, Icon};
 use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
@@ -25,24 +26,59 @@ fn provider_border(p: &Provider) -> Color {
     }
 }
 
-pub fn render(tab: &ReposTab) -> Element<'_, Message> {
-    let header = ui::page_header(
+pub fn render(tab: &ReposTab, compact: bool) -> Element<'_, Message> {
+    let header_fn = if compact {
+        ui::page_header_compact
+    } else {
+        ui::page_header
+    };
+    let header = header_fn(
         tr(keys::TITLE),
         tr(keys::SUBTITLE),
         vec![
-            ui::secondary_button(
+            ui::secondary_icon_button(
+                Icon::Folder,
                 tr(keys::OPEN_PROJECTS),
                 Message::Repos(ReposMessage::OpenRoot),
             ),
-            ui::secondary_button(tr(keys::CHECK_SSH), Message::Repos(ReposMessage::CheckSsh)),
-            ui::primary_button(tr(keys::FETCH_REPOS), Message::Repos(ReposMessage::Fetch)),
+            ui::secondary_icon_button(
+                Icon::Shield,
+                tr(keys::CHECK_SSH),
+                Message::Repos(ReposMessage::CheckSsh),
+            ),
+            ui::primary_icon_button(
+                Icon::Refresh,
+                tr(keys::FETCH_REPOS),
+                Message::Repos(ReposMessage::Fetch),
+            ),
         ],
     );
 
-    let status_bar = connection_status_panel(tab);
+    let status_bar = connection_status_panel(tab, compact);
 
     let filter_bar: Element<Message> = if !tab.remote_repos.is_empty() {
-        container(
+        let filter_content: Element<Message> = if compact {
+            column![
+                filter_tab(
+                    tr(keys::FILTER_ALL),
+                    ProviderFilter::All,
+                    &tab.active_filter
+                ),
+                filter_tab(tr(keys::GITHUB), ProviderFilter::GitHub, &tab.active_filter),
+                filter_tab(
+                    tr(keys::BITBUCKET),
+                    ProviderFilter::Bitbucket,
+                    &tab.active_filter
+                ),
+                text_input(tr(keys::SEARCH_PLACEHOLDER), &tab.search_query)
+                    .on_input(|v| Message::Repos(ReposMessage::SearchChanged(v)))
+                    .size(12)
+                    .padding(Padding::from([6, 10]))
+                    .width(Length::Fill),
+            ]
+            .spacing(8)
+            .into()
+        } else {
             row![
                 filter_tab(
                     tr(keys::FILTER_ALL),
@@ -64,12 +100,14 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
                     .padding(Padding::from([6, 10]))
                     .width(Length::Fill),
             ]
-            .align_y(Alignment::Center),
-        )
-        .padding(Padding::from([10, 16]))
-        .width(Length::Fill)
-        .style(ui::surface_style())
-        .into()
+            .align_y(Alignment::Center)
+            .into()
+        };
+        container(filter_content)
+            .padding(Padding::from([10, 16]))
+            .width(Length::Fill)
+            .style(ui::surface_style())
+            .into()
     } else {
         Space::with_height(0).into()
     };
@@ -114,7 +152,7 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     };
 
     let body: Element<Message> = if tab.remote_repos.is_empty() && !tab.fetching {
-        empty_state()
+        empty_state(compact)
     } else if tab.fetching {
         container(
             column![
@@ -225,7 +263,53 @@ pub fn render(tab: &ReposTab) -> Element<'_, Message> {
     .into()
 }
 
-fn connection_status_panel(tab: &ReposTab) -> Element<'_, Message> {
+fn connection_status_panel(tab: &ReposTab, compact: bool) -> Element<'_, Message> {
+    let provider_cards: Element<Message> = if compact {
+        column![
+            provider_access_card(
+                tr(keys::GITHUB),
+                &tab.github_status,
+                tr(keys::GITHUB_SSH_COMMAND),
+                theme::color(theme_keys::TEAL),
+                theme::color(theme_keys::TEAL_BG),
+                theme::color(theme_keys::TEAL_BORDER),
+            ),
+            provider_access_card(
+                tr(keys::BITBUCKET),
+                &tab.bitbucket_status,
+                tr(keys::BITBUCKET_SSH_COMMAND),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_BORDER),
+            ),
+            repo_count_card(tab.remote_repos.len()),
+        ]
+        .spacing(8)
+        .into()
+    } else {
+        row![
+            provider_access_card(
+                tr(keys::GITHUB),
+                &tab.github_status,
+                tr(keys::GITHUB_SSH_COMMAND),
+                theme::color(theme_keys::TEAL),
+                theme::color(theme_keys::TEAL_BG),
+                theme::color(theme_keys::TEAL_BORDER),
+            ),
+            provider_access_card(
+                tr(keys::BITBUCKET),
+                &tab.bitbucket_status,
+                tr(keys::BITBUCKET_SSH_COMMAND),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_BORDER),
+            ),
+            repo_count_card(tab.remote_repos.len()),
+        ]
+        .spacing(12)
+        .into()
+    };
+
     container(
         column![
             row![
@@ -239,26 +323,7 @@ fn connection_status_panel(tab: &ReposTab) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             Space::with_height(12),
-            row![
-                provider_access_card(
-                    tr(keys::GITHUB),
-                    &tab.github_status,
-                    tr(keys::GITHUB_SSH_COMMAND),
-                    theme::color(theme_keys::TEAL),
-                    theme::color(theme_keys::TEAL_BG),
-                    theme::color(theme_keys::TEAL_BORDER),
-                ),
-                provider_access_card(
-                    tr(keys::BITBUCKET),
-                    &tab.bitbucket_status,
-                    tr(keys::BITBUCKET_SSH_COMMAND),
-                    theme::color(theme_keys::BLUE),
-                    theme::color(theme_keys::BLUE_BG),
-                    theme::color(theme_keys::BLUE_BORDER),
-                ),
-                repo_count_card(tab.remote_repos.len()),
-            ]
-            .spacing(12),
+            provider_cards,
         ]
         .spacing(0),
     )
@@ -348,10 +413,12 @@ fn ssh_status_color(status: &SshStatus) -> Color {
     }
 }
 
-fn empty_state<'a>() -> Element<'a, Message> {
+fn empty_state<'a>(compact: bool) -> Element<'a, Message> {
     let github_hint = container(
         column![
             row![
+                icons::solid(Icon::Repo, 14.0, theme::color(theme_keys::TEAL)),
+                Space::with_width(8),
                 text(tr(keys::GITHUB))
                     .size(12)
                     .color(theme::color(theme_keys::TEAL)),
@@ -383,6 +450,8 @@ fn empty_state<'a>() -> Element<'a, Message> {
     let bitbucket_hint = container(
         column![
             row![
+                icons::solid(Icon::Repo, 14.0, theme::color(theme_keys::BLUE)),
+                Space::with_width(8),
                 text(tr(keys::BITBUCKET))
                     .size(12)
                     .color(theme::color(theme_keys::BLUE)),
@@ -413,7 +482,11 @@ fn empty_state<'a>() -> Element<'a, Message> {
 
     let note = container(
         row![
-            text("i").size(10).color(theme::color(theme_keys::YELLOW)),
+            icons::solid(Icon::Info, 12.0, theme::color(theme_keys::YELLOW)),
+            Space::with_width(8),
+            text(tr(keys::TIP))
+                .size(11)
+                .color(theme::color(theme_keys::YELLOW)),
             Space::with_width(8),
             text(tr(keys::CLI_NOTE))
                 .size(11)
@@ -433,30 +506,132 @@ fn empty_state<'a>() -> Element<'a, Message> {
         ..Default::default()
     });
 
-    column![
-        ui::empty_state(
-            tr(keys::EMPTY_TITLE),
-            tr(keys::EMPTY_BODY),
-            vec![
-                ui::secondary_button(tr(keys::CHECK_SSH), Message::Repos(ReposMessage::CheckSsh),),
-                ui::primary_button(tr(keys::FETCH_REPOS), Message::Repos(ReposMessage::Fetch),),
-            ],
-        ),
-        Space::with_height(20),
-        container(
-            column![
-                github_hint,
-                Space::with_height(8),
-                bitbucket_hint,
-                Space::with_height(16),
-                note,
+    let empty_panel = container(
+        column![
+            Space::with_height(22),
+            container(icons::solid(
+                Icon::Terminal,
+                40.0,
+                theme::color(theme_keys::GREEN)
+            ))
+            .padding(Padding::from([18, 20]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BG_CARD).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BORDER_MED),
+                    width: 1.0,
+                    radius: 38.0.into(),
+                },
+                ..Default::default()
+            }),
+            Space::with_height(20),
+            text(tr(keys::EMPTY_TITLE))
+                .size(18)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(8),
+            text(tr(keys::EMPTY_BODY))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(24),
+            row![
+                ui::secondary_icon_button(
+                    Icon::Shield,
+                    tr(keys::CHECK_SSH),
+                    Message::Repos(ReposMessage::CheckSsh),
+                ),
+                ui::primary_icon_button(
+                    Icon::Refresh,
+                    tr(keys::FETCH_REPOS),
+                    Message::Repos(ReposMessage::Fetch),
+                ),
             ]
-            .spacing(0),
+            .spacing(10)
+            .align_y(Alignment::Center),
+            Space::with_height(24),
+            note,
+            Space::with_height(18),
+        ]
+        .align_x(Alignment::Center)
+        .spacing(0),
+    )
+    .padding(Padding::from([20, 22]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    let setup_panel = container(
+        column![
+            row![
+                icons::solid(Icon::Shield, 15.0, theme::color(theme_keys::TEXT_SECONDARY)),
+                Space::with_width(8),
+                text(tr(keys::SETUP_GUIDE))
+                    .size(15)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            ]
+            .align_y(Alignment::Center),
+            Space::with_height(6),
+            text(tr(keys::SETUP_BODY))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(18),
+            setup_step(
+                "1",
+                tr(keys::STEP_GENERATE_KEY),
+                tr(keys::GITHUB_SSH_COMMAND)
+            ),
+            Space::with_height(14),
+            setup_step("2", tr(keys::STEP_ADD_PROVIDER), tr(keys::GITHUB_HINT)),
+            Space::with_height(14),
+            setup_step("3", tr(keys::STEP_VERIFY), tr(keys::BITBUCKET_HINT)),
+            Space::with_height(18),
+            github_hint,
+            Space::with_height(8),
+            bitbucket_hint,
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([20, 22]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    if compact {
+        column![empty_panel, Space::with_height(14), setup_panel].into()
+    } else {
+        row![empty_panel, Space::with_width(14), setup_panel]
+            .align_y(Alignment::Start)
+            .into()
+    }
+}
+
+fn setup_step<'a>(number: &'a str, title: &'a str, body: &'a str) -> Element<'a, Message> {
+    row![
+        container(
+            text(number)
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_PRIMARY))
         )
+        .padding(Padding::from([4, 8]))
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_MED),
+                width: 1.0,
+                radius: 20.0.into(),
+            },
+            ..Default::default()
+        }),
+        Space::with_width(10),
+        column![
+            text(title)
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
+            Space::with_height(4),
+            text(body)
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        ]
         .width(Length::Fill)
-        .padding(Padding::from([8, 0]))
     ]
-    .spacing(0)
+    .align_y(Alignment::Start)
     .into()
 }
 

@@ -1,6 +1,6 @@
 use crate::core::theme::{self, theme_map as theme_keys};
 use iced::widget::{Space, column, container, row, text};
-use iced::{Alignment, Element, Length, Padding};
+use iced::{Alignment, Element, Length};
 
 pub fn page_header<'a, Message>(
     title: &'a str,
@@ -31,7 +31,7 @@ where
     .into()
 }
 
-pub fn empty_state<'a, Message>(
+pub fn page_header_compact<'a, Message>(
     title: &'a str,
     description: &'a str,
     actions: Vec<Element<'a, Message>>,
@@ -42,20 +42,17 @@ where
     container(
         column![
             text(title)
-                .size(15)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(6),
+                .size(22)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(4),
             text(description)
                 .size(13)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(if actions.is_empty() { 0 } else { 18 }),
+            Space::with_height(if actions.is_empty() { 0 } else { 12 }),
             row(actions).spacing(8).align_y(Alignment::Center),
         ]
-        .align_x(Alignment::Center)
         .spacing(0),
     )
     .width(Length::Fill)
-    .padding(Padding::from([40, 0]))
-    .center_x(Length::Fill)
     .into()
 }

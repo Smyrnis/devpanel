@@ -1,4 +1,5 @@
 pub mod components;
+pub mod icons;
 pub mod install_window;
 pub mod layout;
 pub mod tabs;

@@ -4,25 +4,66 @@ use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::dashboard as keys, text as tr};
 use crate::messages::DashboardMessage;
 use crate::messages::Message;
+use crate::ui::icons::{self, Icon};
 use crate::ui::templates::prelude as ui;
-use iced::widget::{Space, button, column, container, pick_list, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
-    let header = ui::page_header(
+pub fn render(tab: &DashboardTab, compact: bool) -> Element<'_, Message> {
+    let header_fn = if compact {
+        ui::page_header_compact
+    } else {
+        ui::page_header
+    };
+    let header = header_fn(
         tr(keys::TITLE),
         tr(keys::SUBTITLE),
         vec![
-            ui::secondary_button(
+            ui::secondary_icon_button(
+                Icon::Globe,
                 tr(keys::OPEN_LOCALHOST),
                 Message::Dashboard(DashboardMessage::OpenLocalhost),
             ),
-            ui::primary_button(
+            ui::primary_icon_button(
+                Icon::Refresh,
                 tr(keys::RESTART_ALL),
                 Message::Dashboard(DashboardMessage::RestartAll),
             ),
         ],
     );
+
+    let env_metrics: Element<Message> = if compact {
+        column![
+            meta_item(Icon::Server, "OS", &tab.distro),
+            meta_item(Icon::Folder, tr(keys::WEB_ROOT), &tab.web_root),
+            meta_item(Icon::Apache, tr(keys::APACHE), &tab.apache_conf_dir),
+            meta_item(
+                Icon::Php,
+                tr(keys::ACTIVE_PHP),
+                tab.active_php_version
+                    .as_deref()
+                    .unwrap_or(tr(keys::NOT_AVAILABLE_SHORT)),
+            ),
+        ]
+        .spacing(10)
+        .into()
+    } else {
+        row![
+            meta_item(Icon::Server, "OS", &tab.distro),
+            meta_item(Icon::Folder, tr(keys::WEB_ROOT), &tab.web_root),
+            meta_item(Icon::Apache, tr(keys::APACHE), &tab.apache_conf_dir),
+            meta_item(
+                Icon::Php,
+                tr(keys::ACTIVE_PHP),
+                tab.active_php_version
+                    .as_deref()
+                    .unwrap_or(tr(keys::NOT_AVAILABLE_SHORT)),
+            ),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Start)
+        .into()
+    };
 
     let environment = container(
         column![
@@ -30,19 +71,7 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
                 .size(13)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(10),
-            row![
-                meta_item("OS", &tab.distro),
-                meta_item(tr(keys::WEB_ROOT), &tab.web_root),
-                meta_item(tr(keys::APACHE), &tab.apache_conf_dir),
-                meta_item(
-                    tr(keys::ACTIVE_PHP),
-                    tab.active_php_version
-                        .as_deref()
-                        .unwrap_or(tr(keys::NOT_AVAILABLE_SHORT)),
-                ),
-            ]
-            .spacing(16)
-            .align_y(Alignment::Start),
+            env_metrics,
         ]
         .spacing(0),
     )
@@ -50,50 +79,57 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
     .width(Length::Fill)
     .style(ui::card_style());
 
-    let services = row![
-        service_card(
-            tr(keys::APACHE),
-            tr(keys::APACHE_SUBTITLE),
-            tab.apache_uptime.as_deref(),
-            tab.apache_running,
-            theme::color(theme_keys::GREEN),
-            ServiceActions {
-                start: Message::Dashboard(DashboardMessage::StartApache),
-                stop: Message::Dashboard(DashboardMessage::StopApache),
-                restart: Message::Dashboard(DashboardMessage::RestartApache),
-            },
-        ),
-        service_card(
-            tr(keys::MYSQL),
-            tr(keys::MYSQL_SUBTITLE),
-            tab.mysql_uptime.as_deref(),
-            tab.mysql_running,
-            theme::color(theme_keys::BLUE),
-            ServiceActions {
-                start: Message::Dashboard(DashboardMessage::StartMySQL),
-                stop: Message::Dashboard(DashboardMessage::StopMySQL),
-                restart: Message::Dashboard(DashboardMessage::RestartMySQL),
-            },
-        ),
-        php_card(tab),
-    ]
-    .spacing(12);
+    let apache_card = service_card(
+        tr(keys::APACHE),
+        tr(keys::APACHE_SUBTITLE),
+        tab.apache_uptime.as_deref(),
+        tab.apache_running,
+        theme::color(theme_keys::GREEN),
+        ServiceActions {
+            start: Message::Dashboard(DashboardMessage::StartApache),
+            stop: Message::Dashboard(DashboardMessage::StopApache),
+            restart: Message::Dashboard(DashboardMessage::RestartApache),
+        },
+    );
+    let mysql_card = service_card(
+        tr(keys::MYSQL),
+        tr(keys::MYSQL_SUBTITLE),
+        tab.mysql_uptime.as_deref(),
+        tab.mysql_running,
+        theme::color(theme_keys::BLUE),
+        ServiceActions {
+            start: Message::Dashboard(DashboardMessage::StartMySQL),
+            stop: Message::Dashboard(DashboardMessage::StopMySQL),
+            restart: Message::Dashboard(DashboardMessage::RestartMySQL),
+        },
+    );
+    let php_card = php_card(tab);
+    let services: Element<Message> = if compact {
+        column![apache_card, mysql_card, php_card]
+            .spacing(10)
+            .into()
+    } else {
+        row![apache_card, mysql_card, php_card].spacing(12).into()
+    };
 
     let quick_grid = column![
         quick_group(
             tr(keys::GROUP_OPEN),
             &[
                 QuickAction {
+                    icon: Icon::Globe,
                     label: tr(keys::LOCALHOST),
                     meta: "http://localhost",
                     msg: Message::Dashboard(DashboardMessage::OpenLocalhost),
                 },
                 QuickAction {
+                    icon: Icon::Database,
                     label: tr(keys::PHPMYADMIN),
                     meta: "http://localhost/phpmyadmin",
                     msg: Message::Dashboard(DashboardMessage::OpenPhpMyAdmin),
                 },
                 QuickAction {
+                    icon: Icon::Folder,
                     label: tr(keys::PROJECTS),
                     meta: tab.web_root.as_str(),
                     msg: Message::Dashboard(DashboardMessage::OpenProjectsFolder),
@@ -105,16 +141,19 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
             tr(keys::GROUP_CONFIGURATION),
             &[
                 QuickAction {
+                    icon: Icon::Apache,
                     label: tr(keys::APACHE_CONFIG),
                     meta: paths::APACHE_CONF_DIR,
                     msg: Message::Dashboard(DashboardMessage::NavigateApache2Conf),
                 },
                 QuickAction {
+                    icon: Icon::Host,
                     label: tr(keys::SITES_AVAILABLE),
                     meta: paths::APACHE_SITES_AVAILABLE,
                     msg: Message::Dashboard(DashboardMessage::NavigateApache2Sites),
                 },
                 QuickAction {
+                    icon: Icon::Config,
                     label: tr(keys::DEVPANEL_CONFIG),
                     meta: paths::DEVPANEL_CONF,
                     msg: Message::VHosts(crate::messages::VHostsMessage::OpenDevpanelConf),
@@ -126,16 +165,19 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
             tr(keys::GROUP_SYSTEM),
             &[
                 QuickAction {
+                    icon: Icon::Php,
                     label: paths::PHP_ETC_DIR,
                     meta: paths::PHP_ETC_DIR,
                     msg: Message::Dashboard(DashboardMessage::NavigatePhpDir),
                 },
                 QuickAction {
+                    icon: Icon::Database,
                     label: paths::MYSQL_ETC_DIR,
                     meta: paths::MYSQL_ETC_DIR,
                     msg: Message::Dashboard(DashboardMessage::NavigateMysqlDir),
                 },
                 QuickAction {
+                    icon: Icon::Code,
                     label: paths::HOSTS_FILE,
                     meta: paths::HOSTS_FILE,
                     msg: Message::Dashboard(DashboardMessage::NavigateHostsFile),
@@ -145,16 +187,19 @@ pub fn render(tab: &DashboardTab) -> Element<'_, Message> {
         Space::with_height(8),
         quick_row(&[
             QuickAction {
+                icon: Icon::Folder,
                 label: tr(keys::WEB_ROOT),
                 meta: tab.web_root.as_str(),
                 msg: Message::Dashboard(DashboardMessage::OpenWebRoot),
             },
             QuickAction {
+                icon: Icon::Php,
                 label: tr(keys::PHP_INI),
                 meta: paths::PHP_ETC_DIR,
                 msg: Message::Dashboard(DashboardMessage::OpenPhpIni),
             },
             QuickAction {
+                icon: Icon::Refresh,
                 label: tr(keys::RESTART_ALL),
                 meta: "Apache + MySQL",
                 msg: Message::Dashboard(DashboardMessage::RestartAll),
@@ -338,21 +383,37 @@ fn service_card<'a>(
     .align_y(Alignment::Center);
 
     let btn_row = row![
-        button(text(tr(keys::START)).size(13).width(Length::Fill).center())
-            .on_press(actions.start)
-            .padding(Padding::from([7, 0]))
-            .width(Length::FillPortion(1))
-            .style(btn_style(theme::color(theme_keys::BTN_SUCCESS))),
-        button(text(tr(keys::STOP)).size(13).width(Length::Fill).center())
-            .on_press(actions.stop)
-            .padding(Padding::from([7, 0]))
-            .width(Length::FillPortion(1))
-            .style(btn_style(theme::color(theme_keys::BTN_DANGER))),
         button(
-            text(tr(keys::RESTART))
-                .size(13)
-                .width(Length::Fill)
-                .center()
+            row![
+                icons::solid_box(Icon::Plus, 11.0, theme::color(theme_keys::WHITE), 13.0),
+                Space::with_width(6),
+                text(tr(keys::START)).size(13)
+            ]
+            .align_y(Alignment::Center)
+        )
+        .on_press(actions.start)
+        .padding(Padding::from([7, 0]))
+        .width(Length::FillPortion(1))
+        .style(btn_style(theme::color(theme_keys::BTN_SUCCESS))),
+        button(
+            row![
+                icons::solid_box(Icon::Stop, 10.0, theme::color(theme_keys::WHITE), 13.0),
+                Space::with_width(6),
+                text(tr(keys::STOP)).size(13)
+            ]
+            .align_y(Alignment::Center)
+        )
+        .on_press(actions.stop)
+        .padding(Padding::from([7, 0]))
+        .width(Length::FillPortion(1))
+        .style(btn_style(theme::color(theme_keys::BTN_DANGER))),
+        button(
+            row![
+                icons::solid_box(Icon::Refresh, 11.0, theme::color(theme_keys::WHITE), 13.0),
+                Space::with_width(6),
+                text(tr(keys::RESTART)).size(13)
+            ]
+            .align_y(Alignment::Center)
         )
         .on_press(actions.restart)
         .padding(Padding::from([7, 0]))
@@ -446,38 +507,11 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let picker: Element<Message> = if !tab.php_versions.is_empty() {
-        pick_list(
+        ui::dropdown(
             &tab.php_versions[..],
             tab.active_php_version.as_ref(),
             |v| Message::Dashboard(DashboardMessage::SwitchPhpVersion(v)),
         )
-        .padding(Padding::from([10, 14]))
-        .width(Length::Fill)
-        .style(|_theme, status| {
-            use iced::widget::pick_list;
-            let is_open = matches!(status, pick_list::Status::Opened);
-            let border_color = if is_open {
-                theme::color(theme_keys::PURPLE)
-            } else {
-                theme::color(theme_keys::PURPLE_BORDER)
-            };
-            pick_list::Style {
-                text_color: theme::color(theme_keys::PURPLE),
-                placeholder_color: theme::color(theme_keys::TEXT_MUTED),
-                handle_color: theme::color(theme_keys::PURPLE),
-                background: iced::Background::Color(if is_open {
-                    theme::color(theme_keys::PURPLE_HOVER)
-                } else {
-                    theme::color(theme_keys::PURPLE_BG)
-                }),
-                border: Border {
-                    color: border_color,
-                    width: 1.0,
-                    radius: 12.0.into(),
-                },
-            }
-        })
-        .into()
     } else {
         container(
             text(tr(keys::PHP_NOT_DETECTED))
@@ -498,33 +532,11 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
         .into()
     };
 
-    let php_info_btn = button(text(tr(keys::PHP_INFO)).size(13))
-        .on_press(Message::Dashboard(DashboardMessage::ShowPhpInfo))
-        .padding(Padding::from([7, 14]))
-        .style(|_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-                iced::widget::button::Style {
-                    background: Some(theme::color(theme_keys::PURPLE_HOVER).into()),
-                    text_color: theme::color(theme_keys::PURPLE),
-                    border: Border {
-                        color: theme::color(theme_keys::PURPLE_BORDER),
-                        width: 1.0,
-                        radius: 6.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }
-            _ => iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::PURPLE_BG).into()),
-                text_color: theme::color(theme_keys::PURPLE),
-                border: Border {
-                    radius: 6.0.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        });
-
+    let php_info_btn = ui::secondary_icon_button(
+        Icon::Info,
+        tr(keys::PHP_INFO),
+        Message::Dashboard(DashboardMessage::ShowPhpInfo),
+    );
     container(
         column![
             top,
@@ -558,6 +570,7 @@ fn php_card(tab: &DashboardTab) -> Element<'_, Message> {
 }
 
 struct QuickAction<'a> {
+    icon: Icon,
     label: &'a str,
     meta: &'a str,
     msg: Message,
@@ -581,6 +594,8 @@ fn quick_row<'a>(items: &[QuickAction<'a>]) -> Element<'a, Message> {
                             }
                         ),
                         Space::with_width(12),
+                        icons::solid(item.icon, 14.0, theme::color(theme_keys::TEXT_SECONDARY)),
+                        Space::with_width(10),
                         column![
                             text(item.label)
                                 .size(13)
@@ -639,17 +654,23 @@ fn quick_group<'a>(title: &'a str, items: &[QuickAction<'a>]) -> Element<'a, Mes
     .into()
 }
 
-fn meta_item<'a>(label: &'a str, value: &'a str) -> Element<'a, Message> {
-    column![
-        text(label)
-            .size(10)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-        Space::with_height(3),
-        text(value)
-            .size(12)
-            .color(theme::color(theme_keys::TEXT_PRIMARY)),
+fn meta_item<'a>(icon: Icon, label: &'a str, value: &'a str) -> Element<'a, Message> {
+    row![
+        icons::solid(icon, 15.0, theme::color(theme_keys::TEXT_MUTED)),
+        Space::with_width(9),
+        column![
+            text(label)
+                .size(10)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(3),
+            text(value)
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+        ]
+        .spacing(0),
     ]
     .spacing(0)
+    .align_y(Alignment::Center)
     .width(Length::FillPortion(1))
     .into()
 }

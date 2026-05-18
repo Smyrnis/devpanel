@@ -93,7 +93,7 @@ impl ReposTab {
         }
     }
 
-    pub fn view(&self) -> Element<'_, Message> {
-        view::render(self)
+    pub fn view(&self, compact: bool) -> Element<'_, Message> {
+        view::render(self, compact)
     }
 }

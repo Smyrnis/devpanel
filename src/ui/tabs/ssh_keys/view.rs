@@ -2,36 +2,56 @@ use super::{KeyType, SshKeysTab, StatusKind};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::ssh_keys as keys, text as tr};
 use crate::messages::{Message, SshKeysMessage};
+use crate::ui::icons::{self, Icon};
 use crate::ui::templates::prelude as ui;
 use iced::widget::{Space, button, column, container, radio, row, scrollable, text, text_input};
-use iced::{Alignment, Border, Color, Element, Length, Padding};
+use iced::{Alignment, Border, Element, Length, Padding};
 
-pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
+pub fn render(tab: &SshKeysTab, compact: bool) -> Element<'_, Message> {
+    let header_fn = if compact {
+        ui::page_header_compact
+    } else {
+        ui::page_header
+    };
+    let main_panels: Element<Message> = if compact {
+        column![keys_panel(tab), Space::with_height(14), generate_panel(tab)]
+            .spacing(0)
+            .into()
+    } else {
+        row![keys_panel(tab), Space::with_width(14), generate_panel(tab)]
+            .align_y(Alignment::Start)
+            .into()
+    };
+
     scrollable(
         column![
-            ui::page_header(
+            header_fn(
                 tr(keys::TITLE),
                 tr(keys::SUBTITLE),
                 vec![
-                    ui::secondary_button(
+                    ui::secondary_icon_button(
+                        Icon::Folder,
                         tr(keys::OPEN_SSH_DIR),
                         Message::SshKeys(SshKeysMessage::OpenDir),
                     ),
-                    ui::secondary_button(
+                    ui::secondary_icon_button(
+                        Icon::Plus,
                         tr(keys::ADD_EXISTING),
                         Message::SshKeys(SshKeysMessage::AddExisting),
                     ),
-                    ui::primary_button(
+                    ui::primary_icon_button(
+                        Icon::Key,
                         tr(keys::GENERATE_KEY),
                         Message::SshKeys(SshKeysMessage::GenerateKey),
                     ),
                 ],
             ),
             Space::with_height(18),
-            ssh_summary(tab),
+            ssh_summary(tab, compact),
             Space::with_height(16),
-            row![keys_panel(tab), Space::with_width(14), generate_panel(tab)]
-                .align_y(Alignment::Start),
+            main_panels,
+            Space::with_height(16),
+            support_panels(tab, compact),
             Space::with_height(16),
             status_bar(tab),
             Space::with_height(20),
@@ -42,7 +62,126 @@ pub fn render(tab: &SshKeysTab) -> Element<'_, Message> {
     .into()
 }
 
-fn ssh_summary(tab: &SshKeysTab) -> Element<'_, Message> {
+fn support_panels(tab: &SshKeysTab, compact: bool) -> Element<'_, Message> {
+    let providers = container(
+        column![
+            row![
+                icons::solid(Icon::Repo, 15.0, theme::color(theme_keys::TEXT_SECONDARY)),
+                Space::with_width(8),
+                text(tr(keys::CONNECT_PROVIDERS))
+                    .size(15)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            ]
+            .align_y(Alignment::Center),
+            Space::with_height(6),
+            text(tr(keys::CONNECT_PROVIDERS_HELP))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(14),
+            provider_hint(tr(keys::GITHUB), tr(keys::NOT_CONNECTED), Icon::Repo),
+            Space::with_height(8),
+            provider_hint(tr(keys::BITBUCKET), tr(keys::NOT_CONNECTED), Icon::Repo),
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([18, 20]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    let agent_loaded = tab
+        .keys_list
+        .iter()
+        .filter(|key| key.loaded_in_agent)
+        .count();
+    let agent = container(
+        column![
+            row![
+                icons::solid(
+                    Icon::Terminal,
+                    15.0,
+                    theme::color(theme_keys::TEXT_SECONDARY)
+                ),
+                Space::with_width(8),
+                text(tr(keys::SSH_AGENT))
+                    .size(15)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            ]
+            .align_y(Alignment::Center),
+            Space::with_height(6),
+            text(tr(keys::SSH_AGENT_HELP))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(16),
+            row![
+                text(tr(keys::STATUS_SUMMARY))
+                    .size(11)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                Space::with_width(Length::Fill),
+                ui::status_dot(if agent_loaded > 0 {
+                    theme::color(theme_keys::GREEN)
+                } else {
+                    theme::color(theme_keys::TEXT_MUTED)
+                }),
+                Space::with_width(7),
+                text(if agent_loaded > 0 {
+                    format!("{} {}", agent_loaded, tr(keys::AGENT_LOADED))
+                } else {
+                    tr(keys::NOT_CONNECTED).to_string()
+                })
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
+            ]
+            .align_y(Alignment::Center),
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([18, 20]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    if compact {
+        column![providers, Space::with_height(12), agent].into()
+    } else {
+        row![providers, Space::with_width(14), agent]
+            .align_y(Alignment::Start)
+            .into()
+    }
+}
+
+fn provider_hint<'a>(label: &'a str, status: &'a str, icon: Icon) -> Element<'a, Message> {
+    container(
+        row![
+            icons::solid(icon, 15.0, theme::color(theme_keys::TEXT_SECONDARY)),
+            Space::with_width(10),
+            text(label)
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_SECONDARY)),
+            Space::with_width(Length::Fill),
+            container(
+                text(status)
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED))
+            )
+            .padding(Padding::from([3, 8]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
+                    width: 1.0,
+                    radius: 20.0.into(),
+                },
+                ..Default::default()
+            }),
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(Padding::from([10, 12]))
+    .width(Length::Fill)
+    .style(ui::surface_style())
+    .into()
+}
+
+fn ssh_summary(tab: &SshKeysTab, compact: bool) -> Element<'_, Message> {
     let public_keys = tab.keys_list.iter().filter(|key| key.has_pub).count();
     let agent_loaded = tab
         .keys_list
@@ -54,6 +193,41 @@ fn ssh_summary(tab: &SshKeysTab) -> Element<'_, Message> {
         .first()
         .map(|key| key.name.clone())
         .unwrap_or_else(|| tr(keys::NONE).to_string());
+    let summary_grid: Element<Message> = if compact {
+        column![
+            ui::metric_card_icon(
+                Icon::Key,
+                tr(keys::KEYS_FOUND),
+                tab.keys_list.len().to_string()
+            ),
+            ui::metric_card_icon(Icon::Key, tr(keys::DEFAULT_KEY), default_key),
+            ui::metric_card_icon(Icon::Copy, tr(keys::PUBLIC_KEYS), public_keys.to_string()),
+            ui::metric_card_icon(
+                Icon::Terminal,
+                tr(keys::AGENT_LOADED),
+                agent_loaded.to_string()
+            ),
+        ]
+        .spacing(8)
+        .into()
+    } else {
+        row![
+            ui::metric_card_icon(
+                Icon::Key,
+                tr(keys::KEYS_FOUND),
+                tab.keys_list.len().to_string()
+            ),
+            ui::metric_card_icon(Icon::Shield, tr(keys::DEFAULT_KEY), default_key),
+            ui::metric_card_icon(Icon::Copy, tr(keys::PUBLIC_KEYS), public_keys.to_string()),
+            ui::metric_card_icon(
+                Icon::Terminal,
+                tr(keys::AGENT_LOADED),
+                agent_loaded.to_string()
+            ),
+        ]
+        .spacing(12)
+        .into()
+    };
 
     container(
         column![
@@ -61,13 +235,7 @@ fn ssh_summary(tab: &SshKeysTab) -> Element<'_, Message> {
                 .size(13)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(12),
-            row![
-                ui::metric_card(tr(keys::KEYS_FOUND), tab.keys_list.len().to_string()),
-                ui::metric_card(tr(keys::DEFAULT_KEY), default_key),
-                ui::metric_card(tr(keys::PUBLIC_KEYS), public_keys.to_string()),
-                ui::metric_card(tr(keys::AGENT_LOADED), agent_loaded.to_string()),
-            ]
-            .spacing(12),
+            summary_grid,
         ]
         .spacing(0),
     )
@@ -171,55 +339,46 @@ fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             Space::with_height(20),
             divider,
             Space::with_height(16),
-            button(text(tr(keys::GENERATE_KEY)).size(13))
-                .on_press(Message::SshKeys(SshKeysMessage::GenerateKey))
-                .padding(Padding::from([10, 22]))
-                .style(btn_style(theme::color(theme_keys::ACCENT))),
+            ui::primary_icon_button(
+                Icon::Key,
+                tr(keys::GENERATE_KEY),
+                Message::SshKeys(SshKeysMessage::GenerateKey),
+            ),
             Space::with_height(16),
             text(tr(keys::QUICK_ACTIONS))
                 .size(11)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(8),
             row![
-                button(text(tr(keys::ADD_EXISTING)).size(12))
-                    .on_press(Message::SshKeys(SshKeysMessage::AddExisting))
-                    .padding(Padding::from([8, 14]))
-                    .style(ui::ghost_button_style()),
-                button(text(tr(keys::OPEN_SSH_DIR)).size(12))
-                    .on_press(Message::SshKeys(SshKeysMessage::OpenDir))
-                    .padding(Padding::from([8, 14]))
-                    .style(ui::ghost_button_style()),
-                button(text(tr(keys::REFRESH)).size(12))
-                    .on_press(Message::SshKeys(SshKeysMessage::ListKeys))
-                    .padding(Padding::from([8, 14]))
-                    .style(ui::ghost_button_style()),
+                ui::secondary_icon_button(
+                    Icon::Plus,
+                    tr(keys::ADD_EXISTING),
+                    Message::SshKeys(SshKeysMessage::AddExisting),
+                ),
+                ui::secondary_icon_button(
+                    Icon::Folder,
+                    tr(keys::OPEN_SSH_DIR),
+                    Message::SshKeys(SshKeysMessage::OpenDir),
+                ),
+                ui::secondary_icon_button(
+                    Icon::Refresh,
+                    tr(keys::REFRESH),
+                    Message::SshKeys(SshKeysMessage::ListKeys),
+                ),
             ]
             .spacing(8),
         ]
         .spacing(0)
         .padding(Padding::from([22, 22])),
     )
-    .width(Length::FillPortion(2))
+    .width(Length::FillPortion(1))
     .style(ui::card_style())
     .into()
 }
 
 fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     let entries: Vec<Element<Message>> = if tab.keys_list.is_empty() {
-        vec![ui::empty_state(
-            tr(keys::NO_KEYS),
-            tr(keys::NO_KEYS_HELP),
-            vec![
-                ui::primary_button(
-                    tr(keys::GENERATE_KEY),
-                    Message::SshKeys(SshKeysMessage::GenerateKey),
-                ),
-                ui::secondary_button(
-                    tr(keys::ADD_EXISTING),
-                    Message::SshKeys(SshKeysMessage::AddExisting),
-                ),
-            ],
-        )]
+        vec![ssh_empty_state()]
     } else {
         tab.keys_list
             .iter()
@@ -359,8 +518,59 @@ fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .spacing(0)
         .padding(Padding::from([22, 22])),
     )
-    .width(Length::FillPortion(3))
+    .width(Length::FillPortion(1))
     .style(ui::card_style())
+    .into()
+}
+
+fn ssh_empty_state<'a>() -> Element<'a, Message> {
+    container(
+        column![
+            Space::with_height(18),
+            icons::solid(Icon::Key, 54.0, theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(18),
+            text(tr(keys::NO_KEYS))
+                .size(18)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(8),
+            text(tr(keys::NO_KEYS_HELP))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(22),
+            row![
+                ui::primary_icon_button(
+                    Icon::Key,
+                    tr(keys::GENERATE_KEY),
+                    Message::SshKeys(SshKeysMessage::GenerateKey),
+                ),
+                ui::secondary_icon_button(
+                    Icon::Plus,
+                    tr(keys::ADD_EXISTING),
+                    Message::SshKeys(SshKeysMessage::AddExisting),
+                ),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+            Space::with_height(18),
+            container(
+                row![
+                    icons::solid(Icon::Info, 12.0, theme::color(theme_keys::TEXT_MUTED)),
+                    Space::with_width(8),
+                    text(tr(keys::CONNECT_PROVIDERS_HELP))
+                        .size(11)
+                        .color(theme::color(theme_keys::TEXT_MUTED)),
+                ]
+                .align_y(Alignment::Center),
+            )
+            .padding(Padding::from([10, 14]))
+            .width(Length::Fill)
+            .style(ui::surface_style()),
+            Space::with_height(10),
+        ]
+        .align_x(Alignment::Center)
+        .spacing(0),
+    )
+    .width(Length::Fill)
     .into()
 }
 
@@ -423,36 +633,6 @@ fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
     .into()
 }
 
-fn btn_style(
-    bg: Color,
-) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-    move |_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(Color::from_rgba(bg.r, bg.g, bg.b, 0.82).into()),
-                text_color: theme::color(theme_keys::WHITE),
-                border: Border {
-                    radius: 6.0.into(),
-                    ..Default::default()
-                },
-                shadow: iced::Shadow {
-                    color: Color { a: 0.3, ..bg },
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 8.0,
-                },
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(bg.into()),
-            text_color: theme::color(theme_keys::WHITE),
-            border: Border {
-                radius: 6.0.into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-    }
-}
 fn lbl<'a>(s: &'a str) -> Element<'a, Message> {
     text(s)
         .size(11)

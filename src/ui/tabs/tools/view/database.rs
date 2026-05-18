@@ -2,33 +2,23 @@ use super::shared::db_btn;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
+use crate::ui::icons::Icon;
 use crate::ui::tabs::tools::ToolsTab;
 use crate::ui::templates::prelude as ui;
-use iced::widget::{Space, column, container, row, text};
-use iced::{Alignment, Border, Element, Length, Padding};
+use iced::widget::{Space, column, container, text};
+use iced::{Border, Element, Length, Padding};
 
 pub(super) fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
-    let note = container(
-        row![
-            text("").size(10).color(theme::color(theme_keys::YELLOW)),
-            Space::with_width(8),
-            text(tr(keys::TERMINAL_ROOT_NOTE))
-                .size(11)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-        ]
-        .align_y(Alignment::Center),
-    )
-    .padding(Padding::from([10, 12]))
-    .width(Length::Fill)
-    .style(|_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::YELLOW_BG).into()),
-        border: Border {
-            color: theme::color(theme_keys::YELLOW_BORDER),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    });
+    let note = ui::info_banner(
+        Icon::Info,
+        text(tr(keys::TERMINAL_ROOT_NOTE))
+            .size(11)
+            .color(theme::color(theme_keys::TEXT_MUTED))
+            .into(),
+        theme::color(theme_keys::YELLOW),
+        theme::color(theme_keys::YELLOW_BG),
+        theme::color(theme_keys::YELLOW_BORDER),
+    );
 
     let status_row: Element<Message> = if !tab.db_status.is_empty() {
         container(

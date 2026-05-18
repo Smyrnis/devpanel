@@ -1,57 +1,125 @@
 use crate::core::theme::{self, theme_map as theme_keys};
-use iced::widget::{button, text};
-use iced::{Border, Color, Element, Padding};
+use crate::ui::icons::{self, Icon};
+use iced::widget::{Space, button, row, text};
+use iced::{Alignment, Border, Color, Element, Length, Padding};
 
-pub fn primary_button<'a, Message>(label: &'a str, msg: Message) -> Element<'a, Message>
+pub fn primary_icon_button<'a, Message>(
+    icon: Icon,
+    label: &'a str,
+    msg: Message,
+) -> Element<'a, Message>
 where
     Message: Clone + 'a,
 {
-    button(
-        text(label)
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_ON_ACCENT)),
+    primary_button_content(
+        icon_label(icon, label, theme::color(theme_keys::TEXT_ON_ACCENT)),
+        msg,
+        Padding::from([8, 15]),
+        Length::Fixed(36.0),
     )
-    .on_press(msg)
-    .padding(Padding::from([9, 16]))
-    .style(|_, status| match status {
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+}
+
+fn primary_button_content<'a, Message>(
+    content: Element<'a, Message>,
+    msg: Message,
+    padding: Padding,
+    height: Length,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    button(content)
+        .on_press(msg)
+        .padding(padding)
+        .height(height)
+        .style(|_, status| match status {
+            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+                iced::widget::button::Style {
+                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
+                    text_color: theme::color(theme_keys::TEXT_ON_ACCENT),
+                    border: Border {
+                        color: theme::color(theme_keys::TEAL_BORDER),
+                        width: 1.0,
+                        radius: 6.0.into(),
+                    },
+                    ..Default::default()
+                }
+            }
+            _ => iced::widget::button::Style {
+                background: Some(theme::color(theme_keys::TEAL).into()),
                 text_color: theme::color(theme_keys::TEXT_ON_ACCENT),
                 border: Border {
-                    color: theme::color(theme_keys::TEAL_BORDER),
-                    width: 1.0,
                     radius: 6.0.into(),
+                    ..Default::default()
                 },
                 ..Default::default()
-            }
-        }
-        _ => iced::widget::button::Style {
-            background: Some(theme::color(theme_keys::TEAL).into()),
-            text_color: theme::color(theme_keys::TEXT_ON_ACCENT),
-            border: Border {
-                radius: 6.0.into(),
-                ..Default::default()
             },
-            ..Default::default()
-        },
-    })
+        })
+        .into()
+}
+
+pub fn secondary_icon_button<'a, Message>(
+    icon: Icon,
+    label: &'a str,
+    msg: Message,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    secondary_button_content(
+        icon_label(icon, label, theme::color(theme_keys::TEXT_SECONDARY)),
+        msg,
+        Padding::from([8, 15]),
+        Length::Fixed(36.0),
+    )
+}
+
+pub fn secondary_icon_only_button<'a, Message>(icon: Icon, msg: Message) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    secondary_button_content(
+        icon_box(icon, 14.0, theme::color(theme_keys::TEXT_SECONDARY), 16.0),
+        msg,
+        Padding::from([8, 10]),
+        Length::Fixed(34.0),
+    )
+}
+
+fn secondary_button_content<'a, Message>(
+    content: Element<'a, Message>,
+    msg: Message,
+    padding: Padding,
+    height: Length,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    button(content)
+        .on_press(msg)
+        .padding(padding)
+        .height(height)
+        .style(ghost_button_style())
+        .into()
+}
+
+fn icon_label<'a, Message: 'a>(icon: Icon, label: &'a str, color: Color) -> Element<'a, Message> {
+    row![
+        icon_box(icon, 13.0, color, 15.0),
+        Space::with_width(8),
+        text(label).size(13).color(color),
+    ]
+    .align_y(Alignment::Center)
     .into()
 }
 
-pub fn secondary_button<'a, Message>(label: &'a str, msg: Message) -> Element<'a, Message>
-where
-    Message: Clone + 'a,
-{
-    button(
-        text(label)
-            .size(13)
-            .color(theme::color(theme_keys::TEXT_SECONDARY)),
-    )
-    .on_press(msg)
-    .padding(Padding::from([9, 16]))
-    .style(ghost_button_style())
-    .into()
+fn icon_box<'a, Message: 'a>(
+    icon: Icon,
+    size: f32,
+    color: Color,
+    box_size: f32,
+) -> Element<'a, Message> {
+    icons::solid_box(icon, size, color, box_size)
 }
 
 pub fn action_button<'a, Message>(
@@ -75,6 +143,7 @@ where
             border,
             padding: [7, 14],
             radius: 6.0,
+            height: 34.0,
         },
     )
 }
@@ -100,6 +169,7 @@ where
             border,
             padding: [6, 12],
             radius: 6.0,
+            height: 32.0,
         },
     )
 }
@@ -111,6 +181,7 @@ struct ActionButtonStyle {
     border: Color,
     padding: [u16; 2],
     radius: f32,
+    height: f32,
 }
 
 fn action_button_with_style<'a, Message>(
@@ -121,8 +192,24 @@ fn action_button_with_style<'a, Message>(
 where
     Message: Clone + 'a,
 {
-    let btn = button(text(label).size(12).color(style.color))
+    action_button_with_content(
+        text(label).size(12).color(style.color).into(),
+        on_press,
+        style,
+    )
+}
+
+fn action_button_with_content<'a, Message>(
+    content: Element<'a, Message>,
+    on_press: Option<Message>,
+    style: ActionButtonStyle,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    let btn = button(content)
         .padding(Padding::from(style.padding))
+        .height(Length::Fixed(style.height))
         .style(move |_, status| match status {
             iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
                 iced::widget::button::Style {

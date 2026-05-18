@@ -2,12 +2,12 @@ use super::{FormMode, VHostEntry, VHostView, VHostsTab};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::vhosts as keys, text as tr};
 use crate::messages::{Message, Tab, VHostsMessage};
+use crate::ui::icons::{self, Icon};
 use crate::ui::templates::prelude as ui;
 use iced::widget::{
-    Space, button, checkbox, column, container, pick_list, row, scrollable, text, text_editor,
-    text_input,
+    Space, button, checkbox, column, container, row, scrollable, text, text_editor, text_input,
 };
-use iced::{Alignment, Border, Color, Element, Length, Padding};
+use iced::{Alignment, Border, Element, Font, Length, Padding};
 
 fn php_options(available: &[String]) -> Vec<String> {
     let mut opts = vec![tr(keys::PHP_GLOBAL).to_string()];
@@ -28,24 +28,35 @@ fn php_to_selection(v: &Option<String>) -> String {
         .unwrap_or_else(|| tr(keys::PHP_GLOBAL).to_string())
 }
 
-pub fn render(tab: &VHostsTab) -> Element<'_, Message> {
+pub fn render(tab: &VHostsTab, compact: bool) -> Element<'_, Message> {
     match tab.view_mode {
-        VHostView::List => list_view(tab),
+        VHostView::List => list_view(tab, compact),
         VHostView::ConfigEditor => config_editor_view(tab),
     }
 }
 
-fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
-    let header = ui::page_header(
+fn list_view(tab: &VHostsTab, compact: bool) -> Element<'_, Message> {
+    let header_fn = if compact {
+        ui::page_header_compact
+    } else {
+        ui::page_header
+    };
+    let header = header_fn(
         tr(keys::TITLE),
         tr(keys::SUBTITLE),
         vec![
-            ui::secondary_button(
+            ui::secondary_icon_button(
+                Icon::External,
                 tr(keys::OPEN_FILE),
                 Message::VHosts(VHostsMessage::OpenDevpanelConf),
             ),
-            ui::secondary_button(tr(keys::RELOAD), Message::VHosts(VHostsMessage::Scan)),
-            ui::primary_button(
+            ui::secondary_icon_button(
+                Icon::Refresh,
+                tr(keys::RELOAD),
+                Message::VHosts(VHostsMessage::Scan),
+            ),
+            ui::primary_icon_button(
+                Icon::Plus,
                 tr(keys::ADD_VHOST),
                 Message::VHosts(VHostsMessage::ShowAddForm),
             ),
@@ -55,9 +66,14 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     let path_bar = container(
         column![
             row![
-                ui::metric_card(tr(keys::CONFIG_STATUS), tr(keys::NOT_CHECKED)),
-                ui::metric_card(tr(keys::HOST_COUNT), tab.vhosts.len().to_string()),
-                ui::metric_card(
+                ui::metric_card_icon(Icon::Code, tr(keys::CONFIG_STATUS), tr(keys::NOT_CHECKED)),
+                ui::metric_card_icon(
+                    Icon::Globe,
+                    tr(keys::HOST_COUNT),
+                    tab.vhosts.len().to_string()
+                ),
+                ui::metric_card_icon(
+                    Icon::Php,
                     tr(keys::PHP_PINNING),
                     if tab.available_php_versions.is_empty() {
                         tr(keys::NO_MOD_PHP).to_string()
@@ -165,30 +181,25 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     };
 
     let php_info: Element<Message> = if tab.available_php_versions.is_empty() {
-        container(
+        ui::info_banner(
+            Icon::Info,
             row![
-                text("i").size(10).color(theme::color(theme_keys::BLUE)),
-                Space::with_width(8),
                 text(tr(keys::NO_PHP_MODULES))
                     .size(11)
                     .color(theme::color(theme_keys::TEXT_MUTED))
                     .width(Length::Fill),
-                ui::secondary_button(tr(keys::OPEN_PHP_VERSIONS), Message::SelectTab(Tab::Tools)),
+                ui::secondary_icon_button(
+                    Icon::Php,
+                    tr(keys::OPEN_PHP_VERSIONS),
+                    Message::SelectTab(Tab::Tools),
+                ),
             ]
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .into(),
+            theme::color(theme_keys::BLUE),
+            theme::color(theme_keys::BLUE_BG),
+            theme::color(theme_keys::BLUE_BORDER),
         )
-        .padding(Padding::from([10, 14]))
-        .width(Length::Fill)
-        .style(|_: &iced::Theme| container::Style {
-            background: Some(theme::color(theme_keys::BLUE_BG).into()),
-            border: Border {
-                color: theme::color(theme_keys::BLUE_BORDER),
-                width: 1.0,
-                radius: 6.0.into(),
-            },
-            ..Default::default()
-        })
-        .into()
     } else {
         Space::with_height(0).into()
     };
@@ -265,20 +276,7 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     };
 
     let body: Element<Message> = if tab.vhosts.is_empty() && !tab.scanning {
-        ui::empty_state(
-            tr(keys::EMPTY_TITLE),
-            tr(keys::EMPTY_BODY),
-            vec![
-                ui::primary_button(
-                    tr(keys::ADD_VHOST),
-                    Message::VHosts(VHostsMessage::ShowAddForm),
-                ),
-                ui::secondary_button(
-                    tr(keys::OPEN_FILE),
-                    Message::VHosts(VHostsMessage::OpenDevpanelConf),
-                ),
-            ],
-        )
+        empty_vhosts_panel(compact)
     } else if tab.scanning {
         container(
             text(tr(keys::SCANNING))
@@ -339,6 +337,110 @@ fn list_view(tab: &VHostsTab) -> Element<'_, Message> {
     .into()
 }
 
+fn empty_vhosts_panel<'a>(compact: bool) -> Element<'a, Message> {
+    let create_panel = container(
+        column![
+            Space::with_height(24),
+            container(icons::solid(
+                Icon::Globe,
+                48.0,
+                theme::color(theme_keys::TEXT_MUTED)
+            ))
+            .padding(Padding::from([18, 20]))
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BG_CARD).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BORDER_MED),
+                    width: 1.0,
+                    radius: 40.0.into(),
+                },
+                ..Default::default()
+            }),
+            Space::with_height(18),
+            text(tr(keys::EMPTY_TITLE))
+                .size(18)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(8),
+            text(tr(keys::EMPTY_BODY))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(22),
+            ui::primary_icon_button(
+                Icon::Plus,
+                tr(keys::ADD_VHOST),
+                Message::VHosts(VHostsMessage::ShowAddForm),
+            ),
+            Space::with_height(8),
+            ui::secondary_icon_button(
+                Icon::External,
+                tr(keys::OPEN_FILE),
+                Message::VHosts(VHostsMessage::OpenDevpanelConf),
+            ),
+            Space::with_height(24),
+        ]
+        .align_x(Alignment::Center)
+        .spacing(0),
+    )
+    .padding(Padding::from([18, 18]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    let example = "<VirtualHost *:80>\n    ServerName app.test\n    DocumentRoot /var/www/html/app\n\n    <Directory /var/www/html/app>\n        Options Indexes FollowSymLinks\n        AllowOverride All\n        Require all granted\n    </Directory>\n</VirtualHost>";
+
+    let help_panel = container(
+        column![
+            text(tr(keys::WHAT_IS_VHOST))
+                .size(15)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(10),
+            text(tr(keys::WHAT_IS_VHOST_BODY))
+                .size(12)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(18),
+            container(
+                column![
+                    row![
+                        text(tr(keys::EXAMPLE))
+                            .size(11)
+                            .color(theme::color(theme_keys::TEXT_MUTED)),
+                        Space::with_width(Length::Fill),
+                        icons::solid(Icon::Code, 13.0, theme::color(theme_keys::TEXT_MUTED)),
+                    ]
+                    .align_y(Alignment::Center),
+                    Space::with_height(10),
+                    text(example)
+                        .size(11)
+                        .font(Font::MONOSPACE)
+                        .color(theme::color(theme_keys::YELLOW)),
+                ]
+                .spacing(0),
+            )
+            .padding(Padding::from([12, 14]))
+            .style(ui::surface_style()),
+            Space::with_height(18),
+            text(tr(keys::HELP_TITLE))
+                .size(13)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(6),
+            text(tr(keys::HELP_BODY))
+                .size(11)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+        ]
+        .spacing(0),
+    )
+    .padding(Padding::from([22, 22]))
+    .width(Length::FillPortion(1))
+    .style(ui::card_style());
+
+    if compact {
+        column![create_panel, Space::with_height(14), help_panel].into()
+    } else {
+        row![create_panel, Space::with_width(14), help_panel]
+            .align_y(Alignment::Start)
+            .into()
+    }
+}
+
 fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = row![
         column![
@@ -388,15 +490,7 @@ fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
         )
         .padding(Padding::from([3, 8]))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(
-                Color {
-                    r: 0.19,
-                    g: 0.16,
-                    b: 0.04,
-                    a: 1.0,
-                }
-                .into(),
-            ),
+            background: Some(theme::color(theme_keys::YELLOW_BG).into()),
             border: Border {
                 radius: 20.0.into(),
                 ..Default::default()
@@ -581,22 +675,9 @@ fn vhost_row<'a>(tab: &'a VHostsTab, vh: &'a VHostEntry) -> Element<'a, Message>
         )
         .padding(Padding::from([3, 8]))
         .style(|_: &iced::Theme| container::Style {
-            background: Some(
-                Color {
-                    r: 0.19,
-                    g: 0.16,
-                    b: 0.04,
-                    a: 1.0,
-                }
-                .into(),
-            ),
+            background: Some(theme::color(theme_keys::YELLOW_BG).into()),
             border: Border {
-                color: Color {
-                    r: 0.24,
-                    g: 0.20,
-                    b: 0.05,
-                    a: 1.0,
-                },
+                color: theme::color(theme_keys::YELLOW_BORDER),
                 width: 1.0,
                 radius: 20.0.into(),
             },
@@ -814,7 +895,7 @@ fn inline_edit_widget<'a>(tab: &'a VHostsTab, _idx: usize) -> Element<'a, Messag
                         .width(Length::Fill),
                 ]
                 .spacing(0)
-                .width(Length::FillPortion(2)),
+                .width(Length::FillPortion(1)),
             ]
             .align_y(Alignment::Start),
             Space::with_height(12),
@@ -1006,32 +1087,12 @@ where
     let options = php_options(available);
     let selected = php_to_selection(current);
 
-    let el = pick_list(options, Some(selected), move |s: String| on_select(s))
-        .padding(Padding::from([8, 12]))
-        .width(Length::Fixed(220.0))
-        .style(|_theme, status| {
-            use iced::widget::pick_list;
-            let open = matches!(status, pick_list::Status::Opened);
-            pick_list::Style {
-                text_color: theme::color(theme_keys::PURPLE),
-                placeholder_color: theme::color(theme_keys::TEXT_MUTED),
-                handle_color: theme::color(theme_keys::PURPLE),
-                background: iced::Background::Color(if open {
-                    theme::color(theme_keys::PURPLE_HOVER)
-                } else {
-                    theme::color(theme_keys::PURPLE_BG)
-                }),
-                border: Border {
-                    color: if open {
-                        theme::color(theme_keys::PURPLE)
-                    } else {
-                        theme::color(theme_keys::PURPLE_BORDER)
-                    },
-                    width: 1.0,
-                    radius: 6.0.into(),
-                },
-            }
-        });
+    let el = ui::dropdown_width(
+        options,
+        Some(selected),
+        move |s: String| on_select(s),
+        Length::Fixed(220.0),
+    );
 
     if available.is_empty() {
         column![
@@ -1044,6 +1105,6 @@ where
         .spacing(0)
         .into()
     } else {
-        el.into()
+        el
     }
 }

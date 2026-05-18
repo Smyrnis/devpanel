@@ -16,8 +16,8 @@ packaging-guide.md
 # Ignore all of the target files no need to have the debian package there.
 target
 
-# Ignore the Roadmap folder it is intendent for changes to come and new ideas.
-Roadmap
+# Ignore the changes folder it is intendent for changes to come and new ideas.
+CHANGES.md
 
 # Ignore images
 images

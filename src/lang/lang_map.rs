@@ -37,9 +37,10 @@ pub mod config {
     pub const SAVE_CHANGES: &str = "config.save_changes";
     pub const SAVE_BAR_TITLE: &str = "config.save_bar_title";
     pub const SAVE_BAR_BODY: &str = "config.save_bar_body";
+    pub const ENABLED: &str = "config.enabled";
+    pub const DISABLED: &str = "config.disabled";
     pub const LOG_LEVEL_LABEL: &str = "config.log_level_label";
     pub const LOG_LEVEL_HELP: &str = "config.log_level_help";
-    pub const LOG_LEVEL_PLACEHOLDER: &str = "config.log_level_placeholder";
     pub const APACHE_AUTO_RELOAD_LABEL: &str = "config.apache_auto_reload_label";
     pub const APACHE_AUTO_RELOAD_HELP: &str = "config.apache_auto_reload_help";
     pub const PHP_DEFAULT_VERSION_LABEL: &str = "config.php_default_version_label";
@@ -61,7 +62,6 @@ pub mod config {
     pub const THEME_HELP: &str = "config.theme_help";
     pub const DEFAULT_KEY_TYPE_LABEL: &str = "config.default_key_type_label";
     pub const DEFAULT_KEY_TYPE_HELP: &str = "config.default_key_type_help";
-    pub const DEFAULT_KEY_TYPE_PLACEHOLDER: &str = "config.default_key_type_placeholder";
     pub const EDITOR_COMMAND_LABEL: &str = "config.editor_command_label";
     pub const EDITOR_COMMAND_HELP: &str = "config.editor_command_help";
     pub const EDITOR_OPEN_FILE_NOTE: &str = "config.editor_open_file_note";
@@ -168,6 +168,12 @@ pub mod repos {
     pub const CLI_NOTE: &str = "repos.cli_note";
     pub const EMPTY_TITLE: &str = "repos.empty_title";
     pub const EMPTY_BODY: &str = "repos.empty_body";
+    pub const SETUP_GUIDE: &str = "repos.setup_guide";
+    pub const SETUP_BODY: &str = "repos.setup_body";
+    pub const STEP_GENERATE_KEY: &str = "repos.step_generate_key";
+    pub const STEP_ADD_PROVIDER: &str = "repos.step_add_provider";
+    pub const STEP_VERIFY: &str = "repos.step_verify";
+    pub const TIP: &str = "repos.tip";
     pub const CLONED: &str = "repos.cloned";
     pub const DIRTY_BADGE: &str = "repos.dirty_badge";
     pub const SSH_LABEL: &str = "repos.ssh_label";
@@ -207,6 +213,13 @@ pub mod ssh_keys {
     pub const REFRESH: &str = "ssh_keys.refresh";
     pub const NO_KEYS: &str = "ssh_keys.no_keys";
     pub const NO_KEYS_HELP: &str = "ssh_keys.no_keys_help";
+    pub const CONNECT_PROVIDERS: &str = "ssh_keys.connect_providers";
+    pub const CONNECT_PROVIDERS_HELP: &str = "ssh_keys.connect_providers_help";
+    pub const GITHUB: &str = "ssh_keys.github";
+    pub const BITBUCKET: &str = "ssh_keys.bitbucket";
+    pub const SSH_AGENT: &str = "ssh_keys.ssh_agent";
+    pub const SSH_AGENT_HELP: &str = "ssh_keys.ssh_agent_help";
+    pub const NOT_CONNECTED: &str = "ssh_keys.not_connected";
     pub const PUB_BADGE: &str = "ssh_keys.pub_badge";
     pub const AGENT_BADGE: &str = "ssh_keys.agent_badge";
     pub const COPY: &str = "ssh_keys.copy";
@@ -319,6 +332,14 @@ pub mod tools {
     pub const PHP_NOT_FOUND: &str = "tools.php_not_found";
     pub const PHP_PPA_MISSING: &str = "tools.php_ppa_missing";
     pub const GET_TEXT_FILE: &str = "tools.get_text_file";
+    pub const OVERVIEW: &str = "tools.overview";
+    pub const QUICK_ACTIONS: &str = "tools.quick_actions";
+    pub const COMMAND_PREVIEW: &str = "tools.command_preview";
+    pub const COMMAND_PREVIEW_HELP: &str = "tools.command_preview_help";
+    pub const ACTIVE_PHP: &str = "tools.active_php";
+    pub const ACTIVE_SECTION: &str = "tools.active_section";
+    pub const INSTALLED_COUNT: &str = "tools.installed_count";
+    pub const ENABLED_COUNT: &str = "tools.enabled_count";
 }
 
 pub mod vhosts {
@@ -345,6 +366,11 @@ pub mod vhosts {
     pub const DELETE_SELECTED: &str = "vhosts.delete_selected";
     pub const EMPTY_TITLE: &str = "vhosts.empty_title";
     pub const EMPTY_BODY: &str = "vhosts.empty_body";
+    pub const WHAT_IS_VHOST: &str = "vhosts.what_is_vhost";
+    pub const WHAT_IS_VHOST_BODY: &str = "vhosts.what_is_vhost_body";
+    pub const EXAMPLE: &str = "vhosts.example";
+    pub const HELP_TITLE: &str = "vhosts.help_title";
+    pub const HELP_BODY: &str = "vhosts.help_body";
     pub const CONFIG_EDITOR: &str = "vhosts.config_editor";
     pub const BACK: &str = "vhosts.back";
     pub const SAVING: &str = "vhosts.saving";

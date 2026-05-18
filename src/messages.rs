@@ -1,4 +1,4 @@
-use iced::widget::text_editor;
+use iced::{Size, widget::text_editor};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tab {
@@ -13,6 +13,7 @@ pub enum Tab {
 #[derive(Debug, Clone)]
 pub enum Message {
     SelectTab(Tab),
+    WindowResized(Size),
     NotificationTick,
     DismissAllNotifications,
     Dashboard(DashboardMessage),

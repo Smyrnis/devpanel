@@ -1,5 +1,6 @@
 use crate::core::theme::{self, theme_map as theme_keys};
-use iced::widget::{Space, column, container, text};
+use crate::ui::icons::{self, Icon};
+use iced::widget::{Space, column, container, row, text};
 use iced::{Border, Color, Element, Length, Padding};
 
 pub fn card_style() -> impl Fn(&iced::Theme) -> container::Style {
@@ -38,21 +39,34 @@ pub fn surface_style() -> impl Fn(&iced::Theme) -> container::Style {
     }
 }
 
-pub fn metric_card<'a, Message>(label: &'a str, value: impl Into<String>) -> Element<'a, Message>
+fn metric_icon<'a, Message: 'a>(icon: Icon) -> Element<'a, Message> {
+    icons::solid_box(icon, 15.0, theme::color(theme_keys::TEXT_MUTED), 18.0)
+}
+
+pub fn metric_card_icon<'a, Message>(
+    icon: Icon,
+    label: &'a str,
+    value: impl Into<String>,
+) -> Element<'a, Message>
 where
     Message: 'a,
 {
     container(
-        column![
-            text(label)
-                .size(10)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(4),
-            text(value.into())
-                .size(12)
-                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+        row![
+            metric_icon(icon),
+            Space::with_width(10),
+            column![
+                text(label)
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                Space::with_height(4),
+                text(value.into())
+                    .size(12)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            ]
+            .spacing(0),
         ]
-        .spacing(0),
+        .align_y(iced::Alignment::Center),
     )
     .padding(Padding::from([10, 12]))
     .width(Length::FillPortion(1))
@@ -60,21 +74,30 @@ where
     .into()
 }
 
-pub fn surface_metric<'a, Message>(label: &'a str, value: impl Into<String>) -> Element<'a, Message>
+pub fn surface_metric_icon<'a, Message>(
+    icon: Icon,
+    label: &'a str,
+    value: impl Into<String>,
+) -> Element<'a, Message>
 where
     Message: 'a,
 {
     container(
-        column![
-            text(label)
-                .size(10)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(4),
-            text(value.into())
-                .size(12)
-                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+        row![
+            metric_icon(icon),
+            Space::with_width(10),
+            column![
+                text(label)
+                    .size(10)
+                    .color(theme::color(theme_keys::TEXT_MUTED)),
+                Space::with_height(4),
+                text(value.into())
+                    .size(12)
+                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            ]
+            .spacing(0),
         ]
-        .spacing(0),
+        .align_y(iced::Alignment::Center),
     )
     .padding(Padding::from([10, 12]))
     .width(Length::FillPortion(1))

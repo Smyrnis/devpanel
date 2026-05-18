@@ -9,7 +9,7 @@ mod ui;
 use app::App;
 use iced::Theme;
 
-static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.jpg");
+static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.png");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;
@@ -45,7 +45,7 @@ fn main() -> iced::Result {
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
             size: iced::Size::new(1040.0, 660.0),
-            min_size: Some(iced::Size::new(860.0, 560.0)),
+            min_size: Some(iced::Size::new(680.0, 520.0)),
             icon,
             ..Default::default()
         })
