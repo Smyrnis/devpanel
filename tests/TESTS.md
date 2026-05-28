@@ -4,7 +4,7 @@
 
 The test suite is entirely made up of **unit and integration tests** that run
 without any system services, network access, or filesystem side-effects
-(except the `config_test.rs` group which uses `tempfile` for a throwaway
+(except the `tests/config/config_test.rs` group which uses `tempfile` for a throwaway
 HOME directory).
 
 No GUI is tested — Iced widget trees are not renderable in a headless test
@@ -22,8 +22,8 @@ cargo test
 # Run with output visible
 cargo test -- --nocapture
 
-# Run a single test file
-cargo test --test vhosts_backend_test
+# Run a single grouped test target
+cargo test --test vhosts
 
 # Run a single test by name
 cargo test round_trip_parse_build_parse_is_stable
@@ -37,70 +37,26 @@ cargo test
 
 ---
 
-## One-time setup
+## Layout
 
-### 1. Add the `[lib]` section to `Cargo.toml`
+Integration tests are grouped by area, with small root wrapper files so Cargo
+still discovers each group as a normal integration test target:
 
-Integration tests in `tests/` need to import internal modules.  Add this
-block directly after `[[bin]]`:
-
-```toml
-[lib]
-name = "devpanel"
-path = "src/lib.rs"
-```
-
-### 2. Create `src/lib.rs`
-
-```rust
-// src/lib.rs — exposes internals to integration tests
-#![allow(dead_code)]
-pub mod core;
-pub mod messages;
-pub mod tabs;
-```
-
-### 3. Make private helpers `pub(crate)` in `src/tabs/repos/backend.rs`
-
-Six private functions need to be visible to the test crate.  Change `fn` to
-`pub(crate) fn` for:
-
-```
-extract_ssh_username
-parse_gh_json
-parse_bitbucket_json
-extract_bitbucket_user_from_ssh_config
-split_json_objects
-extract_json_str
-```
-
-### 4. Add dev dependencies to `Cargo.toml`
-
-```toml
-[dev-dependencies]
-tempfile = "3"
-```
-
-### 5. For the SQLite tests — add runtime dependency
-
-```toml
-[dependencies]
-rusqlite           = { version = "0.31", features = ["bundled"] }
-rusqlite_migration = "1.2"
-```
-
-Then add `src/core/db.rs` and re-export it from `src/core/mod.rs`:
-
-```rust
-// in src/core/mod.rs
-pub mod db;
+```text
+tests/
+  config.rs      -> tests/config/config_test.rs
+  core.rs        -> tests/core/dry_run_test.rs
+  db.rs          -> tests/db/db_test.rs
+  setup.rs       -> tests/setup/setup_log_test.rs
+  system.rs      -> tests/system/system_test.rs
+  vhosts.rs      -> tests/vhosts/vhosts_backend_test.rs
 ```
 
 ---
 
 ## Test files
 
-### `tests/vhosts_backend_test.rs` — 14 tests
+### `tests/vhosts/vhosts_backend_test.rs` — 16 tests
 
 Tests the two pure functions that do all the real work in the VHosts tab:
 `parse_vhosts_from_content` and `build_conf_content`.
@@ -111,17 +67,18 @@ Tests the two pure functions that do all the real work in the VHosts tab:
 | `parse_comment_only_returns_empty` | Comment-only file → empty result |
 | `parse_single_vhost_no_php` | Basic ServerName + DocumentRoot round-trip |
 | `parse_single_vhost_with_php_pinned` | `SetHandler x-httpd-php8.2` is extracted |
+| `parse_https_entry_sets_flag_once` | HTTPS VHost blocks mark the entry as HTTPS |
 | `parse_multiple_vhosts_assigns_sequential_indexes` | Three VHosts → indexes 0, 1, 2 |
 | `parse_vhost_missing_servername_is_skipped` | VHost without `ServerName` is silently dropped |
 | `parse_vhost_case_insensitive_directives` | `<virtualhost>` / `servername` lowercase is accepted |
-| `parse_mixed_php_versions_in_multiple_vhosts` | PHP 7.4, 8.3, and no PHP in one file |
 | `build_empty_entries_produces_header_only` | Empty list → header comment only |
 | `build_single_entry_no_php` | No `SetHandler` when php_version is None |
 | `build_single_entry_with_php_produces_sethandler` | `SetHandler application/x-httpd-php8.2` present |
+| `build_https_entry_produces_port_443_block` | HTTPS entries render a port 443 block |
 | `build_uses_dot_to_underscore_slug_for_log_paths` | `my.project.local` → `my_project_local_error.log` |
-| `build_multiple_entries_all_present` | Two VHosts both rendered; PHP only for the one that has it |
 | `round_trip_parse_build_parse_is_stable` | build → parse → same data; server_name, docroot, php all match |
 | `round_trip_trailing_slash_stripped_from_server_name` | `slash.local/` → stored as `slash.local` |
+| `vhost_entry_is_partial_eq` | `VHostEntry` equality compares expected fields |
 
 **Critical paths covered:**
 - The parse/build cycle must be a stable identity transformation.
@@ -130,40 +87,7 @@ Tests the two pure functions that do all the real work in the VHosts tab:
 
 ---
 
-### `tests/repos_backend_test.rs` — 18 tests
-
-Tests the JSON parsing, SSH username extraction, and Bitbucket SSH config
-helpers in `tabs/repos/backend.rs`.
-
-| Test name | What it verifies |
-|---|---|
-| `split_empty_string_returns_nothing` | Empty input → no objects |
-| `split_single_object` | One `{...}` → one result |
-| `split_two_adjacent_objects` | Two adjacent `{...},{...}` → two results |
-| `split_nested_braces_counted_correctly` | `{"outer":{"inner":"val"}}` is one object |
-| `split_escaped_brace_inside_string_not_counted` | `{` inside a JSON string doesn't open depth |
-| `extract_simple_string_field` | `"name"` and `"sshUrl"` extracted correctly |
-| `extract_missing_key_returns_none` | Unknown key → `None` |
-| `extract_escaped_quote_in_value` | `\"` inside a string value handled |
-| `extract_ignores_non_string_values` | Numeric value for key → `None` |
-| `parse_empty_array` | `[]` → empty vec |
-| `parse_single_repo` | Name, ssh_url, full_name, provider=GitHub |
-| `parse_two_repos` | Both repos present in correct order |
-| `parse_repo_missing_ssh_url_is_skipped` | Required field absent → repo dropped |
-| `parse_repo_missing_name_is_skipped` | Required field absent → repo dropped |
-| `parse_falls_back_to_ssh_url_when_name_with_owner_absent` | `full_name` falls back to `ssh_url` |
-| `extract_github_hi_format` | `"hi octocat!"` → `"@octocat"` |
-| `extract_bitbucket_logged_in_format` | `"logged in as atlassian."` → `"@atlassian"` |
-| `extract_unknown_format_returns_connected` | Unrecognised message → `"connected"` |
-| `extract_empty_string_returns_connected` | Empty string → `"connected"` |
-| `extract_bb_user_from_config` | Finds `User git` under `Host bitbucket.org` |
-| `extract_bb_user_not_present_returns_none` | No bitbucket block → `None` |
-| `extract_bb_user_stops_at_next_host_block` | Does not bleed into next `Host` block |
-| `extract_bb_user_empty_config_returns_none` | Empty file → `None` |
-
----
-
-### `tests/setup_log_test.rs` — 16 tests
+### `tests/setup/setup_log_test.rs` — 17 tests
 
 Tests `SetupLogEntry::parse` against every log level and various edge cases.
 
@@ -189,25 +113,21 @@ Tests `SetupLogEntry::parse` against every log level and various edge cases.
 
 ---
 
-### `tests/config_test.rs` — 9 tests
+### `tests/config/config_test.rs` — 4 tests
 
 Tests `DevPanelConfig::load` and `save` using a temporary `HOME` directory
 so no real files are touched.
 
 | Test name | What it verifies |
 |---|---|
-| `load_all_keys_present` | All three keys read from TOML |
-| `load_no_spaces_around_equals` | `key="value"` (no spaces) works |
-| `load_extra_spaces_around_equals` | `key   =   "value"` works |
+| `load_all_keys_present` | Config keys read from TOML |
 | `load_missing_file_uses_defaults` | Missing config → default values |
 | `load_hosts_file_defaults_to_etc_hosts` | Absent `hosts_file` key → `/etc/hosts` |
-| `load_ignores_lines_with_wrong_key` | `repos_root_extra` does not match `repos_root` |
 | `save_and_reload_is_identity` | `save()` then `load()` returns same values |
-| `save_produces_valid_toml_file` | Output file contains all keys |
 
 ---
 
-### `tests/dry_run_test.rs` — 5 tests
+### `tests/core/dry_run_test.rs` — 5 tests
 
 | Test name | What it verifies |
 |---|---|
@@ -219,7 +139,7 @@ so no real files are touched.
 
 ---
 
-### `tests/system_test.rs` — 7 tests
+### `tests/system/system_test.rs` — 8 tests
 
 | Test name | What it verifies |
 |---|---|
@@ -234,33 +154,32 @@ so no real files are touched.
 
 ---
 
-### `tests/db_test.rs` — 25 tests  *(requires SQLite feature)*
+### `tests/db/db_test.rs` — 26 tests  *(requires SQLite feature)*
 
 Tests the in-memory SQLite settings store (`core/db.rs`).
 
 | Group | Tests | What they verify |
 |---|---|---|
-| get/set | 5 | CRUD, overwrite, delete |
+| get/set | 7 | CRUD, overwrite, delete, defaults |
 | Boolean helpers | 5 | `set_bool` / `get_bool` with missing keys |
 | Numeric helpers | 3 | `set_u32` / `get_u32` / corrupt value fallback |
 | `all_settings` | 2 | Empty DB, multiple pairs ordered by key |
-| VHost tags | 4 | Insert, overwrite, `all_vhost_meta` |
-| `UserSettings` | 3 | Defaults on fresh DB, save→load identity, partial DB |
+| VHost metadata | 5 | Insert, overwrite, missing values, notification history |
+| `UserSettings` | 4 | Defaults on fresh DB, default parity, save→load identity, partial DB |
 
 ---
 
 ## Test count summary
 
-| File | Tests |
-|---|---|
-| `vhosts_backend_test.rs` | 15 |
-| `repos_backend_test.rs` | 18 |
-| `setup_log_test.rs` | 17 |
-| `config_test.rs` | 9 |
-| `dry_run_test.rs` | 5 |
-| `system_test.rs` | 8 |
-| `db_test.rs` | 25 |
-| **Total** | **97** |
+| Target | File | Tests |
+|---|---|---|
+| `vhosts` | `tests/vhosts/vhosts_backend_test.rs` | 16 |
+| `setup` | `tests/setup/setup_log_test.rs` | 17 |
+| `config` | `tests/config/config_test.rs` | 4 |
+| `core` | `tests/core/dry_run_test.rs` | 5 |
+| `system` | `tests/system/system_test.rs` | 8 |
+| `db` | `tests/db/db_test.rs` | 26 |
+| **Total** |  | **76** |
 
 ---
 

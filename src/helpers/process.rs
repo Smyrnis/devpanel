@@ -1,6 +1,10 @@
 use tokio::process::Command;
 
 pub async fn command_first_line(cmd: &str, args: &[&str]) -> Option<String> {
+    if crate::core::dry_run::active() {
+        return None;
+    }
+
     let out = Command::new(cmd).args(args).output().await.ok()?;
     if !out.status.success() {
         return None;
@@ -13,6 +17,10 @@ pub async fn command_first_line(cmd: &str, args: &[&str]) -> Option<String> {
 }
 
 pub async fn service_active(name: &str) -> bool {
+    if crate::core::dry_run::active() {
+        return false;
+    }
+
     Command::new("systemctl")
         .args(["is-active", "--quiet", name])
         .status()
@@ -22,6 +30,10 @@ pub async fn service_active(name: &str) -> bool {
 }
 
 pub async fn service_exists(name: &str) -> bool {
+    if crate::core::dry_run::active() {
+        return false;
+    }
+
     Command::new("systemctl")
         .args(["status", name, "--no-pager"])
         .status()

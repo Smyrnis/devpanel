@@ -63,7 +63,7 @@ where
         border: Border {
             color: border,
             width: 1.0,
-            radius: 6.0.into(),
+            radius: 8.0.into(),
         },
         ..Default::default()
     })

@@ -25,14 +25,6 @@ function findProjectsRoot(): string {
         $uid  = (int)$parts[2];
         $home = $parts[5];
         if ($uid < 1000 || $uid >= 65534) continue;
-        $cfg = "$home/.config/devpanel/config.toml";
-        if (is_readable($cfg)) {
-            foreach (file($cfg) as $cfgLine) {
-                if (preg_match('/^repos_root\s*=\s*"([^"]+)"/', trim($cfgLine), $m)) {
-                    return $m[1];
-                }
-            }
-        }
         if (is_dir("$home/projects")) return "$home/projects";
     }
     return '/var/www/html';

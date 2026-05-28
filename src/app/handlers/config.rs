@@ -4,14 +4,24 @@ use crate::app::App;
 
 use crate::core::db::{DevPanelDb, UserSettings};
 
-use crate::messages::{ConfigMessage, Message};
+use crate::domain::settings::ConfigSection;
+use crate::messages::{ConfigMessage, Message, SshKeysMessage};
 
 impl App {
     pub(crate) fn handle_config(&mut self, msg: ConfigMessage) -> Task<Message> {
         match msg {
-            ConfigMessage::SetSection(s) => {
-                self.config_tab.active_section = s;
-                Task::none()
+            ConfigMessage::ToggleSection(s) => {
+                let opening = self.config_tab.active_section.as_ref() != Some(&s);
+                let should_load_ssh =
+                    opening && s == ConfigSection::Advanced && self.ssh_keys.keys_list.is_empty();
+                self.config_tab.active_section = if opening { Some(s) } else { None };
+                if should_load_ssh {
+                    Task::perform(crate::domain::ssh_keys::service::list_keys(), |keys| {
+                        Message::SshKeys(SshKeysMessage::KeysListed(keys))
+                    })
+                } else {
+                    Task::none()
+                }
             }
 
             ConfigMessage::Save => {
@@ -37,6 +47,7 @@ impl App {
                     let loaded = UserSettings::load(&db);
                     crate::lang::set_language(&loaded.ui_language);
                     crate::core::theme::set_theme(&loaded.ui_theme);
+                    self.config_tab.saved_settings = loaded.clone();
                     self.config_tab.settings = loaded;
                     self.db = Some(db);
                 }

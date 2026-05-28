@@ -1,11 +1,12 @@
-use super::shared::small_action_btn;
+use super::shared::{search_box, section_header, small_action_btn, tool_item_row};
 use crate::core::theme::{self, theme_map as theme_keys};
+use crate::domain::tools::InstalledTools;
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
-use crate::ui::tabs::tools::{InstalledTools, ToolsTab};
+use crate::ui::tabs::tools::ToolsTab;
 use crate::ui::templates::prelude as ui;
-use iced::widget::{Space, button, column, container, row, text};
-use iced::{Alignment, Border, Color, Element, Length, Padding};
+use iced::widget::{Space, column, container, text};
+use iced::{Element, Length, Padding};
 
 pub(super) fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let tools = &tab.installed_tools;
@@ -35,57 +36,23 @@ pub(super) fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
     container(
         column![
-            row![
-                column![
-                    text(tr(keys::COMPOSER_NODE_REDIS))
-                        .size(14)
-                        .color(theme::color(theme_keys::TEXT_SECONDARY)),
-                    Space::with_height(3),
-                    text(tr(keys::RUNTIMES_HELP))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED)),
-                ]
-                .spacing(0)
-                .width(Length::Fill),
-                button(
-                    text(if tab.tools_scanning {
-                        tr(keys::SCANNING)
-                    } else {
-                        tr(keys::SCAN)
-                    })
-                    .size(12)
-                    .color(theme::color(theme_keys::TEAL))
-                )
-                .on_press_maybe(if tab.tools_scanning {
+            section_header(
+                tr(keys::COMPOSER_NODE_REDIS),
+                tr(keys::RUNTIMES_HELP),
+                if tab.tools_scanning {
+                    tr(keys::SCANNING)
+                } else {
+                    tr(keys::SCAN)
+                },
+                if tab.tools_scanning {
                     None
                 } else {
                     Some(Message::Tools(ToolsMessage::ScanInstalledTools))
-                })
-                .padding(Padding::from([7, 14]))
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered
-                    | iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                        background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
-                        text_color: theme::color(theme_keys::TEAL),
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    _ => iced::widget::button::Style {
-                        background: Some(theme::color(theme_keys::TEAL_BG).into()),
-                        text_color: theme::color(theme_keys::TEAL),
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                }),
-            ]
-            .align_y(Alignment::Center),
+                },
+            ),
             Space::with_height(18),
+            search_box(tr(keys::SEARCH_PLACEHOLDER), &tab.tool_search),
+            Space::with_height(14),
             ui::thin_line(),
             Space::with_height(14),
             column(cards).spacing(8),
@@ -214,38 +181,13 @@ fn runtime_redis_card(tools: &InstalledTools) -> Element<'_, Message> {
 fn runtime_card(
     title: String,
     subtitle: String,
-    color: Color,
+    color: iced::Color,
     action: Element<'_, Message>,
 ) -> Element<'_, Message> {
-    container(
-        row![
-            ui::status_dot(color),
-            Space::with_width(12),
-            column![
-                text(title)
-                    .size(13)
-                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
-                Space::with_height(2),
-                text(subtitle)
-                    .size(11)
-                    .color(theme::color(theme_keys::TEXT_MUTED)),
-            ]
-            .spacing(0)
-            .width(Length::Fill),
-            action,
-        ]
-        .align_y(Alignment::Center),
-    )
-    .padding(Padding::from([12, 14]))
-    .width(Length::Fill)
-    .style(|_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    })
-    .into()
+    let status = if color == theme::color(theme_keys::GREEN) {
+        tr(keys::STATUS_INSTALLED)
+    } else {
+        tr(keys::STATUS_NOT_INSTALLED)
+    };
+    tool_item_row(title, subtitle, status, color, action)
 }

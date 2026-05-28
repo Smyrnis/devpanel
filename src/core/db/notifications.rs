@@ -2,6 +2,7 @@ use super::DevPanelDb;
 use rusqlite::{Result as SqlResult, params};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct NotificationRecord {
     pub id: i64,
     pub created_at: i64,
@@ -9,7 +10,6 @@ pub struct NotificationRecord {
     pub message: String,
 }
 
-#[allow(dead_code)]
 impl DevPanelDb {
     pub fn add_notification(&self, ok: bool, message: &str) -> SqlResult<()> {
         let created_at = std::time::SystemTime::now()
@@ -28,6 +28,7 @@ impl DevPanelDb {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn recent_notifications(&self, limit: usize) -> SqlResult<Vec<NotificationRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, created_at, ok, message FROM notifications ORDER BY id DESC LIMIT ?1",

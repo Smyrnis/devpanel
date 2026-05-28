@@ -59,6 +59,7 @@ assets = [
   ["share/themes/default.json",           "usr/share/devpanel/themes/",      "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
   ["installation/devpanel-setup.sh",   "usr/share/devpanel/installation/","755"],
+  ["installation/devpanel-create-projects-dir.sh", "usr/share/devpanel/installation/","755"],
   ["installation/lib/log.sh",          "usr/share/devpanel/installation/lib/","755"],
   ["installation/lib/paths.sh",        "usr/share/devpanel/installation/lib/","755"],
   ["installation/lib/context.sh",      "usr/share/devpanel/installation/lib/","755"],

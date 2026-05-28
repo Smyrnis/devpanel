@@ -1,6 +1,9 @@
 mod app;
 mod core;
+mod domain;
 mod helpers;
+mod infra;
+mod installer;
 mod lang;
 mod messages;
 mod operations;

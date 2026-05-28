@@ -4,9 +4,17 @@ use crate::app::App;
 
 use crate::core::first_run;
 
-use crate::core::sudo_prompt::{FirstRunInstallCommand, boxed};
+use crate::infra::sudo_prompt::{FirstRunInstallCommand, boxed};
 
 use crate::messages::{FirstRunMessage, Message, ToolsMessage};
+
+async fn load_setup_log_lines() -> Vec<String> {
+    crate::core::setup_log::read_setup_log_async()
+        .await
+        .into_iter()
+        .map(|entry| format!("[{:?}] {}", entry.level, entry.message))
+        .collect()
+}
 
 impl App {
     pub(crate) fn handle_first_run(&mut self, msg: FirstRunMessage) -> Task<Message> {
@@ -20,6 +28,22 @@ impl App {
             FirstRunMessage::Exit => {
                 std::process::exit(0);
             }
+            FirstRunMessage::TogglePackage(package) => {
+                self.first_run_expanded = if self.first_run_expanded == Some(package) {
+                    None
+                } else {
+                    Some(package)
+                };
+                Task::none()
+            }
+            FirstRunMessage::ToggleApache(v) => {
+                self.first_run_options.install_apache = v;
+                Task::none()
+            }
+            FirstRunMessage::TogglePhp(v) => {
+                self.first_run_options.install_php = v;
+                Task::none()
+            }
             FirstRunMessage::ToggleMysql(v) => {
                 self.first_run_options.install_mysql = v;
                 Task::none()
@@ -28,18 +52,19 @@ impl App {
                 self.first_run_options.install_php_extras = v;
                 Task::none()
             }
+            FirstRunMessage::ScanStatus => Task::perform(
+                crate::installer::service::scan_first_run_status(),
+                |status| Message::FirstRun(FirstRunMessage::StatusScanned(status)),
+            ),
+            FirstRunMessage::StatusScanned(status) => {
+                self.first_run_status = status;
+                Task::none()
+            }
             FirstRunMessage::ProgressTick => {
                 if self.first_run_installing {
-                    Task::perform(
-                        async {
-                            crate::core::setup_log::read_setup_log_async()
-                                .await
-                                .into_iter()
-                                .map(|entry| format!("[{:?}] {}", entry.level, entry.message))
-                                .collect()
-                        },
-                        |lines| Message::FirstRun(FirstRunMessage::LogLoaded(lines)),
-                    )
+                    Task::perform(load_setup_log_lines(), |lines| {
+                        Message::FirstRun(FirstRunMessage::LogLoaded(lines))
+                    })
                 } else {
                     Task::none()
                 }
@@ -53,17 +78,46 @@ impl App {
                 if ok {
                     first_run::mark_done();
                     self.first_run_state = first_run::FirstRunState::Hidden;
+                    self.tools.scanning = true;
+                    return Task::batch([
+                        self.show_toast(msg, ok),
+                        Task::perform(
+                            crate::installer::service::scan_first_run_status(),
+                            |status| Message::FirstRun(FirstRunMessage::StatusScanned(status)),
+                        ),
+                        Task::perform(
+                            crate::domain::dashboard::service::probe_services(),
+                            |snapshot| {
+                                Message::Dashboard(
+                                    crate::messages::DashboardMessage::StatusRefreshed(snapshot),
+                                )
+                            },
+                        ),
+                        Task::perform(
+                            crate::ui::tabs::tools::scan_php_versions(
+                                self.dashboard.active_php_version.clone(),
+                            ),
+                            |r| Message::Tools(ToolsMessage::ScanDone(r)),
+                        ),
+                    ]);
                 }
-                self.tools.scanning = true;
                 Task::batch([
                     self.show_toast(msg, ok),
-                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
                     Task::perform(
-                        crate::ui::tabs::tools::scan_php_versions(
-                            self.dashboard.active_php_version.clone(),
-                        ),
-                        |r| Message::Tools(ToolsMessage::ScanDone(r)),
+                        crate::installer::service::scan_first_run_status(),
+                        |status| Message::FirstRun(FirstRunMessage::StatusScanned(status)),
                     ),
+                    Task::perform(
+                        crate::domain::dashboard::service::probe_services(),
+                        |snapshot| {
+                            Message::Dashboard(crate::messages::DashboardMessage::StatusRefreshed(
+                                snapshot,
+                            ))
+                        },
+                    ),
+                    Task::perform(load_setup_log_lines(), |lines| {
+                        Message::FirstRun(FirstRunMessage::LogLoaded(lines))
+                    }),
                 ])
             }
         }

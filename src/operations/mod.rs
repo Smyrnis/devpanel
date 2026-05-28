@@ -1,3 +1,8 @@
+//! Privileged and system command operations.
+//!
+//! UI and app handlers should call these wrappers instead of constructing
+//! `sudo -S`, `systemctl`, `apt`, or shell command strings directly.
+
 use tokio::io::AsyncWriteExt;
 
 pub mod apache;
@@ -7,7 +12,7 @@ pub mod tools;
 pub mod vhost;
 
 pub async fn run(password: &str, args: &[&str]) -> Result<String, String> {
-    crate::core::sudo_prompt::sudo_cmd_with_password(password, args).await
+    crate::infra::sudo_prompt::sudo_cmd_with_password(password, args).await
 }
 
 pub async fn systemctl(password: &str, action: &str, service: &str) -> Result<String, String> {
@@ -15,7 +20,7 @@ pub async fn systemctl(password: &str, action: &str, service: &str) -> Result<St
 }
 
 pub async fn append_file(password: &str, path: &str, content: &str) -> Result<(), String> {
-    crate::core::sudo_prompt::sudo_tee_append_with_password(password, path, content).await
+    crate::infra::sudo_prompt::sudo_tee_append_with_password(password, path, content).await
 }
 
 pub async fn write_file(password: &str, path: &str, content: &str) -> Result<(), String> {

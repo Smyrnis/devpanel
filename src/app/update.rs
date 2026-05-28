@@ -16,7 +16,6 @@ impl App {
             Message::Dashboard(m) => self.handle_dashboard(m),
             Message::SshKeys(m) => self.handle_ssh_keys(m),
             Message::Tools(m) => self.handle_tools(m),
-            Message::Repos(m) => self.handle_repos(m),
             Message::VHosts(m) => self.handle_vhosts(m),
             Message::Sudo(m) => self.handle_sudo(m),
             Message::FirstRun(m) => self.handle_first_run(m),

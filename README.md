@@ -30,7 +30,6 @@ The view that devpanel has.
 | **Dashboard** | Start, stop and restart Apache and MySQL. Switch PHP versions. Jump to common files and folders with one click. |
 | **VirtualHosts** | Add, edit and delete Apache virtual hosts stored in a single `devpanel.conf` file. Edit the raw config directly in the built-in editor. |
 | **SSH Keys** | Generate Ed25519, RSA and ECDSA keys. View all keys in `~/.ssh`. |
-| **Repos** | Fetch and clone GitHub and Bitbucket repos over SSH. Requires `gh` CLI or a configured SSH key. |
 | **Tools** | Install and remove PHP versions, toggle Apache modules, manage PHP extensions, and launch a MySQL terminal. |
 
 ---
@@ -58,7 +57,6 @@ Download it [here](https://github.com/Smyrnis/devpanel/packages)
 Settings are stored in `~/.config/devpanel/config.toml` and created automatically on first run.
 
 ```toml
-repos_root    = "/home/user/projects"
 devpanel_conf = "/etc/apache2/sites-available/devpanel.conf"
 hosts_file    = "/etc/hosts"
 ```
@@ -72,4 +70,3 @@ hosts_file    = "/etc/hosts"
 ## License
 
 MIT — see [LICENSE](LICENSE).
-

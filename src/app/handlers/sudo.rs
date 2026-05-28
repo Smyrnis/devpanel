@@ -1,7 +1,7 @@
 use iced::Task;
 
 use crate::app::App;
-use crate::core::sudo_prompt::{
+use crate::infra::sudo_prompt::{
     BoxedSudoCommand, ModalState, clear_saved_password, save_password, validate_sudo_password,
 };
 use crate::messages::{Message, SudoMessage};
@@ -77,6 +77,10 @@ impl App {
     }
 
     pub fn trigger_sudo(&mut self, command: BoxedSudoCommand) -> Task<Message> {
+        if crate::core::dry_run::active() {
+            return self.dispatch_sudo_command(command, String::new());
+        }
+
         if let Some(password) = self.sudo.get_password() {
             self.dispatch_sudo_command(command, password)
         } else {

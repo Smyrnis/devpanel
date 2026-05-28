@@ -13,12 +13,10 @@ pub use notifications::NotificationRecord;
 pub use settings::{defaults, keys};
 pub use user_settings::UserSettings;
 
-#[allow(dead_code)]
 pub struct DevPanelDb {
     conn: Connection,
 }
 
-#[allow(dead_code)]
 impl DevPanelDb {
     /// Open (or create) the database at `~/.config/devpanel/devpanel.db`.
     pub fn open() -> SqlResult<Self> {
@@ -32,6 +30,7 @@ impl DevPanelDb {
     }
 
     /// Open an in-memory database, used by tests so they never touch disk.
+    #[allow(dead_code)]
     pub fn open_in_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
         schema::migrate(&conn)?;
@@ -39,7 +38,6 @@ impl DevPanelDb {
     }
 }
 
-#[allow(dead_code)]
 fn db_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
     PathBuf::from(home)

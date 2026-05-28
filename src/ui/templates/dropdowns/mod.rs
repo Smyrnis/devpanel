@@ -30,8 +30,10 @@ where
     Message: Clone + 'a,
 {
     pick_list(options, selected, on_selected)
-        .padding(Padding::from([10, 12]))
+        .padding(Padding::from([9, 13]))
         .width(width)
         .style(styles::pick_list_style)
+        .menu_style(styles::pick_list_menu_style)
+        .text_size(13)
         .into()
 }

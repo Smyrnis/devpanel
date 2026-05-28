@@ -2,12 +2,40 @@ use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
 use crate::ui::tabs::tools::ToolsTab;
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use crate::ui::{icons::Icon, templates::prelude as ui};
+use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Alignment, Border, Element, Length, Padding};
 
 pub(super) fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
     if tab.install_log.is_empty() {
         return Space::with_height(0).into();
+    }
+
+    let has_errors = tab.install_log.iter().any(|(ok, _)| !ok);
+    let summary = format!("{} entries", tab.install_log.len());
+    let header = ui::summary_row(
+        Icon::Terminal,
+        tr(keys::ACTIVITY_LOG),
+        summary,
+        if has_errors {
+            ui::BadgeTone::Danger
+        } else {
+            ui::BadgeTone::Neutral
+        },
+        vec![ui::compact_action_button(
+            tr(keys::CLEAR),
+            theme::color(theme_keys::TEXT_MUTED),
+            theme::color(theme_keys::BG_SURFACE),
+            theme::color(theme_keys::BG_HOVER),
+            theme::color(theme_keys::BORDER_SUBTLE),
+            Some(Message::Tools(ToolsMessage::ClearLog)),
+        )],
+        tab.log_expanded,
+        Some(Message::Tools(ToolsMessage::ToggleLog)),
+    );
+
+    if !tab.log_expanded {
+        return header;
     }
 
     let rows: Vec<Element<Message>> = tab
@@ -29,54 +57,22 @@ pub(super) fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
         })
         .collect();
 
-    container(
-        column![
-            row![
-                text(tr(keys::ACTIVITY_LOG))
-                    .size(12)
-                    .color(theme::color(theme_keys::TEXT_MUTED))
-                    .width(Length::Fill),
-                button(
-                    text(tr(keys::CLEAR))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED))
-                )
-                .on_press(Message::Tools(ToolsMessage::ClearLog))
-                .padding(Padding::from([4, 10]))
-                .style(|_, status| match status {
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(theme::color(theme_keys::BG_HOVER).into()),
-                        text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                        border: Border {
-                            radius: 6.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    _ => iced::widget::button::Style {
-                        background: None,
-                        text_color: theme::color(theme_keys::TEXT_MUTED),
-                        ..Default::default()
-                    },
-                }),
-            ]
-            .align_y(Alignment::Center),
-            Space::with_height(10),
-            scrollable(column(rows).spacing(5).padding(Padding::from([4, 0]))).height(150),
-        ]
-        .spacing(0)
-        .padding(Padding::from([16, 18])),
-    )
-    .width(Length::Fill)
-    .style(|_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    })
+    column![
+        header,
+        container(scrollable(column(rows).spacing(5).padding(Padding::from([4, 0]))).height(150),)
+            .padding(Padding::from([14, 16]))
+            .width(Length::Fill)
+            .style(|_: &iced::Theme| container::Style {
+                background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+                border: Border {
+                    color: theme::color(theme_keys::BORDER_SUBTLE),
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                ..Default::default()
+            }),
+    ]
+    .spacing(6)
     .into()
 }
 
@@ -142,33 +138,14 @@ pub(super) fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
                 ..Default::default()
             }),
             Space::with_height(10),
-            button(
-                text(tr(keys::GET_TEXT_FILE))
-                    .size(11)
-                    .color(theme::color(theme_keys::TEXT_PRIMARY))
-            )
-            .on_press(Message::Tools(ToolsMessage::CopyFixCommands(fix_commands)))
-            .padding(Padding::from([6, 12]))
-            .style(|_, status| match status {
-                iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                    background: Some(theme::color(theme_keys::BLUE_HOVER).into()),
-                    text_color: theme::color(theme_keys::WHITE),
-                    border: Border {
-                        radius: 6.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                _ => iced::widget::button::Style {
-                    background: Some(theme::color(theme_keys::BLUE_BG).into()),
-                    text_color: theme::color(theme_keys::TEXT_PRIMARY),
-                    border: Border {
-                        radius: 6.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            }),
+            ui::compact_action_button(
+                tr(keys::GET_TEXT_FILE),
+                theme::color(theme_keys::TEXT_PRIMARY),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
+                theme::color(theme_keys::BLUE_BORDER),
+                Some(Message::Tools(ToolsMessage::CopyFixCommands(fix_commands))),
+            ),
         ]
         .spacing(0),
     )

@@ -1,7 +1,6 @@
 use super::DevPanelDb;
 use rusqlite::{Result as SqlResult, params};
 
-#[allow(dead_code)]
 impl DevPanelDb {
     pub fn get_vhost_meta(&self, server_name: &str) -> SqlResult<Option<(String, String)>> {
         let mut stmt = self
@@ -24,6 +23,7 @@ impl DevPanelDb {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn all_vhost_meta(&self) -> SqlResult<Vec<(String, String, String)>> {
         let mut stmt = self
             .conn

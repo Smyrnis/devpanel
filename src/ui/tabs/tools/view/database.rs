@@ -1,4 +1,4 @@
-use super::shared::db_btn;
+use super::shared::{section_header, small_action_btn, tool_item_row};
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
@@ -44,43 +44,33 @@ pub(super) fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
     container(
         column![
-            text(tr(keys::SECTION_DATABASE))
-                .size(14)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(3),
-            text(tr(keys::DATABASE_HELP))
-                .size(11)
-                .color(theme::color(theme_keys::TEXT_MUTED)),
+            section_header(
+                tr(keys::SECTION_DATABASE),
+                tr(keys::DATABASE_HELP),
+                tr(keys::MYSQL_MARIADB),
+                Some(Message::Tools(ToolsMessage::OpenMysqlCli)),
+            ),
             Space::with_height(18),
             ui::thin_line(),
             Space::with_height(14),
-            db_btn(
+            db_action_row(
                 tr(keys::MYSQL_MARIADB),
                 tr(keys::MYSQL_MARIADB_HELP),
                 theme::color(theme_keys::BLUE),
-                theme::color(theme_keys::BLUE_BG),
-                theme::color(theme_keys::BLUE_HOVER),
-                theme::color(theme_keys::BLUE_BORDER),
                 Message::Tools(ToolsMessage::OpenMysqlCli)
             ),
             Space::with_height(8),
-            db_btn(
+            db_action_row(
                 tr(keys::MARIADB_EXPLICIT),
                 tr(keys::MARIADB_EXPLICIT_HELP),
                 theme::color(theme_keys::PURPLE),
-                theme::color(theme_keys::PURPLE_BG),
-                theme::color(theme_keys::PURPLE_HOVER),
-                theme::color(theme_keys::PURPLE_BORDER),
                 Message::Tools(ToolsMessage::OpenMariadbCli)
             ),
             Space::with_height(8),
-            db_btn(
+            db_action_row(
                 tr(keys::MYSQL_SOCKET),
                 tr(keys::MYSQL_SOCKET_HELP),
                 theme::color(theme_keys::TEAL),
-                theme::color(theme_keys::TEAL_BG),
-                theme::color(theme_keys::TEAL_HOVER),
-                theme::color(theme_keys::TEAL_BORDER),
                 Message::Tools(ToolsMessage::OpenMysqlSocket)
             ),
             Space::with_height(16),
@@ -98,4 +88,20 @@ pub(super) fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     .width(Length::Fill)
     .style(ui::card_style())
     .into()
+}
+
+fn db_action_row<'a>(
+    title: &'a str,
+    subtitle: &'a str,
+    color: iced::Color,
+    msg: Message,
+) -> Element<'a, Message> {
+    let action = small_action_btn(
+        tr(keys::OPEN),
+        color,
+        theme::color(theme_keys::BG_SURFACE),
+        theme::color(theme_keys::BG_HOVER),
+        msg,
+    );
+    tool_item_row(title, subtitle, tr(keys::AVAILABLE), color, action)
 }

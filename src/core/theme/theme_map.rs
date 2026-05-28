@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-pub const WHITE: &str = "base.white";
 pub const OVERLAY_STRONG: &str = "overlay.modal_backdrop_strong";
 pub const OVERLAY_MED: &str = "overlay.modal_backdrop";
 pub const SHADOW_HEAVY: &str = "shadow.card_heavy";
