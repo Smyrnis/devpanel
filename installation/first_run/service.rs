@@ -5,23 +5,33 @@ use crate::core::setup_log::{self, LogLevel};
 use crate::installer::{FirstRunInstallOptions, FirstRunPackageStatus, FirstRunSetupStatus};
 use crate::operations::{self, apache, tools};
 
-const APACHE_PACKAGES: &[&str] = &["apache2", "libapache2-mod-php"];
+const APACHE_PACKAGES: &[&str] = &["apache2"];
 
-const PHP_PACKAGES: &[&str] = &["php8.2", "php8.2-cli", "php8.2-common"];
+const PHP_PACKAGES: &[&str] = &[
+    "php8.5",
+    "php8.5-cli",
+    "php8.5-common",
+    "libapache2-mod-php8.5",
+];
 
-const PHP_EXTRA_PACKAGES: &[&str] = &["php8.2-mysql", "php8.2-xml", "php8.2-mbstring"];
+const PHP_EXTRA_PACKAGES: &[&str] = &["php8.5-mysql", "php8.5-xml", "php8.5-mbstring"];
 
 const MYSQL_PACKAGES: &[&str] = &["mysql-server"];
 
 const PHP_VERSION_MODS: &[(&str, &str)] = &[
     ("5.6", "php5.6"),
     ("5.6", "php5"),
+    ("7.0", "php7.0"),
+    ("7.1", "php7.1"),
+    ("7.2", "php7.2"),
+    ("7.3", "php7.3"),
     ("7.4", "php7.4"),
     ("8.0", "php8.0"),
     ("8.1", "php8.1"),
     ("8.2", "php8.2"),
     ("8.3", "php8.3"),
     ("8.4", "php8.4"),
+    ("8.5", "php8.5"),
 ];
 
 pub fn selected_packages(options: FirstRunInstallOptions) -> Vec<&'static str> {

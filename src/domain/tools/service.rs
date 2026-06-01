@@ -21,6 +21,30 @@ const PHP_VERSIONS: &[PhpVersionMeta] = &[
         apt_pkg: "php5.6",
     },
     PhpVersionMeta {
+        version: "7.0",
+        binaries: &["php7.0"],
+        mod_name: "php7.0",
+        apt_pkg: "php7.0",
+    },
+    PhpVersionMeta {
+        version: "7.1",
+        binaries: &["php7.1"],
+        mod_name: "php7.1",
+        apt_pkg: "php7.1",
+    },
+    PhpVersionMeta {
+        version: "7.2",
+        binaries: &["php7.2"],
+        mod_name: "php7.2",
+        apt_pkg: "php7.2",
+    },
+    PhpVersionMeta {
+        version: "7.3",
+        binaries: &["php7.3"],
+        mod_name: "php7.3",
+        apt_pkg: "php7.3",
+    },
+    PhpVersionMeta {
         version: "7.4",
         binaries: &["php7.4"],
         mod_name: "php7.4",
@@ -55,6 +79,12 @@ const PHP_VERSIONS: &[PhpVersionMeta] = &[
         binaries: &["php8.4"],
         mod_name: "php8.4",
         apt_pkg: "php8.4",
+    },
+    PhpVersionMeta {
+        version: "8.5",
+        binaries: &["php8.5"],
+        mod_name: "php8.5",
+        apt_pkg: "php8.5",
     },
 ];
 

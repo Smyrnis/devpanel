@@ -111,10 +111,12 @@ pub mod install {
     pub const STATUS_INSTALLED: &str = "install.status_installed";
     pub const STATUS_SKIPPED: &str = "install.status_skipped";
     pub const STATUS_WILL_INSTALL: &str = "install.status_will_install";
+    pub const STATUS_WILL_CREATE: &str = "install.status_will_create";
     pub const PACKAGES_TO_INSTALL: &str = "install.packages_to_install";
     pub const SETUP_LOG: &str = "install.setup_log";
     pub const INSTALLING: &str = "install.installing";
     pub const CONTINUE_INSTALL: &str = "install.continue_install";
+    pub const PREVIEW_SETUP: &str = "install.preview_setup";
     pub const EXIT: &str = "install.exit";
 }
 

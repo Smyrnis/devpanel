@@ -6,6 +6,7 @@ use crate::lang::{lang_map::install as keys, text as tr};
 use crate::messages::{FirstRunMessage, Message};
 use crate::ui::icons::Icon;
 use crate::ui::templates::prelude as ui;
+use crate::ui::utils::styles;
 use iced::widget::{checkbox, column, text};
 use iced::{Element, Font};
 
@@ -43,7 +44,7 @@ pub(super) fn install_rows<'a>(
                 icon: Icon::Apache,
                 title: "Apache",
                 requirement: "optional",
-                packages: &["apache2", "libapache2-mod-php"],
+                packages: &["apache2"],
             },
             status.status_for(FirstRunPackage::Apache),
             options.install_apache,
@@ -56,6 +57,7 @@ pub(super) fn install_rows<'a>(
                         Some(|v| Message::FirstRun(FirstRunMessage::ToggleApache(v)))
                     })
                     .size(16)
+                    .style(styles::checkbox_style)
                     .into(),
             ],
         ),
@@ -63,9 +65,14 @@ pub(super) fn install_rows<'a>(
             InstallGroup {
                 package_group: FirstRunPackage::Php,
                 icon: Icon::Php,
-                title: "PHP",
+                title: "PHP 8.5",
                 requirement: "optional",
-                packages: &["php8.2", "php8.2-cli", "php8.2-common"],
+                packages: &[
+                    "php8.5",
+                    "php8.5-cli",
+                    "php8.5-common",
+                    "libapache2-mod-php8.5",
+                ],
             },
             status.status_for(FirstRunPackage::Php),
             options.install_php,
@@ -78,6 +85,7 @@ pub(super) fn install_rows<'a>(
                         Some(|v| Message::FirstRun(FirstRunMessage::TogglePhp(v)))
                     })
                     .size(16)
+                    .style(styles::checkbox_style)
                     .into(),
             ],
         ),
@@ -100,6 +108,7 @@ pub(super) fn install_rows<'a>(
                         Some(|v| Message::FirstRun(FirstRunMessage::ToggleMysql(v)))
                     })
                     .size(16)
+                    .style(styles::checkbox_style)
                     .into(),
             ],
         ),
@@ -107,9 +116,9 @@ pub(super) fn install_rows<'a>(
             InstallGroup {
                 package_group: FirstRunPackage::PhpExtras,
                 icon: Icon::Code,
-                title: "PHP Extras",
+                title: "PHP 8.5 Extras",
                 requirement: "optional",
-                packages: &["php8.2-mysql", "php8.2-xml", "php8.2-mbstring"],
+                packages: &["php8.5-mysql", "php8.5-xml", "php8.5-mbstring"],
             },
             status.status_for(FirstRunPackage::PhpExtras),
             options.install_php_extras,
@@ -122,6 +131,7 @@ pub(super) fn install_rows<'a>(
                         Some(|v| Message::FirstRun(FirstRunMessage::TogglePhpExtras(v)))
                     })
                     .size(16)
+                    .style(styles::checkbox_style)
                     .into(),
             ],
         ),
@@ -136,13 +146,8 @@ fn install_row<'a>(
     actions: Vec<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let installed = status == FirstRunPackageStatus::Installed;
-    let status = if installed {
-        tr(keys::STATUS_INSTALLED).to_string()
-    } else if selected {
-        tr(keys::STATUS_WILL_INSTALL).to_string()
-    } else {
-        tr(keys::STATUS_SKIPPED).to_string()
-    };
+    let is_projects_dir = group.package_group == FirstRunPackage::ProjectsDir;
+    let status = status_label(installed, selected, is_projects_dir);
     let tone = if installed {
         ui::BadgeTone::Success
     } else if selected {
@@ -169,65 +174,88 @@ fn install_row<'a>(
 
     column![
         row,
-        install_details(group.title, group.packages, selected, installed)
+        install_details(
+            group.package_group,
+            group.title,
+            group.packages,
+            selected,
+            installed,
+        )
     ]
     .spacing(6)
     .into()
 }
 
 fn install_details<'a>(
+    package_group: FirstRunPackage,
     title: &'static str,
     packages: &[&'static str],
     selected: bool,
     installed: bool,
 ) -> Element<'a, Message> {
-    let package_list = if packages.is_empty() {
-        "none".to_string()
+    let is_projects_dir = package_group == FirstRunPackage::ProjectsDir;
+    let state = status_label(installed, selected, is_projects_dir);
+    let setup_rows = if is_projects_dir {
+        vec![
+            ui::detail_row(
+                "Path",
+                text(projects_dir_path())
+                    .size(12)
+                    .font(Font::MONOSPACE)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY))
+                    .into(),
+            ),
+            ui::detail_row("Action", ui::detail_text("Create directory")),
+            ui::detail_row("State", ui::detail_text(state)),
+        ]
     } else {
-        packages.join(", ")
-    };
-    let state = if installed {
-        tr(keys::STATUS_INSTALLED)
-    } else if selected {
-        tr(keys::STATUS_WILL_INSTALL)
-    } else {
-        tr(keys::STATUS_SKIPPED)
+        vec![
+            ui::detail_row(
+                "Names",
+                text(packages.join(", "))
+                    .size(12)
+                    .font(Font::MONOSPACE)
+                    .color(theme::color(theme_keys::TEXT_SECONDARY))
+                    .into(),
+            ),
+            ui::detail_row("State", ui::detail_text(state)),
+        ]
     };
 
     ui::expanded_panel(vec![
         ui::panel_section("Why", vec![ui::detail_text(install_reason(title))]),
         ui::panel_section(
-            if packages.is_empty() {
-                "Setup"
-            } else {
-                "Packages"
-            },
-            vec![
-                ui::detail_row(
-                    if packages.is_empty() {
-                        "Action"
-                    } else {
-                        "Names"
-                    },
-                    text(package_list)
-                        .size(12)
-                        .font(Font::MONOSPACE)
-                        .color(theme::color(theme_keys::TEXT_SECONDARY))
-                        .into(),
-                ),
-                ui::detail_row("State", ui::detail_text(state)),
-            ],
+            if is_projects_dir { "Setup" } else { "Packages" },
+            setup_rows,
         ),
     ])
+}
+
+fn status_label(installed: bool, selected: bool, creates_directory: bool) -> &'static str {
+    if installed {
+        tr(keys::STATUS_INSTALLED)
+    } else if creates_directory {
+        tr(keys::STATUS_WILL_CREATE)
+    } else if selected {
+        tr(keys::STATUS_WILL_INSTALL)
+    } else {
+        tr(keys::STATUS_SKIPPED)
+    }
+}
+
+fn projects_dir_path() -> String {
+    std::env::var("HOME")
+        .map(|home| format!("{home}/projects"))
+        .unwrap_or_else(|_| "~/projects".to_string())
 }
 
 fn install_reason(title: &str) -> &'static str {
     match title {
         "Projects Directory" => "Required workspace folder for local projects.",
         "Apache" => "Optional web server for local HTTP virtual hosts.",
-        "PHP" => "Optional PHP runtime and command-line tooling.",
+        "PHP 8.5" => "Optional latest PHP runtime and Apache module.",
         "MySQL" => "Optional database server for local LAMP projects.",
-        "PHP Extras" => "Optional extensions commonly needed by PHP web apps.",
+        "PHP 8.5 Extras" => "Optional latest PHP extensions commonly needed by web apps.",
         _ => "Package group used by the local development stack.",
     }
 }

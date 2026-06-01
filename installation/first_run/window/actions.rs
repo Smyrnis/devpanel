@@ -1,3 +1,4 @@
+use crate::core::dry_run;
 use crate::lang::{lang_map::install as keys, text as tr};
 use crate::messages::{FirstRunMessage, Message};
 use crate::ui::templates::prelude as ui;
@@ -7,6 +8,8 @@ pub(super) fn continue_button<'a>(installing: bool) -> Element<'a, Message> {
     ui::primary_text_button_maybe(
         if installing {
             tr(keys::INSTALLING)
+        } else if dry_run::active() {
+            tr(keys::PREVIEW_SETUP)
         } else {
             tr(keys::CONTINUE_INSTALL)
         },

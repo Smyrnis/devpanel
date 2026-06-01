@@ -89,3 +89,41 @@ pub fn pick_list_menu_style(_: &iced::Theme) -> iced::overlay::menu::Style {
         selected_background: Background::Color(theme::color(theme_keys::TEAL)),
     }
 }
+
+pub fn checkbox_style(
+    _: &iced::Theme,
+    status: iced::widget::checkbox::Status,
+) -> iced::widget::checkbox::Style {
+    let is_checked = match status {
+        iced::widget::checkbox::Status::Active { is_checked }
+        | iced::widget::checkbox::Status::Hovered { is_checked }
+        | iced::widget::checkbox::Status::Disabled { is_checked } => is_checked,
+    };
+    let is_hovered = matches!(status, iced::widget::checkbox::Status::Hovered { .. });
+    let is_disabled = matches!(status, iced::widget::checkbox::Status::Disabled { .. });
+
+    iced::widget::checkbox::Style {
+        background: Background::Color(if is_checked {
+            theme::color(theme_keys::TEAL)
+        } else if is_hovered {
+            theme::color(theme_keys::BG_HOVER)
+        } else {
+            theme::color(theme_keys::BG_SURFACE)
+        }),
+        icon_color: theme::color(theme_keys::TEXT_ON_ACCENT),
+        border: Border {
+            color: if is_checked || is_hovered {
+                theme::color(theme_keys::TEAL_BORDER)
+            } else {
+                theme::color(theme_keys::BORDER_MED)
+            },
+            width: if is_hovered { 1.5 } else { 1.0 },
+            radius: 4.0.into(),
+        },
+        text_color: Some(if is_disabled {
+            theme::color(theme_keys::TEXT_MUTED)
+        } else {
+            theme::color(theme_keys::TEXT_SECONDARY)
+        }),
+    }
+}

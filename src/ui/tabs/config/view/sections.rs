@@ -60,15 +60,11 @@ fn section_apache(tab: &ConfigTab) -> Element<'_, Message> {
 }
 
 fn section_php(tab: &ConfigTab) -> Element<'_, Message> {
-    let php_versions = vec![
-        "8.4".to_string(),
-        "8.3".to_string(),
-        "8.2".to_string(),
-        "8.1".to_string(),
-        "8.0".to_string(),
-        "7.4".to_string(),
-        "5.6".to_string(),
-    ];
+    let php_versions: Vec<String> = crate::domain::tools::model::PHP_VERSION_OPTIONS
+        .iter()
+        .rev()
+        .map(|version| (*version).to_string())
+        .collect();
     section_card(
         tr(keys::SECTION_PHP),
         tr(keys::PHP_DEFAULT_VERSION_HELP),
