@@ -38,7 +38,7 @@ pub async fn scan_first_run_status() -> FirstRunSetupStatus {
 
 fn projects_dir_status() -> FirstRunPackageStatus {
     if target_user()
-        .and_then(|user| std::env::var("HOME").ok().map(|home| (user, home)))
+        .zip(std::env::var("HOME").ok())
         .map(|(_, home)| std::path::Path::new(&home).join("projects").exists())
         .unwrap_or(false)
     {
