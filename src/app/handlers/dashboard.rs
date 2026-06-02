@@ -6,37 +6,33 @@ use crate::core::setup_log;
 
 use crate::core::paths;
 
-use crate::core::sudo_prompt::{PhpSwitchCommand, RestartAllCommand, ServiceControlCommand, boxed};
+use crate::infra::sudo_prompt::{PhpSwitchCommand, ServiceControlCommand, boxed};
 
-use crate::core::system::{open_php_ini, open_url, xdg_open};
+use crate::infra::system::{open_db_terminal, open_php_ini, open_url, xdg_open};
 
-use crate::messages::{DashboardMessage, Message, Tab};
+use crate::domain::tools::ToolSection;
+use crate::messages::{DashboardMessage, Message, Tab, ToolsMessage};
+
+fn probe_dashboard_task() -> Task<Message> {
+    Task::perform(
+        crate::domain::dashboard::service::probe_services(),
+        |snapshot| Message::Dashboard(DashboardMessage::StatusRefreshed(snapshot)),
+    )
+}
 
 impl App {
     pub(crate) fn handle_dashboard(&mut self, msg: DashboardMessage) -> Task<Message> {
         match msg {
-            DashboardMessage::RefreshStatus => {
-                Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r)
-            }
-
-            DashboardMessage::StatusRefreshed {
-                apache,
-                mysql,
-                php,
-                php_versions,
-                apache_uptime,
-                mysql_uptime,
-                recent_failures,
-            } => {
+            DashboardMessage::StatusRefreshed(snapshot) => {
                 self.dashboard.update_status(
-                    apache,
-                    mysql,
-                    php,
-                    apache_uptime,
-                    mysql_uptime,
-                    recent_failures,
+                    snapshot.apache,
+                    snapshot.mysql,
+                    snapshot.php,
+                    snapshot.apache_uptime,
+                    snapshot.mysql_uptime,
+                    snapshot.recent_failures,
                 );
-                self.dashboard.set_php_versions(php_versions);
+                self.dashboard.set_php_versions(snapshot.php_versions);
                 if !self.setup_issues_checked {
                     self.setup_issues_checked = true;
                     let show = self.config_tab.settings.ui_show_setup_log;
@@ -55,14 +51,19 @@ impl App {
                 Task::none()
             }
 
-            DashboardMessage::ResetIssuesCheck => {
-                self.setup_issues_checked = false;
+            DashboardMessage::ToggleService(service) => {
+                self.dashboard.expanded_service =
+                    if self.dashboard.expanded_service == Some(service) {
+                        None
+                    } else {
+                        Some(service)
+                    };
                 Task::none()
             }
 
             DashboardMessage::AutoRefreshTick => {
                 if self.active_tab == Tab::Dashboard {
-                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r)
+                    probe_dashboard_task()
                 } else {
                     Task::none()
                 }
@@ -92,8 +93,6 @@ impl App {
                 service: "mysql".into(),
                 action: "restart".into(),
             })),
-            DashboardMessage::RestartAll => self.trigger_sudo(boxed(RestartAllCommand)),
-
             DashboardMessage::ServiceResult {
                 service,
                 action,
@@ -105,26 +104,22 @@ impl App {
                 } else {
                     format!("Failed to {} {}: {}", action, service, output)
                 };
-                Task::batch([
-                    self.show_toast(msg, success),
-                    Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
-                ])
+                Task::batch([self.show_toast(msg, success), probe_dashboard_task()])
             }
 
             DashboardMessage::SwitchPhpVersion(v) => {
                 self.trigger_sudo(boxed(PhpSwitchCommand { version: v }))
             }
 
-            DashboardMessage::PhpSwitchResult(ok, msg) => Task::batch([
-                self.show_toast(msg, ok),
-                Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
-            ]),
+            DashboardMessage::PhpSwitchResult(ok, msg) => {
+                Task::batch([self.show_toast(msg, ok), probe_dashboard_task()])
+            }
 
             DashboardMessage::ShowPhpInfo => {
                 self.dashboard.php_info_loading = true;
                 self.dashboard.php_info = None;
                 Task::perform(
-                    crate::ui::tabs::dashboard::backend::php_info_summary(),
+                    crate::domain::dashboard::service::php_info_summary(),
                     |text| Message::Dashboard(DashboardMessage::PhpInfoLoaded(text)),
                 )
             }
@@ -138,6 +133,24 @@ impl App {
                 self.dashboard.php_info = None;
                 Task::none()
             }
+            DashboardMessage::OpenMysqlTerminal => {
+                let result = open_db_terminal("mysql", false);
+                let (ok, msg) = match result {
+                    Ok(s) => (true, format!("Launched MySQL terminal: {}", s)),
+                    Err(e) => (false, e),
+                };
+                self.show_toast(msg, ok)
+            }
+            DashboardMessage::ManagePhpExtensions => {
+                self.active_tab = Tab::Tools;
+                self.tools.active_section = Some(ToolSection::PhpExts);
+                Task::perform(
+                    crate::ui::tabs::tools::scan_php_extensions(
+                        self.dashboard.active_php_version.clone(),
+                    ),
+                    |r| Message::Tools(ToolsMessage::ScanPhpExtsDone(r)),
+                )
+            }
             DashboardMessage::OpenLocalhost => {
                 let _ = open_url("http://localhost");
                 Task::none()
@@ -148,10 +161,6 @@ impl App {
             }
             DashboardMessage::OpenWebRoot => {
                 let _ = xdg_open(&self.dashboard.web_root);
-                Task::none()
-            }
-            DashboardMessage::OpenProjectsFolder => {
-                let _ = xdg_open(&self.config.repos_root);
                 Task::none()
             }
             DashboardMessage::NavigateApache2Conf => {

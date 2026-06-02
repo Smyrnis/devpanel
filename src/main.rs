@@ -1,15 +1,18 @@
 mod app;
 mod core;
+mod domain;
 mod helpers;
+mod infra;
+mod installer;
 mod lang;
 mod messages;
-mod sudo_s;
+mod operations;
 mod ui;
 
 use app::App;
 use iced::Theme;
 
-static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.jpg");
+static ICON_BYTES: &[u8] = include_bytes!("../share/icon/devpanel.png");
 
 fn load_window_icon() -> Option<iced::window::Icon> {
     use image::GenericImageView;
@@ -40,12 +43,13 @@ fn make_fallback_icon() -> Option<iced::window::Icon> {
 
 fn main() -> iced::Result {
     let icon = load_window_icon().or_else(make_fallback_icon);
+    let window = core::app_config::window_metrics();
     iced::application("DevPanel", App::update, App::view)
         .subscription(App::subscription)
         .theme(|_| Theme::Dark)
         .window(iced::window::Settings {
-            size: iced::Size::new(1040.0, 660.0),
-            min_size: Some(iced::Size::new(860.0, 560.0)),
+            size: iced::Size::new(window.width, window.height),
+            min_size: Some(iced::Size::new(window.min_width, window.min_height)),
             icon,
             ..Default::default()
         })

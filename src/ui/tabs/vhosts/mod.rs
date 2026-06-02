@@ -1,75 +1,14 @@
-pub mod backend;
 pub mod view;
 
-pub use backend::{
+pub use crate::domain::vhosts::service::{
     add_vhost, bulk_delete_vhosts, delete_vhost, edit_vhost, load_config_file, save_config_file,
     scan_vhosts, toggle_https,
 };
+pub use crate::domain::vhosts::{VHostEntry, VHostForm};
 
 use crate::messages::Message;
 use iced::Element;
 use iced::widget::text_editor;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VHostEntry {
-    pub server_name: String,
-    pub document_root: String,
-    pub php_version: Option<String>,
-    pub https_enabled: bool,
-    pub tag: String,
-    pub index: usize,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum FormMode {
-    Hidden,
-    Add,
-    Edit(usize),
-}
-
-#[derive(Debug, Clone)]
-pub struct VHostForm {
-    pub mode: FormMode,
-    pub server_name: String,
-    pub document_root: String,
-    pub php_version: Option<String>,
-    pub https_enabled: bool,
-}
-
-impl VHostForm {
-    pub fn new() -> Self {
-        Self {
-            mode: FormMode::Hidden,
-            server_name: String::new(),
-            document_root: String::new(),
-            php_version: None,
-            https_enabled: false,
-        }
-    }
-    pub fn open_add(&mut self) {
-        self.mode = FormMode::Add;
-        self.server_name.clear();
-        self.document_root.clear();
-        self.php_version = None;
-        self.https_enabled = false;
-    }
-    pub fn open_edit(&mut self, e: &VHostEntry) {
-        self.mode = FormMode::Edit(e.index);
-        self.server_name = e.server_name.clone();
-        self.document_root = e.document_root.clone();
-        self.php_version = e.php_version.clone();
-        self.https_enabled = e.https_enabled;
-    }
-    pub fn hide(&mut self) {
-        self.mode = FormMode::Hidden;
-    }
-}
-
-impl Default for VHostForm {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VHostView {
@@ -85,6 +24,8 @@ pub struct VHostsTab {
     pub status_msg: Option<(bool, String)>,
     pub confirm_delete: Option<usize>,
     pub selected: Vec<usize>,
+    pub search_query: String,
+    pub expanded_vhost: Option<usize>,
     pub bulk_tag: String,
     pub view_mode: VHostView,
     pub config_content: text_editor::Content,
@@ -105,6 +46,8 @@ impl VHostsTab {
             status_msg: None,
             confirm_delete: None,
             selected: Vec::new(),
+            search_query: String::new(),
+            expanded_vhost: None,
             bulk_tag: String::new(),
             view_mode: VHostView::List,
             config_content: text_editor::Content::new(),
@@ -119,6 +62,12 @@ impl VHostsTab {
         self.vhosts = v;
         self.selected
             .retain(|idx| self.vhosts.iter().any(|e| e.index == *idx));
+        if self
+            .expanded_vhost
+            .is_some_and(|idx| !self.vhosts.iter().any(|e| e.index == idx))
+        {
+            self.expanded_vhost = None;
+        }
     }
 
     /// Called whenever a PHP scan completes in ToolsTab.
@@ -133,7 +82,7 @@ impl VHostsTab {
         self.config_dirty = false;
     }
 
-    pub fn view(&self) -> Element<'_, Message> {
-        view::render(self)
+    pub fn view(&self, compact: bool) -> Element<'_, Message> {
+        view::render(self, compact)
     }
 }

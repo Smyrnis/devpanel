@@ -1,9 +1,23 @@
 # DevPanel 
-<img width="100px" height="100px" src="devpanel.jpg" alt="application icon"/> 
-
 A lightweight desktop GUI for managing your local PHP development environment on Ubuntu and Debian. Built with Rust and [Iced](https://github.com/iced-rs/iced).
 
-<p> Current version: <strong> 0.6.2 </strong> </p>
+<p> Current version: <strong> 0.12.23 </strong> </p>
+
+---
+
+# TL;DR
+
+The application is currently under development.
+A lot of the new code that has been added has a lot of bugs and is not yet stable.
+
+---
+
+## It is not recommended to build from source.
+
+---
+
+Some-what stable version can be found packaged as .deb.
+
 
 ---
 
@@ -16,18 +30,13 @@ The view that devpanel has.
 | **Dashboard** | Start, stop and restart Apache and MySQL. Switch PHP versions. Jump to common files and folders with one click. |
 | **VirtualHosts** | Add, edit and delete Apache virtual hosts stored in a single `devpanel.conf` file. Edit the raw config directly in the built-in editor. |
 | **SSH Keys** | Generate Ed25519, RSA and ECDSA keys. View all keys in `~/.ssh`. |
-| **Repos** | Fetch and clone GitHub and Bitbucket repos over SSH. Requires `gh` CLI or a configured SSH key. |
 | **Tools** | Install and remove PHP versions, toggle Apache modules, manage PHP extensions, and launch a MySQL terminal. |
 
 ---
 
-## Take a look to the main application
-
-<img style="text-align='center'" width="1000px" height="700px" src="images/devpanel.png" alt="Devpanel Dashboard">
-
 ## Requirements
 
-- Ubuntu 22.04 / 24.04 or Debian 11+
+- Ubuntu 22.04 LTS / 24.04 LTS / 26.04 LTS or Debian 11+
 - Apache 2.4
 - MySQL 8 or MariaDB 10.6+
 - PHP 8.x
@@ -48,20 +57,12 @@ Download it [here](https://github.com/Smyrnis/devpanel/packages)
 Settings are stored in `~/.config/devpanel/config.toml` and created automatically on first run.
 
 ```toml
-repos_root    = "/home/user/projects"
 devpanel_conf = "/etc/apache2/sites-available/devpanel.conf"
 hosts_file    = "/etc/hosts"
 ```
 
 ---
 
-# TL;DR
-
-The application is current on development.
-
-If you encounter problems please open an issue.
-
----
 ## For the Tests check here
 
 [Tests](tests/TESTS.md)
@@ -69,4 +70,3 @@ If you encounter problems please open an issue.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-

@@ -1,7 +1,6 @@
-pub mod backend;
 pub mod view;
 
-pub use backend::probe_services;
+pub use crate::domain::dashboard::DashboardService;
 
 use crate::core::paths;
 use crate::messages::Message;
@@ -12,14 +11,13 @@ pub struct DashboardTab {
     pub mysql_running: bool,
     pub php_versions: Vec<String>,
     pub active_php_version: Option<String>,
-    pub distro: String,
     pub web_root: String,
-    pub apache_conf_dir: String,
     pub apache_uptime: Option<String>,
     pub mysql_uptime: Option<String>,
     pub recent_failures: Vec<String>,
     pub php_info: Option<String>,
     pub php_info_loading: bool,
+    pub expanded_service: Option<DashboardService>,
 }
 
 impl DashboardTab {
@@ -29,14 +27,13 @@ impl DashboardTab {
             mysql_running: false,
             php_versions: Vec::new(),
             active_php_version: None,
-            distro: backend::detect_distro(),
             web_root: paths::WEB_ROOT.into(),
-            apache_conf_dir: paths::APACHE_CONF_DIR.into(),
             apache_uptime: None,
             mysql_uptime: None,
             recent_failures: Vec::new(),
             php_info: None,
             php_info_loading: false,
+            expanded_service: Some(DashboardService::Apache),
         }
     }
 
@@ -61,8 +58,8 @@ impl DashboardTab {
         self.php_versions = versions;
     }
 
-    pub fn view(&self) -> Element<'_, Message> {
-        view::render(self)
+    pub fn view(&self, compact: bool) -> Element<'_, Message> {
+        view::render(self, compact)
     }
 }
 

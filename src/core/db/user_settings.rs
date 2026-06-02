@@ -2,7 +2,7 @@ use super::DevPanelDb;
 use super::settings::{defaults, keys};
 use rusqlite::Result as SqlResult;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub struct UserSettings {
     pub apache_log_level: String,

@@ -1,11 +1,13 @@
-use super::shared::small_action_btn;
+use super::shared::{search_box, section_header, small_action_btn, tool_item_row};
 use crate::core::theme::{self, theme_map as theme_keys};
+use crate::domain::tools::PhpExtension;
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
-use crate::ui::tabs::tools::{PhpExtension, ToolsTab};
-use crate::ui::templates::view as ui;
-use iced::widget::{Space, button, column, container, row, text};
-use iced::{Alignment, Border, Element, Length, Padding};
+use crate::ui::icons::Icon;
+use crate::ui::tabs::tools::ToolsTab;
+use crate::ui::templates::prelude as ui;
+use iced::widget::{Space, column, container, text};
+use iced::{Element, Length, Padding};
 
 pub(super) fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let active_ver: Option<String> = tab
@@ -17,53 +19,17 @@ pub(super) fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .as_deref()
         .unwrap_or(tr(keys::ACTIVE_VERSION_FALLBACK));
 
-    let header = row![
-        column![
-            text(tr(keys::SECTION_PHP_EXTENSIONS))
-                .size(14)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(3),
-            text(format!(
-                "{} {} {}",
-                tr(keys::PHP_EXTENSIONS_HELP_PREFIX),
-                ver_label,
-                tr(keys::PHP_EXTENSIONS_HELP_SUFFIX)
-            ))
-            .size(11)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-        ]
-        .spacing(0)
-        .width(Length::Fill),
-        button(
-            text(tr(keys::SCAN))
-                .size(12)
-                .color(theme::color(theme_keys::TEAL))
-        )
-        .on_press(Message::Tools(ToolsMessage::ScanPhpExts))
-        .padding(Padding::from([7, 14]))
-        .style(|_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                iced::widget::button::Style {
-                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
-                    text_color: theme::color(theme_keys::TEAL),
-                    border: Border {
-                        radius: 6.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            _ => iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::TEAL_BG).into()),
-                text_color: theme::color(theme_keys::TEAL),
-                border: Border {
-                    radius: 6.0.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        }),
-    ]
-    .align_y(Alignment::Center);
+    let header = section_header(
+        tr(keys::SECTION_PHP_EXTENSIONS),
+        format!(
+            "{} {} {}",
+            tr(keys::PHP_EXTENSIONS_HELP_PREFIX),
+            ver_label,
+            tr(keys::PHP_EXTENSIONS_HELP_SUFFIX)
+        ),
+        tr(keys::SCAN),
+        Some(Message::Tools(ToolsMessage::ScanPhpExts)),
+    );
 
     let q = tab.tool_search.to_lowercase();
     let rows: Vec<Element<Message>> = tab
@@ -76,31 +42,22 @@ pub(super) fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             header,
             Space::with_height(18),
+            search_box(tr(keys::SEARCH_PLACEHOLDER), &tab.tool_search),
+            Space::with_height(14),
             ui::thin_line(),
             Space::with_height(14),
             column(rows).spacing(8),
             Space::with_height(16),
-            container(
-                row![
-                    text("i").size(10).color(theme::color(theme_keys::BLUE)),
-                    Space::with_width(8),
-                    text(tr(keys::PHP_EXTENSIONS_NOTE))
-                        .size(11)
-                        .color(theme::color(theme_keys::TEXT_MUTED)),
-                ]
-                .align_y(Alignment::Center)
-            )
-            .padding(Padding::from([10, 12]))
-            .width(Length::Fill)
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(theme::color(theme_keys::BLUE_BG).into()),
-                border: Border {
-                    color: theme::color(theme_keys::BLUE_BORDER),
-                    width: 1.0,
-                    radius: 6.0.into()
-                },
-                ..Default::default()
-            }),
+            ui::info_banner(
+                Icon::Info,
+                text(tr(keys::PHP_EXTENSIONS_NOTE))
+                    .size(crate::core::app_config::text_metrics().caption)
+                    .color(theme::color(theme_keys::TEXT_MUTED))
+                    .into(),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_BORDER),
+            ),
         ]
         .spacing(0)
         .padding(Padding::from([22, 22])),
@@ -140,40 +97,11 @@ fn php_ext_row<'a>(ext: &'a PhpExtension, active_ver: &Option<String>) -> Elemen
             Message::Tools(ToolsMessage::InstallPhpExt(pkg)),
         )
     };
-    container(
-        row![
-            ui::status_dot(dot_color),
-            Space::with_width(12),
-            column![
-                row![
-                    text(ext.name.as_str())
-                        .size(13)
-                        .color(theme::color(theme_keys::TEXT_PRIMARY)),
-                    Space::with_width(8),
-                    text(ext.pkg_suffix.as_str())
-                        .size(10)
-                        .color(theme::color(theme_keys::TEXT_MUTED)),
-                ]
-                .align_y(Alignment::Center),
-                Space::with_height(2),
-                text(status_text).size(11).color(dot_color),
-            ]
-            .spacing(0)
-            .width(Length::Fill),
-            action,
-        ]
-        .align_y(Alignment::Center),
+    tool_item_row(
+        ext.name.as_str(),
+        ext.pkg_suffix.as_str(),
+        status_text,
+        dot_color,
+        action,
     )
-    .padding(Padding::from([12, 14]))
-    .width(Length::Fill)
-    .style(|_: &iced::Theme| container::Style {
-        background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    })
-    .into()
 }

@@ -1,62 +1,16 @@
-pub mod backend;
 pub mod view;
 
-pub use backend::{
+pub use crate::domain::tools::service::{
     apt_package_op, apt_php_op, composer_op, redis_service_op, scan_apache_modules,
     scan_installed_tools, scan_php_extensions, scan_php_versions, switch_php, toggle_apache_module,
+};
+pub use crate::domain::tools::{
+    ApacheModule, InstalledTools, PhpExtension, PhpRelease, PhpStatus, ToolSection,
+    default_php_extensions, default_php_releases,
 };
 
 use crate::messages::Message;
 use iced::Element;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PhpStatus {
-    Installed,
-    Available,
-    Unknown,
-}
-
-#[derive(Debug, Clone)]
-pub struct PhpRelease {
-    pub version: String,
-    pub status: PhpStatus,
-    pub is_active: bool,
-    pub apache_mod_available: bool,
-    pub apache_mod_enabled: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct ApacheModule {
-    pub name: String,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct PhpExtension {
-    pub name: String,
-    pub pkg_suffix: String,
-    pub installed: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ToolSection {
-    Php,
-    ApacheMods,
-    PhpExts,
-    Runtimes,
-    Database,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct InstalledTools {
-    pub composer_version: Option<String>,
-    pub node_version: Option<String>,
-    pub npm_version: Option<String>,
-    pub nvm_available: bool,
-    pub redis_installed: bool,
-    pub redis_running: bool,
-    pub redis_memory: Option<String>,
-}
 
 pub struct ToolsTab {
     pub php_releases: Vec<PhpRelease>,
@@ -67,150 +21,31 @@ pub struct ToolsTab {
     pub install_log: Vec<(bool, String)>,
     pub db_status: String,
     pub last_php_error: Option<String>,
-    pub active_section: ToolSection,
+    pub active_section: Option<ToolSection>,
     pub mod_filter: String,
     pub tool_search: String,
     pub installed_tools: InstalledTools,
     pub tools_scanning: bool,
+    pub log_expanded: bool,
 }
 
 impl ToolsTab {
     pub fn new() -> Self {
         Self {
-            php_releases: vec![
-                PhpRelease {
-                    version: "5.6".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "7.4".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "8.0".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "8.1".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "8.2".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "8.3".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-                PhpRelease {
-                    version: "8.4".into(),
-                    status: PhpStatus::Unknown,
-                    is_active: false,
-                    apache_mod_available: false,
-                    apache_mod_enabled: false,
-                },
-            ],
+            php_releases: default_php_releases(),
             apache_mods: Vec::new(),
-            php_exts: vec![
-                PhpExtension {
-                    name: "curl".into(),
-                    pkg_suffix: "php-curl".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "gd".into(),
-                    pkg_suffix: "php-gd".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "mbstring".into(),
-                    pkg_suffix: "php-mbstring".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "xml".into(),
-                    pkg_suffix: "php-xml".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "zip".into(),
-                    pkg_suffix: "php-zip".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "mysql".into(),
-                    pkg_suffix: "php-mysql".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "pgsql".into(),
-                    pkg_suffix: "php-pgsql".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "redis".into(),
-                    pkg_suffix: "php-redis".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "intl".into(),
-                    pkg_suffix: "php-intl".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "bcmath".into(),
-                    pkg_suffix: "php-bcmath".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "soap".into(),
-                    pkg_suffix: "php-soap".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "imagick".into(),
-                    pkg_suffix: "php-imagick".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "xdebug".into(),
-                    pkg_suffix: "php-xdebug".into(),
-                    installed: false,
-                },
-                PhpExtension {
-                    name: "sqlite3".into(),
-                    pkg_suffix: "php-sqlite3".into(),
-                    installed: false,
-                },
-            ],
+            php_exts: default_php_extensions(),
             scanning: false,
             mods_scanning: false,
             install_log: Vec::new(),
             db_status: String::new(),
             last_php_error: None,
-            active_section: ToolSection::Php,
+            active_section: Some(ToolSection::Php),
             mod_filter: String::new(),
             tool_search: String::new(),
             installed_tools: InstalledTools::default(),
             tools_scanning: false,
+            log_expanded: false,
         }
     }
 
@@ -265,6 +100,9 @@ impl ToolsTab {
         if !ok && msg.contains("PHP") {
             self.last_php_error = Some(msg.clone());
         }
+        if !ok {
+            self.log_expanded = true;
+        }
         self.install_log.push((ok, msg));
     }
 
@@ -273,8 +111,8 @@ impl ToolsTab {
         self.tools_scanning = false;
     }
 
-    pub fn view(&self) -> Element<'_, Message> {
-        view::render(self)
+    pub fn view(&self, compact: bool) -> Element<'_, Message> {
+        view::render(self, compact)
     }
 }
 

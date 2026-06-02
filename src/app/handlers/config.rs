@@ -4,28 +4,65 @@ use crate::app::App;
 
 use crate::core::db::{DevPanelDb, UserSettings};
 
-use crate::messages::{ConfigMessage, Message};
+use crate::domain::settings::ConfigSection;
+use crate::messages::{ConfigMessage, Message, SshKeysMessage};
 
 impl App {
     pub(crate) fn handle_config(&mut self, msg: ConfigMessage) -> Task<Message> {
         match msg {
-            ConfigMessage::SetSection(s) => {
-                self.config_tab.active_section = s;
-                Task::none()
+            ConfigMessage::ToggleSection(s) => {
+                let opening = self.config_tab.active_section.as_ref() != Some(&s);
+                let should_load_ssh =
+                    opening && s == ConfigSection::Advanced && self.ssh_keys.keys_list.is_empty();
+                self.config_tab.active_section = if opening { Some(s) } else { None };
+                if should_load_ssh {
+                    Task::perform(crate::domain::ssh_keys::service::list_keys(), |keys| {
+                        Message::SshKeys(SshKeysMessage::KeysListed(keys))
+                    })
+                } else {
+                    Task::none()
+                }
             }
 
             ConfigMessage::Save => {
                 self.config_tab.saving = true;
                 let settings = self.config_tab.settings.clone();
+                let saved_settings = self.config_tab.saved_settings.clone();
+                let ui_config = self.config_tab.ui_config.clone();
+                let saved_ui_config = self.config_tab.saved_ui_config.clone();
                 Task::perform(
                     async move {
-                        match DevPanelDb::open() {
-                            Ok(db) => match settings.save(&db) {
-                                Ok(_) => (true, "Settings saved".to_string()),
-                                Err(e) => (false, format!("Save failed: {}", e)),
-                            },
-                            Err(e) => (false, format!("DB error: {}", e)),
+                        let settings_changed = settings != saved_settings;
+                        let ui_config_changed = ui_config != saved_ui_config;
+
+                        if ui_config_changed && let Err(error) = ui_config.validate() {
+                            return (false, format!("UI config invalid: {error}"));
                         }
+
+                        if settings_changed {
+                            match DevPanelDb::open() {
+                                Ok(db) => {
+                                    if let Err(e) = settings.save(&db) {
+                                        return (false, format!("Save failed: {e}"));
+                                    }
+                                }
+                                Err(e) => return (false, format!("DB error: {e}")),
+                            }
+                        }
+
+                        if ui_config_changed
+                            && let Err(error) =
+                                crate::core::app_config::save_user_ui_config(&ui_config)
+                        {
+                            return (false, error);
+                        }
+
+                        let msg = if ui_config_changed {
+                            "Settings saved. Window size changes apply on next launch.".to_string()
+                        } else {
+                            "Settings saved".to_string()
+                        };
+                        (true, msg)
                     },
                     |(ok, msg)| Message::Config(ConfigMessage::SaveDone(ok, msg)),
                 )
@@ -37,6 +74,7 @@ impl App {
                     let loaded = UserSettings::load(&db);
                     crate::lang::set_language(&loaded.ui_language);
                     crate::core::theme::set_theme(&loaded.ui_theme);
+                    self.config_tab.saved_settings = loaded.clone();
                     self.config_tab.settings = loaded;
                     self.db = Some(db);
                 }
@@ -81,6 +119,10 @@ impl App {
             }
             ConfigMessage::UiThemeChanged(v) => {
                 self.config_tab.settings.ui_theme = v;
+                Task::none()
+            }
+            ConfigMessage::UiConfigChanged(field, value) => {
+                self.config_tab.ui_config.set_field(field, value);
                 Task::none()
             }
             ConfigMessage::SshDefaultKeyTypeChanged(v) => {

@@ -3,7 +3,6 @@ pub mod dashboard;
 pub mod first_run;
 pub mod navigation;
 pub mod notifications;
-pub mod repos;
 pub mod ssh_keys;
 pub mod sudo;
 pub mod tools;

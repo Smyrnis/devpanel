@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.9.17"
+version = "0.12.23"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -25,6 +25,7 @@ production = []
 
 [dependencies]
 iced              = { version = "0.13", features = ["tokio", "image"] }
+iced_font_awesome = "0.2"
 tokio             = { version = "1",    features = ["full"] }
 rfd               = "0.15"
 image             = "0.25"
@@ -54,10 +55,13 @@ assets = [
   ["devpanel.jpg",                         "usr/share/pixmaps/devpanel.png",  "644"],
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
+  ["share/ui/config.json",             "usr/share/devpanel/ui/",          "644"],
+  ["share/versions/php.json",          "usr/share/devpanel/versions/",    "644"],
   ["share/languages/en.json",          "usr/share/devpanel/languages/",   "644"],
   ["share/themes/default.json",           "usr/share/devpanel/themes/",      "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
   ["installation/devpanel-setup.sh",   "usr/share/devpanel/installation/","755"],
+  ["installation/devpanel-create-projects-dir.sh", "usr/share/devpanel/installation/","755"],
   ["installation/lib/log.sh",          "usr/share/devpanel/installation/lib/","755"],
   ["installation/lib/paths.sh",        "usr/share/devpanel/installation/lib/","755"],
   ["installation/lib/context.sh",      "usr/share/devpanel/installation/lib/","755"],

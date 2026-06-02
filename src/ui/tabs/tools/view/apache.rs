@@ -1,12 +1,13 @@
-use super::shared::small_action_btn;
+use super::shared::{section_header, small_action_btn, tool_item_row};
 use crate::core::paths;
 use crate::core::theme::{self, theme_map as theme_keys};
+use crate::domain::tools::ApacheModule;
 use crate::lang::{lang_map::tools as keys, text as tr};
 use crate::messages::{Message, ToolsMessage};
-use crate::ui::tabs::tools::{ApacheModule, ToolsTab};
-use crate::ui::templates::view as ui;
+use crate::ui::tabs::tools::ToolsTab;
+use crate::ui::templates::prelude as ui;
 use crate::ui::utils::styles;
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Element, Length, Padding};
 
 pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
@@ -15,57 +16,21 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
     } else {
         tr(keys::SCAN)
     };
-    let header = row![
-        column![
-            text(tr(keys::SECTION_APACHE_MODULES))
-                .size(14)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(3),
-            text(format!(
-                "{} {} - {}",
-                tr(keys::APACHE_MODULES_HELP_PREFIX),
-                paths::APACHE_MODS_AVAILABLE,
-                tr(keys::APACHE_MODULES_HELP_SUFFIX),
-            ))
-            .size(11)
-            .color(theme::color(theme_keys::TEXT_MUTED)),
-        ]
-        .spacing(0)
-        .width(Length::Fill),
-        button(
-            text(scan_lbl)
-                .size(12)
-                .color(theme::color(theme_keys::TEAL))
-        )
-        .on_press_maybe(if tab.mods_scanning {
+    let header = section_header(
+        tr(keys::SECTION_APACHE_MODULES),
+        format!(
+            "{} {} - {}",
+            tr(keys::APACHE_MODULES_HELP_PREFIX),
+            paths::APACHE_MODS_AVAILABLE,
+            tr(keys::APACHE_MODULES_HELP_SUFFIX),
+        ),
+        scan_lbl,
+        if tab.mods_scanning {
             None
         } else {
             Some(Message::Tools(ToolsMessage::ScanApacheMods))
-        })
-        .padding(Padding::from([7, 14]))
-        .style(|_, status| match status {
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed =>
-                iced::widget::button::Style {
-                    background: Some(theme::color(theme_keys::TEAL_HOVER).into()),
-                    text_color: theme::color(theme_keys::TEAL),
-                    border: Border {
-                        radius: 6.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            _ => iced::widget::button::Style {
-                background: Some(theme::color(theme_keys::TEAL_BG).into()),
-                text_color: theme::color(theme_keys::TEAL),
-                border: Border {
-                    radius: 6.0.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        }),
-    ]
-    .align_y(Alignment::Center);
+        },
+    );
 
     let total = tab.apache_mods.len();
     let enabled = tab.apache_mods.iter().filter(|m| m.enabled).count();
@@ -74,7 +39,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         text_input(tr(keys::FILTER_MODULES), &tab.mod_filter)
             .on_input(|v| Message::Tools(ToolsMessage::ModFilterChanged(v)))
             .padding(Padding::from([7, 12]))
-            .size(12)
+            .size(crate::core::app_config::text_metrics().caption)
             .style(styles::text_input_style)
             .width(Length::Fill),
     ];
@@ -94,7 +59,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         container(
             column![
                 text(tr(keys::NO_MODULES))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(6),
                 text(format!(
@@ -102,7 +67,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
                     tr(keys::CLICK_SCAN_TO_READ),
                     paths::APACHE_MODS_AVAILABLE
                 ))
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0),
@@ -111,7 +76,9 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .into()
     } else {
         let rows: Vec<Element<Message>> = filtered.iter().map(|m| apache_mod_row(m)).collect();
-        scrollable(column(rows).spacing(5)).height(420).into()
+        scrollable(column(rows).spacing(5))
+            .height(crate::core::app_config::panel_metrics().tools_list_height)
+            .into()
     };
 
     container(
@@ -123,17 +90,17 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
                     ui::status_dot(theme::color(theme_keys::GREEN)),
                     Space::with_width(6),
                     text(format!("{} {}", enabled, tr(keys::ENABLED_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
                     ui::status_dot(theme::color(theme_keys::BORDER_MED)),
                     Space::with_width(6),
                     text(format!("{} {}", total - enabled, tr(keys::DISABLED_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
                     text(format!("{} {}", total, tr(keys::TOTAL_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
@@ -149,10 +116,12 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(16),
             container(
                 row![
-                    text("!").size(10).color(theme::color(theme_keys::YELLOW)),
+                    text("!")
+                        .size(crate::core::app_config::text_metrics().tiny)
+                        .color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(8),
                     text(tr(keys::MODULES_SUDO_NOTE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
@@ -203,40 +172,11 @@ fn apache_mod_row<'a>(m: &'a ApacheModule) -> Element<'a, Message> {
             Message::Tools(ToolsMessage::EnableApacheMod(m.name.clone())),
         )
     };
-    container(
-        row![
-            ui::status_dot(dot_color),
-            Space::with_width(12),
-            column![
-                text(format!("mod_{}", m.name))
-                    .size(13)
-                    .color(theme::color(theme_keys::TEXT_PRIMARY)),
-                Space::with_height(2),
-                text(status_text).size(11).color(dot_color),
-            ]
-            .spacing(0)
-            .width(Length::Fill),
-            action,
-        ]
-        .align_y(Alignment::Center),
+    tool_item_row(
+        format!("mod_{}", m.name),
+        paths::APACHE_MODS_AVAILABLE,
+        status_text,
+        dot_color,
+        action,
     )
-    .padding(Padding::from([10, 14]))
-    .width(Length::Fill)
-    .style(move |_: &iced::Theme| container::Style {
-        background: Some(
-            if m.enabled {
-                theme::color(theme_keys::BG_SURFACE)
-            } else {
-                theme::color(theme_keys::BG_BASE)
-            }
-            .into(),
-        ),
-        border: Border {
-            color: theme::color(theme_keys::BORDER_SUBTLE),
-            width: 1.0,
-            radius: 6.0.into(),
-        },
-        ..Default::default()
-    })
-    .into()
 }

@@ -1,16 +1,18 @@
 use iced::Task;
 
 use crate::app::App;
-use crate::messages::{Message, SshKeysMessage, Tab, ToolsMessage, VHostsMessage};
+use crate::messages::{Message, Tab, ToolsMessage, VHostsMessage};
 
 impl App {
     pub(crate) fn handle_select_tab(&mut self, tab: Tab) -> Task<Message> {
         self.active_tab = tab.clone();
         match tab {
-            Tab::Dashboard => Task::perform(crate::ui::tabs::dashboard::probe_services(), |r| r),
-            Tab::SshKeys => Task::perform(crate::ui::tabs::ssh_keys::list_keys(), |keys| {
-                Message::SshKeys(SshKeysMessage::KeysListed(keys))
-            }),
+            Tab::Dashboard => Task::perform(
+                crate::domain::dashboard::service::probe_services(),
+                |snapshot| {
+                    Message::Dashboard(crate::messages::DashboardMessage::StatusRefreshed(snapshot))
+                },
+            ),
             Tab::Tools => {
                 self.tools.scanning = true;
                 self.tools.tools_scanning = true;
@@ -26,7 +28,6 @@ impl App {
                     }),
                 ])
             }
-            Tab::Repos => Task::none(),
             Tab::VHosts => {
                 self.vhosts.scanning = true;
                 let conf = self.vhosts.devpanel_conf.clone();

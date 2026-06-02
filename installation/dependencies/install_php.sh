@@ -7,7 +7,7 @@ enable_php_modules() {
     local enabled=0
     local ver mod_name mod_load enabled_link conf_src conf_link
 
-    for ver in 5.6 7.4 8.0 8.1 8.2 8.3 8.4; do
+    for ver in 5.6 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do
         if [ "$ver" = "5.6" ]; then
             if [ -f "$DEV_APACHE_MODS_AVAILABLE/php5.6.load" ]; then
                 mod_name="php5.6"
@@ -44,7 +44,7 @@ enable_php_modules() {
 
     if [ "$found" -eq 0 ]; then
         log_warn "No mod_phpX.Y found"
-        log_warn "Install PHP: apt-get install -y libapache2-mod-php8.2"
+        log_warn "Install PHP: apt-get install -y libapache2-mod-php8.5"
     else
         log_ok "PHP Apache mods: $enabled/$found version(s) enabled"
     fi

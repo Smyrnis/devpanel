@@ -21,3 +21,16 @@ pub fn mode_label() -> &'static str {
 pub fn log(what: &str) {
     eprintln!("[DevPanel dry-run] {}", what);
 }
+
+pub fn log_user_action(action: &str) {
+    log(&format!("user action: {action}"));
+}
+
+pub fn preview_command(program: &str, args: &[&str]) -> String {
+    let suffix = if args.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", args.join(" "))
+    };
+    format!("[dry-run] would run: {program}{suffix}")
+}

@@ -4,7 +4,7 @@ install_apache_check() {
     log_step "1/8 - Checking Apache installation"
     if ! command_exists apache2 && ! command_exists apachectl; then
         log_err "Apache2 is not installed"
-        log_err "Install it first: apt-get install -y apache2 libapache2-mod-php"
+        log_err "Install it first: apt-get install -y apache2"
         exit 1
     fi
     log_ok "Apache2 found: $(command -v apache2 2>/dev/null || command -v apachectl)"

@@ -1,6 +1,9 @@
-use crate::core::theme::{self, theme_map as theme_keys};
+use crate::core::{
+    app_config,
+    theme::{self, theme_map as theme_keys},
+};
 use iced::widget::{Space, column, container, row, text};
-use iced::{Alignment, Element, Length, Padding};
+use iced::{Alignment, Element, Length};
 
 pub fn page_header<'a, Message>(
     title: &'a str,
@@ -10,20 +13,27 @@ pub fn page_header<'a, Message>(
 where
     Message: 'a,
 {
+    let text_metrics = app_config::text_metrics();
+    let action_area: Element<Message> = if actions.is_empty() {
+        Space::with_width(0).into()
+    } else {
+        row(actions).spacing(8).align_y(Alignment::Center).into()
+    };
+
     container(
         row![
             column![
                 text(title)
-                    .size(22)
+                    .size(text_metrics.title)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(4),
                 text(description)
-                    .size(13)
+                    .size(text_metrics.body)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
             .width(Length::Fill),
-            row(actions).spacing(8).align_y(Alignment::Center),
+            action_area,
         ]
         .align_y(Alignment::Center),
     )
@@ -31,7 +41,7 @@ where
     .into()
 }
 
-pub fn empty_state<'a, Message>(
+pub fn page_header_compact<'a, Message>(
     title: &'a str,
     description: &'a str,
     actions: Vec<Element<'a, Message>>,
@@ -39,23 +49,34 @@ pub fn empty_state<'a, Message>(
 where
     Message: 'a,
 {
-    container(
+    let text_metrics = app_config::text_metrics();
+    let content: Element<Message> = if actions.is_empty() {
         column![
             text(title)
-                .size(15)
-                .color(theme::color(theme_keys::TEXT_SECONDARY)),
-            Space::with_height(6),
+                .size(text_metrics.title)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(4),
             text(description)
-                .size(13)
+                .size(text_metrics.body)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
-            Space::with_height(if actions.is_empty() { 0 } else { 18 }),
+        ]
+        .spacing(0)
+        .into()
+    } else {
+        column![
+            text(title)
+                .size(text_metrics.title)
+                .color(theme::color(theme_keys::TEXT_PRIMARY)),
+            Space::with_height(4),
+            text(description)
+                .size(text_metrics.body)
+                .color(theme::color(theme_keys::TEXT_MUTED)),
+            Space::with_height(12),
             row(actions).spacing(8).align_y(Alignment::Center),
         ]
-        .align_x(Alignment::Center)
-        .spacing(0),
-    )
-    .width(Length::Fill)
-    .padding(Padding::from([40, 0]))
-    .center_x(Length::Fill)
-    .into()
+        .spacing(0)
+        .into()
+    };
+
+    container(content).width(Length::Fill).into()
 }
