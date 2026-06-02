@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.12.23"
+version = "0.25.27"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
