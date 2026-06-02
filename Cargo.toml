@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.25.27"
+version = "0.25.28"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -52,7 +52,7 @@ section = "devel"
 priority = "optional"
 assets = [
   ["target/release/devpanel",          "usr/bin/",                        "755"],
-  ["devpanel.jpg",                         "usr/share/pixmaps/devpanel.png",  "644"],
+  ["devpanel.png",                         "usr/share/pixmaps/devpanel.png",  "644"],
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["share/ui/config.json",             "usr/share/devpanel/ui/",          "644"],
