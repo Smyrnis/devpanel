@@ -83,11 +83,11 @@ fn service_context_item<'a>(
         ui::status_dot(color),
         Space::with_width(7),
         text(label)
-            .size(10)
+            .size(crate::core::app_config::text_metrics().tiny)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         Space::with_width(5),
         text(value)
-            .size(11)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_SECONDARY)),
     ]
     .align_y(Alignment::Center)
@@ -99,11 +99,11 @@ fn php_context_item<'a>(version: &'a str) -> Element<'a, Message> {
         ui::status_dot(theme::color(theme_keys::PURPLE)),
         Space::with_width(7),
         text(tr(keys::PHP))
-            .size(10)
+            .size(crate::core::app_config::text_metrics().tiny)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         Space::with_width(5),
         text(version)
-            .size(11)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_SECONDARY)),
     ]
     .align_y(Alignment::Center)

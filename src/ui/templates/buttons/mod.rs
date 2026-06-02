@@ -1,3 +1,4 @@
+use crate::core::app_config;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::ui::icons::{self, Icon};
 use iced::widget::{Space, button, row, text};
@@ -15,7 +16,7 @@ where
         icon_label(icon, label, theme::color(theme_keys::TEXT_ON_ACCENT)),
         Some(msg),
         Padding::from([8, 15]),
-        Length::Fixed(38.0),
+        Length::Fixed(app_config::control_metrics().button_height),
     )
 }
 
@@ -35,12 +36,12 @@ where
 {
     primary_button_content(
         text(label)
-            .size(13)
+            .size(app_config::text_metrics().body)
             .color(theme::color(theme_keys::TEXT_ON_ACCENT))
             .into(),
         msg,
         Padding::from([10, 24]),
-        Length::Fixed(38.0),
+        Length::Fixed(app_config::control_metrics().button_height),
     )
 }
 
@@ -110,7 +111,7 @@ where
         icon_label(icon, label, theme::color(theme_keys::TEXT_SECONDARY)),
         msg,
         Padding::from([8, 15]),
-        Length::Fixed(38.0),
+        Length::Fixed(app_config::control_metrics().button_height),
     )
 }
 
@@ -130,11 +131,11 @@ where
 {
     let btn = button(
         text(label)
-            .size(13)
+            .size(app_config::text_metrics().body)
             .color(theme::color(theme_keys::TEXT_SECONDARY)),
     )
     .padding(Padding::from([10, 18]))
-    .height(Length::Fixed(38.0))
+    .height(Length::Fixed(app_config::control_metrics().button_height))
     .style(ghost_button_style());
 
     if let Some(msg) = msg {
@@ -165,7 +166,9 @@ fn icon_label<'a, Message: 'a>(icon: Icon, label: &'a str, color: Color) -> Elem
     row![
         icon_box(icon, 13.0, color, 15.0),
         Space::with_width(8),
-        text(label).size(13).color(color),
+        text(label)
+            .size(app_config::text_metrics().body)
+            .color(color),
     ]
     .align_y(Alignment::Center)
     .into()
@@ -251,7 +254,10 @@ where
     Message: Clone + 'a,
 {
     action_button_with_content(
-        text(label).size(12).color(style.color).into(),
+        text(label)
+            .size(app_config::text_metrics().caption)
+            .color(style.color)
+            .into(),
         on_press,
         style,
     )

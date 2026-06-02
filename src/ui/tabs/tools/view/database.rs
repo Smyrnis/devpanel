@@ -12,7 +12,7 @@ pub(super) fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let note = ui::info_banner(
         Icon::Info,
         text(tr(keys::TERMINAL_ROOT_NOTE))
-            .size(11)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED))
             .into(),
         theme::color(theme_keys::YELLOW),
@@ -23,7 +23,7 @@ pub(super) fn db_panel(tab: &ToolsTab) -> Element<'_, Message> {
     let status_row: Element<Message> = if !tab.db_status.is_empty() {
         container(
             text(&tab.db_status)
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
         )
         .padding(Padding::from([10, 12]))

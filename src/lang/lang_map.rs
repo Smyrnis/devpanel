@@ -24,6 +24,7 @@ pub mod config {
     pub const SECTION_APACHE: &str = "config.section_apache";
     pub const SECTION_PHP: &str = "config.section_php";
     pub const SECTION_UI: &str = "config.section_ui";
+    pub const SECTION_UI_CONFIG: &str = "config.section_ui_config";
     pub const SECTION_EDITOR: &str = "config.section_editor";
     pub const SECTION_ADVANCED: &str = "config.section_advanced";
     pub const SAVING: &str = "config.saving";
@@ -51,6 +52,13 @@ pub mod config {
     pub const LANGUAGE_HELP: &str = "config.language_help";
     pub const THEME_LABEL: &str = "config.theme_label";
     pub const THEME_HELP: &str = "config.theme_help";
+    pub const UI_CONFIG_WINDOW_SECTION: &str = "config.ui_config_window_section";
+    pub const UI_CONFIG_TEXT_SECTION: &str = "config.ui_config_text_section";
+    pub const UI_CONFIG_CONTROLS_SECTION: &str = "config.ui_config_controls_section";
+    pub const UI_CONFIG_PANELS_SECTION: &str = "config.ui_config_panels_section";
+    pub const UI_CONFIG_ICONS_SECTION: &str = "config.ui_config_icons_section";
+    pub const UI_CONFIG_NUMBER_HELP: &str = "config.ui_config_number_help";
+    pub const UI_CONFIG_RESTART_NOTE: &str = "config.ui_config_restart_note";
     pub const DEFAULT_KEY_TYPE_LABEL: &str = "config.default_key_type_label";
     pub const DEFAULT_KEY_TYPE_HELP: &str = "config.default_key_type_help";
     pub const EDITOR_COMMAND_LABEL: &str = "config.editor_command_label";

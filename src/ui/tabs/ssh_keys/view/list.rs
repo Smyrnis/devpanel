@@ -19,12 +19,12 @@ pub(super) fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         column![
             row![
                 text(tr(keys::KEYS_PANEL_TITLE))
-                    .size(14)
+                    .size(crate::core::app_config::text_metrics().section_title)
                     .color(theme::color(theme_keys::TEXT_SECONDARY))
                     .width(Length::Fill),
                 container(
                     text(format!("{}", tab.keys_list.len()))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED))
                 )
                 .padding(Padding::from([3, 8]))
@@ -40,7 +40,8 @@ pub(super) fn keys_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             ]
             .align_y(Alignment::Center),
             Space::with_height(16),
-            scrollable(column(entries).spacing(6)).height(380),
+            scrollable(column(entries).spacing(6))
+                .height(crate::core::app_config::panel_metrics().ssh_keys_list_height),
         ]
         .spacing(0)
         .padding(Padding::from([22, 22])),
@@ -91,15 +92,15 @@ fn key_row(k: &KeyEntry) -> Element<'_, Message> {
         row![
             column![
                 text(&k.name)
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(2),
                 text(&k.path)
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(2),
                 text(meta)
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
@@ -130,17 +131,21 @@ fn badge<'a>(
     text_key: &'static str,
     background_key: &'static str,
 ) -> Element<'a, Message> {
-    container(text(label).size(10).color(theme::color(text_key)))
-        .padding(Padding::from([3, 8]))
-        .style(move |_: &iced::Theme| container::Style {
-            background: Some(theme::color(background_key).into()),
-            border: Border {
-                radius: 20.0.into(),
-                ..Default::default()
-            },
+    container(
+        text(label)
+            .size(crate::core::app_config::text_metrics().tiny)
+            .color(theme::color(text_key)),
+    )
+    .padding(Padding::from([3, 8]))
+    .style(move |_: &iced::Theme| container::Style {
+        background: Some(theme::color(background_key).into()),
+        border: Border {
+            radius: 20.0.into(),
             ..Default::default()
-        })
-        .into()
+        },
+        ..Default::default()
+    })
+    .into()
 }
 
 fn ssh_empty_state<'a>() -> Element<'a, Message> {
@@ -150,11 +155,11 @@ fn ssh_empty_state<'a>() -> Element<'a, Message> {
             icons::solid(Icon::Key, 54.0, theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(18),
             text(tr(keys::NO_KEYS))
-                .size(18)
+                .size(crate::core::app_config::text_metrics().modal_title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(8),
             text(tr(keys::NO_KEYS_HELP))
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(22),
             row![
@@ -177,7 +182,7 @@ fn ssh_empty_state<'a>() -> Element<'a, Message> {
                     icons::solid(Icon::Info, 12.0, theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(8),
                     text(tr(keys::CONNECT_PROVIDERS_HELP))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center),

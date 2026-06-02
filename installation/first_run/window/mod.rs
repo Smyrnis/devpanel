@@ -48,7 +48,9 @@ pub fn view<'a>(
     ]
     .spacing(0)
     .padding(Padding::from([32, 32]))
-    .width(Length::Fixed(620.0));
+    .width(Length::Fixed(
+        crate::core::app_config::installer_content_width(),
+    ));
 
     container(
         scrollable(
@@ -71,7 +73,7 @@ pub fn view<'a>(
 
 fn packages_heading<'a>() -> Element<'a, Message> {
     iced::widget::text(tr(keys::PACKAGES_TO_INSTALL))
-        .size(11)
+        .size(crate::core::app_config::text_metrics().caption)
         .color(theme::color(theme_keys::TEXT_MUTED))
         .into()
 }

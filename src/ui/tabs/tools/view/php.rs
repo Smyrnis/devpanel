@@ -48,11 +48,11 @@ pub(super) fn php_panel(tab: &ToolsTab) -> Element<'_, Message> {
                 Icon::Info,
                 column![
                     text(tr(keys::PHP_PPA_NOTE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(3),
                     text(tr(keys::APACHE_MOD_NOTE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .spacing(0)
@@ -132,7 +132,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
     } else {
         container(
             text(tr(keys::NO_APACHE_MOD))
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         )
         .padding(Padding::from([6, 0]))
@@ -163,10 +163,12 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
             Space::with_height(4),
             container(
                 row![
-                    text("!").size(9).color(theme::color(theme_keys::YELLOW)),
+                    text("!")
+                        .size(crate::core::app_config::text_metrics().badge)
+                        .color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(6),
                     text(tr(keys::PHP56_PPA_HINT))
-                        .size(10)
+                        .size(crate::core::app_config::text_metrics().tiny)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)

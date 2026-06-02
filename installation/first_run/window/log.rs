@@ -12,7 +12,7 @@ pub(super) fn setup_log_panel<'a>(log_lines: &'a [String]) -> Element<'a, Messag
         .rev()
         .map(|line| {
             text(line.as_str())
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::TEXT_MUTED))
                 .into()
         })
@@ -20,10 +20,11 @@ pub(super) fn setup_log_panel<'a>(log_lines: &'a [String]) -> Element<'a, Messag
     container(
         column![
             text(tr(keys::SETUP_LOG))
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(6),
-            scrollable(column(rows).spacing(3)).height(110),
+            scrollable(column(rows).spacing(3))
+                .height(crate::core::app_config::panel_metrics().installer_log_height),
         ]
         .spacing(0),
     )

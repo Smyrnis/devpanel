@@ -13,6 +13,7 @@ pub enum ConfigMessage {
     UiShowSetupLogChanged(bool),
     UiLanguageChanged(String),
     UiThemeChanged(String),
+    UiConfigChanged(crate::core::app_config::UiConfigField, String),
     SshDefaultKeyTypeChanged(String),
     EditorCommandChanged(String),
 }

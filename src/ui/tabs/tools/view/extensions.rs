@@ -51,7 +51,7 @@ pub(super) fn php_exts_panel(tab: &ToolsTab) -> Element<'_, Message> {
             ui::info_banner(
                 Icon::Info,
                 text(tr(keys::PHP_EXTENSIONS_NOTE))
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED))
                     .into(),
                 theme::color(theme_keys::BLUE),

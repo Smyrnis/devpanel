@@ -1,4 +1,5 @@
 use crate::core::theme::{self, theme_map as theme_keys};
+use crate::installer::service;
 use crate::installer::{
     FirstRunInstallOptions, FirstRunPackage, FirstRunPackageStatus, FirstRunSetupStatus,
 };
@@ -15,7 +16,7 @@ struct InstallGroup {
     icon: Icon,
     title: &'static str,
     requirement: &'static str,
-    packages: &'static [&'static str],
+    packages: Vec<String>,
 }
 
 pub(super) fn install_rows<'a>(
@@ -31,7 +32,7 @@ pub(super) fn install_rows<'a>(
                 icon: Icon::Folder,
                 title: "Projects Directory",
                 requirement: "required",
-                packages: &[],
+                packages: Vec::new(),
             },
             status.status_for(FirstRunPackage::ProjectsDir),
             true,
@@ -44,7 +45,7 @@ pub(super) fn install_rows<'a>(
                 icon: Icon::Apache,
                 title: "Apache",
                 requirement: "optional",
-                packages: &["apache2"],
+                packages: vec!["apache2".to_string()],
             },
             status.status_for(FirstRunPackage::Apache),
             options.install_apache,
@@ -56,7 +57,7 @@ pub(super) fn install_rows<'a>(
                     } else {
                         Some(|v| Message::FirstRun(FirstRunMessage::ToggleApache(v)))
                     })
-                    .size(16)
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
                     .style(styles::checkbox_style)
                     .into(),
             ],
@@ -65,14 +66,9 @@ pub(super) fn install_rows<'a>(
             InstallGroup {
                 package_group: FirstRunPackage::Php,
                 icon: Icon::Php,
-                title: "PHP 8.5",
+                title: "Latest PHP",
                 requirement: "optional",
-                packages: &[
-                    "php8.5",
-                    "php8.5-cli",
-                    "php8.5-common",
-                    "libapache2-mod-php8.5",
-                ],
+                packages: service::latest_php_packages(),
             },
             status.status_for(FirstRunPackage::Php),
             options.install_php,
@@ -84,7 +80,7 @@ pub(super) fn install_rows<'a>(
                     } else {
                         Some(|v| Message::FirstRun(FirstRunMessage::TogglePhp(v)))
                     })
-                    .size(16)
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
                     .style(styles::checkbox_style)
                     .into(),
             ],
@@ -95,7 +91,7 @@ pub(super) fn install_rows<'a>(
                 icon: Icon::Database,
                 title: "MySQL",
                 requirement: "optional",
-                packages: &["mysql-server"],
+                packages: vec!["mysql-server".to_string()],
             },
             status.status_for(FirstRunPackage::Mysql),
             options.install_mysql,
@@ -107,7 +103,7 @@ pub(super) fn install_rows<'a>(
                     } else {
                         Some(|v| Message::FirstRun(FirstRunMessage::ToggleMysql(v)))
                     })
-                    .size(16)
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
                     .style(styles::checkbox_style)
                     .into(),
             ],
@@ -116,9 +112,9 @@ pub(super) fn install_rows<'a>(
             InstallGroup {
                 package_group: FirstRunPackage::PhpExtras,
                 icon: Icon::Code,
-                title: "PHP 8.5 Extras",
+                title: "Latest PHP Extras",
                 requirement: "optional",
-                packages: &["php8.5-mysql", "php8.5-xml", "php8.5-mbstring"],
+                packages: service::latest_php_extra_packages(),
             },
             status.status_for(FirstRunPackage::PhpExtras),
             options.install_php_extras,
@@ -130,7 +126,7 @@ pub(super) fn install_rows<'a>(
                     } else {
                         Some(|v| Message::FirstRun(FirstRunMessage::TogglePhpExtras(v)))
                     })
-                    .size(16)
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
                     .style(styles::checkbox_style)
                     .into(),
             ],
@@ -177,7 +173,7 @@ fn install_row<'a>(
         install_details(
             group.package_group,
             group.title,
-            group.packages,
+            &group.packages,
             selected,
             installed,
         )
@@ -189,7 +185,7 @@ fn install_row<'a>(
 fn install_details<'a>(
     package_group: FirstRunPackage,
     title: &'static str,
-    packages: &[&'static str],
+    packages: &[String],
     selected: bool,
     installed: bool,
 ) -> Element<'a, Message> {
@@ -200,7 +196,7 @@ fn install_details<'a>(
             ui::detail_row(
                 "Path",
                 text(projects_dir_path())
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .font(Font::MONOSPACE)
                     .color(theme::color(theme_keys::TEXT_SECONDARY))
                     .into(),
@@ -213,7 +209,7 @@ fn install_details<'a>(
             ui::detail_row(
                 "Names",
                 text(packages.join(", "))
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .font(Font::MONOSPACE)
                     .color(theme::color(theme_keys::TEXT_SECONDARY))
                     .into(),
@@ -253,9 +249,9 @@ fn install_reason(title: &str) -> &'static str {
     match title {
         "Projects Directory" => "Required workspace folder for local projects.",
         "Apache" => "Optional web server for local HTTP virtual hosts.",
-        "PHP 8.5" => "Optional latest PHP runtime and Apache module.",
+        "Latest PHP" => "Optional latest PHP runtime and Apache module.",
         "MySQL" => "Optional database server for local LAMP projects.",
-        "PHP 8.5 Extras" => "Optional latest PHP extensions commonly needed by web apps.",
+        "Latest PHP Extras" => "Optional latest PHP extensions commonly needed by web apps.",
         _ => "Package group used by the local development stack.",
     }
 }

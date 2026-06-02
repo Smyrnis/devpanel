@@ -35,7 +35,7 @@ pub(super) fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
         row![
             container(
                 text(icon)
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEXT_ON_ACCENT))
             )
             .padding(Padding::from([3, 6]))
@@ -49,7 +49,7 @@ pub(super) fn status_bar(tab: &SshKeysTab) -> Element<'_, Message> {
             }),
             Space::with_width(10),
             text(&tab.status_message)
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
         ]
         .align_y(Alignment::Center),

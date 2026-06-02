@@ -50,13 +50,14 @@ fn with_config(toml: &str) -> (TempDir, devpanel::core::config::DevPanelConfig, 
 
 #[test]
 fn load_all_keys_present() {
-    let toml = "devpanel_conf = \"/etc/apache2/sites-available/devpanel.conf\"\nhosts_file    = \"/etc/hosts\"\n";
+    let toml = "devpanel_conf = \"/etc/apache2/sites-available/devpanel.conf\"\nhosts_file    = \"/etc/hosts\"\nprojects_dir  = \"/home/dev/projects\"\n";
     let (_dir, cfg, _guard) = with_config(toml);
     assert_eq!(
         cfg.devpanel_conf,
         "/etc/apache2/sites-available/devpanel.conf"
     );
     assert_eq!(cfg.hosts_file, "/etc/hosts");
+    assert_eq!(cfg.projects_dir, "/home/dev/projects");
 }
 #[test]
 fn load_missing_file_uses_defaults() {
@@ -68,6 +69,10 @@ fn load_missing_file_uses_defaults() {
         "/etc/apache2/sites-available/devpanel.conf"
     );
     assert_eq!(cfg.hosts_file, "/etc/hosts");
+    assert_eq!(
+        cfg.projects_dir,
+        dir.path().join("projects").to_string_lossy().to_string()
+    );
 }
 #[test]
 fn load_hosts_file_defaults_to_etc_hosts() {
@@ -76,14 +81,27 @@ fn load_hosts_file_defaults_to_etc_hosts() {
     assert_eq!(cfg.hosts_file, "/etc/hosts");
 }
 #[test]
+fn load_projects_dir_defaults_to_home_projects() {
+    let dir = TempDir::new().expect("tempdir");
+    let _guard = HomeGuard::new(dir.path());
+    let cfg = devpanel::core::config::DevPanelConfig::load();
+    assert_eq!(
+        cfg.projects_dir,
+        dir.path().join("projects").to_string_lossy().to_string()
+    );
+}
+#[test]
 fn save_and_reload_is_identity() {
     let dir = TempDir::new().expect("tempdir");
     let _guard = HomeGuard::new(dir.path());
     let original = devpanel::core::config::DevPanelConfig {
         devpanel_conf: "/etc/apache2/sites-available/devpanel.conf".into(),
         hosts_file: "/etc/hosts".into(),
+        projects_dir: "/home/dev/projects".into(),
     };
     original.save();
     let reloaded = devpanel::core::config::DevPanelConfig::load();
     assert_eq!(reloaded.devpanel_conf, original.devpanel_conf);
+    assert_eq!(reloaded.hosts_file, original.hosts_file);
+    assert_eq!(reloaded.projects_dir, original.projects_dir);
 }

@@ -108,7 +108,7 @@ pub(super) fn php_panel(tab: &DashboardTab) -> Element<'_, Message> {
     let picker: Element<Message> = if tab.php_versions.is_empty() {
         container(
             text(tr(keys::PHP_NOT_DETECTED))
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         )
         .padding(Padding::from([9, 12]))
@@ -130,7 +130,7 @@ pub(super) fn php_panel(tab: &DashboardTab) -> Element<'_, Message> {
             let active = tab.active_php_version.as_ref() == Some(version);
             row![
                 text(version.as_str())
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_PRIMARY))
                     .width(Length::Fill),
                 ui::small_badge(
@@ -202,7 +202,7 @@ fn apache_problems(tab: &DashboardTab) -> Element<'_, Message> {
         .iter()
         .map(|line| {
             text(line.as_str())
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED))
                 .into()
         })

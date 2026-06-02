@@ -1,5 +1,5 @@
 use crate::core::{
-    dry_run,
+    app_config, dry_run,
     theme::{self, theme_map as theme_keys},
 };
 use crate::lang::{lang_map::install as keys, text as tr};
@@ -8,11 +8,12 @@ use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Border, Element, Padding};
 
 pub(super) fn header<'a>() -> Element<'a, Message> {
+    let text_metrics = app_config::text_metrics();
     let dry_run_note: Element<Message> = if dry_run::active() {
         column![
             Space::with_height(4),
             text(tr(keys::DRY_RUN_NOTE))
-                .size(12)
+                .size(text_metrics.caption)
                 .color(theme::color(theme_keys::YELLOW)),
         ]
         .spacing(0)
@@ -25,7 +26,7 @@ pub(super) fn header<'a>() -> Element<'a, Message> {
         row![
             container(
                 text(tr(keys::BADGE_NEW))
-                    .size(9)
+                    .size(text_metrics.badge)
                     .color(theme::color(theme_keys::TEAL))
             )
             .padding(Padding::from([3, 8]))
@@ -39,17 +40,17 @@ pub(super) fn header<'a>() -> Element<'a, Message> {
             }),
             Space::with_width(10),
             text(tr(keys::WELCOME_TITLE))
-                .size(20)
+                .size(text_metrics.title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
         ]
         .align_y(Alignment::Center),
         Space::with_height(8),
         text(tr(keys::WELCOME_BODY))
-            .size(13)
+            .size(text_metrics.body)
             .color(theme::color(theme_keys::TEXT_SECONDARY)),
         Space::with_height(4),
         text(tr(keys::SUDO_NOTE))
-            .size(12)
+            .size(text_metrics.caption)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         dry_run_note,
     ]

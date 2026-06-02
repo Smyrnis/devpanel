@@ -17,6 +17,7 @@ pub(super) fn config_sections<'a>(
 ) -> Element<'a, Message> {
     let sections = [
         ConfigSection::Ui,
+        ConfigSection::UiConfig,
         ConfigSection::Apache,
         ConfigSection::Php,
         ConfigSection::Editor,
@@ -100,6 +101,7 @@ fn config_section_block<'a>(
 fn section_icon(section: &ConfigSection) -> Icon {
     match section {
         ConfigSection::Ui => Icon::Config,
+        ConfigSection::UiConfig => Icon::Config,
         ConfigSection::Apache => Icon::Apache,
         ConfigSection::Php => Icon::Php,
         ConfigSection::Editor => Icon::Editor,
@@ -110,6 +112,7 @@ fn section_icon(section: &ConfigSection) -> Icon {
 fn section_label(section: &ConfigSection) -> &'static str {
     match section {
         ConfigSection::Ui => tr(keys::SECTION_UI),
+        ConfigSection::UiConfig => tr(keys::SECTION_UI_CONFIG),
         ConfigSection::Apache => tr(keys::SECTION_APACHE),
         ConfigSection::Php => tr(keys::SECTION_PHP),
         ConfigSection::Editor => tr(keys::SECTION_EDITOR),
@@ -123,6 +126,7 @@ fn section_summary(tab: &ConfigTab, section: &ConfigSection) -> String {
             "Theme: {}, Language: {}",
             tab.settings.ui_theme, tab.settings.ui_language
         ),
+        ConfigSection::UiConfig => "JSON override, layout and type".to_string(),
         ConfigSection::Apache => format!(
             "Auto reload {}, log {}",
             setting_state(tab.settings.apache_auto_reload),

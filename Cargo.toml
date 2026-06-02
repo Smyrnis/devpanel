@@ -55,6 +55,8 @@ assets = [
   ["devpanel.jpg",                         "usr/share/pixmaps/devpanel.png",  "644"],
   ["devpanel.desktop",                 "usr/share/applications/",         "644"],
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
+  ["share/ui/config.json",             "usr/share/devpanel/ui/",          "644"],
+  ["share/versions/php.json",          "usr/share/devpanel/versions/",    "644"],
   ["share/languages/en.json",          "usr/share/devpanel/languages/",   "644"],
   ["share/themes/default.json",           "usr/share/devpanel/themes/",      "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],

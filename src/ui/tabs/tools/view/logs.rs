@@ -48,9 +48,11 @@ pub(super) fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
                 (tr(keys::LOG_ERR), theme::color(theme_keys::RED))
             };
             row![
-                text(prefix).size(11).color(color),
+                text(prefix)
+                    .size(crate::core::app_config::text_metrics().caption)
+                    .color(color),
                 text(msg.as_str())
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_SECONDARY))
             ]
             .into()
@@ -59,18 +61,21 @@ pub(super) fn log_panel(tab: &ToolsTab) -> Element<'_, Message> {
 
     column![
         header,
-        container(scrollable(column(rows).spacing(5).padding(Padding::from([4, 0]))).height(150),)
-            .padding(Padding::from([14, 16]))
-            .width(Length::Fill)
-            .style(|_: &iced::Theme| container::Style {
-                background: Some(theme::color(theme_keys::BG_SURFACE).into()),
-                border: Border {
-                    color: theme::color(theme_keys::BORDER_SUBTLE),
-                    width: 1.0,
-                    radius: 6.0.into(),
-                },
-                ..Default::default()
-            }),
+        container(
+            scrollable(column(rows).spacing(5).padding(Padding::from([4, 0])))
+                .height(crate::core::app_config::panel_metrics().tools_compact_log_height),
+        )
+        .padding(Padding::from([14, 16]))
+        .width(Length::Fill)
+        .style(|_: &iced::Theme| container::Style {
+            background: Some(theme::color(theme_keys::BG_SURFACE).into()),
+            border: Border {
+                color: theme::color(theme_keys::BORDER_SUBTLE),
+                width: 1.0,
+                radius: 6.0.into(),
+            },
+            ..Default::default()
+        }),
     ]
     .spacing(6)
     .into()
@@ -109,23 +114,23 @@ pub(super) fn error_suggestion_panel(tab: &ToolsTab) -> Element<'_, Message> {
         column![
             row![
                 text(tr(keys::PHP_NOT_FOUND))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::ORANGE)),
                 Space::with_width(Length::Fill),
             ]
             .align_y(Alignment::Center),
             Space::with_height(10),
             text(tr(keys::PHP_PPA_MISSING))
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(12),
             container(
                 scrollable(
                     text(fix_commands.clone())
-                        .size(10)
+                        .size(crate::core::app_config::text_metrics().tiny)
                         .color(theme::color(theme_keys::BORDER_MED))
                 )
-                .height(180)
+                .height(crate::core::app_config::panel_metrics().tools_log_height)
             )
             .padding(Padding::from([12, 14]))
             .style(|_: &iced::Theme| container::Style {

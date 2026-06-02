@@ -1,4 +1,7 @@
-use crate::core::theme::{self, theme_map as theme_keys};
+use crate::core::{
+    app_config,
+    theme::{self, theme_map as theme_keys},
+};
 use iced::widget::{Space, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
@@ -10,6 +13,7 @@ pub fn page_header<'a, Message>(
 where
     Message: 'a,
 {
+    let text_metrics = app_config::text_metrics();
     let action_area: Element<Message> = if actions.is_empty() {
         Space::with_width(0).into()
     } else {
@@ -20,11 +24,11 @@ where
         row![
             column![
                 text(title)
-                    .size(22)
+                    .size(text_metrics.title)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(4),
                 text(description)
-                    .size(13)
+                    .size(text_metrics.body)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
@@ -45,14 +49,15 @@ pub fn page_header_compact<'a, Message>(
 where
     Message: 'a,
 {
+    let text_metrics = app_config::text_metrics();
     let content: Element<Message> = if actions.is_empty() {
         column![
             text(title)
-                .size(22)
+                .size(text_metrics.title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(4),
             text(description)
-                .size(13)
+                .size(text_metrics.body)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
@@ -60,11 +65,11 @@ where
     } else {
         column![
             text(title)
-                .size(22)
+                .size(text_metrics.title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(4),
             text(description)
-                .size(13)
+                .size(text_metrics.body)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(12),
             row(actions).spacing(8).align_y(Alignment::Center),

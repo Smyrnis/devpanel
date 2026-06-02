@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::core::app_config;
 use crate::core::theme::{self, theme_map as theme_keys};
 use iced::widget::{container, text};
 use iced::{Border, Color, Element, Length, Padding};
@@ -49,14 +50,14 @@ pub fn status_badge<'a, Message>(label: impl Into<String>, tone: BadgeTone) -> E
 where
     Message: 'a,
 {
-    pill(label, tone, 11, [4, 9])
+    pill(label, tone, app_config::text_metrics().caption, [4, 9])
 }
 
 pub fn small_badge<'a, Message>(label: impl Into<String>, tone: BadgeTone) -> Element<'a, Message>
 where
     Message: 'a,
 {
-    pill(label, tone, 10, [3, 7])
+    pill(label, tone, app_config::text_metrics().tiny, [3, 7])
 }
 
 pub fn path_chip<'a, Message>(path: &'a str) -> Element<'a, Message>
@@ -65,7 +66,7 @@ where
 {
     container(
         text(path)
-            .size(12)
+            .size(app_config::text_metrics().caption)
             .font(iced::Font::MONOSPACE)
             .color(theme::color(theme_keys::TEXT_SECONDARY)),
     )

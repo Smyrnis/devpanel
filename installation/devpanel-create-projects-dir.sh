@@ -28,6 +28,7 @@ detect_target_user
 log_context
 
 create_projects_dir
+write_devpanel_config
 
 chown "$REAL_USER" "$LOG_FILE" 2>/dev/null || true
 log_ok "Projects directory setup complete"

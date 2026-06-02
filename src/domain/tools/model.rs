@@ -47,16 +47,11 @@ pub struct InstalledTools {
     pub redis_memory: Option<String>,
 }
 
-pub const PHP_VERSION_OPTIONS: &[&str] = &[
-    "5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5",
-];
-
 pub fn default_php_releases() -> Vec<PhpRelease> {
-    PHP_VERSION_OPTIONS
-        .iter()
-        .copied()
+    crate::core::app_config::php_version_numbers()
+        .into_iter()
         .map(|version| PhpRelease {
-            version: version.into(),
+            version,
             status: PhpStatus::Unknown,
             is_active: false,
             apache_mod_available: false,

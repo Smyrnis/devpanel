@@ -25,11 +25,11 @@ pub(super) fn section_header<'a>(
     row![
         column![
             text(title)
-                .size(14)
+                .size(crate::core::app_config::text_metrics().section_title)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(3),
             text(subtitle.into())
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
@@ -60,11 +60,11 @@ pub(super) fn tool_item_row<'a>(
             Space::with_width(12),
             column![
                 text(title.into())
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(2),
                 text(subtitle.into())
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
@@ -93,7 +93,7 @@ pub(super) fn search_box<'a>(placeholder: &'a str, value: &'a str) -> Element<'a
     text_input(placeholder, value)
         .on_input(|v| Message::Tools(ToolsMessage::ToolSearchChanged(v)))
         .padding(Padding::from([7, 12]))
-        .size(12)
+        .size(crate::core::app_config::text_metrics().caption)
         .style(styles::text_input_style)
         .width(Length::Fill)
         .into()

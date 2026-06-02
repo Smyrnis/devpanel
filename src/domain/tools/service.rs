@@ -6,88 +6,6 @@ use crate::infra::system::get_home;
 use crate::operations::{apache, php, tools};
 use tokio::process::Command;
 
-struct PhpVersionMeta {
-    version: &'static str,
-    binaries: &'static [&'static str],
-    mod_name: &'static str,
-    apt_pkg: &'static str,
-}
-
-const PHP_VERSIONS: &[PhpVersionMeta] = &[
-    PhpVersionMeta {
-        version: "5.6",
-        binaries: &["php5.6", "php5"],
-        mod_name: "php5.6",
-        apt_pkg: "php5.6",
-    },
-    PhpVersionMeta {
-        version: "7.0",
-        binaries: &["php7.0"],
-        mod_name: "php7.0",
-        apt_pkg: "php7.0",
-    },
-    PhpVersionMeta {
-        version: "7.1",
-        binaries: &["php7.1"],
-        mod_name: "php7.1",
-        apt_pkg: "php7.1",
-    },
-    PhpVersionMeta {
-        version: "7.2",
-        binaries: &["php7.2"],
-        mod_name: "php7.2",
-        apt_pkg: "php7.2",
-    },
-    PhpVersionMeta {
-        version: "7.3",
-        binaries: &["php7.3"],
-        mod_name: "php7.3",
-        apt_pkg: "php7.3",
-    },
-    PhpVersionMeta {
-        version: "7.4",
-        binaries: &["php7.4"],
-        mod_name: "php7.4",
-        apt_pkg: "php7.4",
-    },
-    PhpVersionMeta {
-        version: "8.0",
-        binaries: &["php8.0"],
-        mod_name: "php8.0",
-        apt_pkg: "php8.0",
-    },
-    PhpVersionMeta {
-        version: "8.1",
-        binaries: &["php8.1"],
-        mod_name: "php8.1",
-        apt_pkg: "php8.1",
-    },
-    PhpVersionMeta {
-        version: "8.2",
-        binaries: &["php8.2"],
-        mod_name: "php8.2",
-        apt_pkg: "php8.2",
-    },
-    PhpVersionMeta {
-        version: "8.3",
-        binaries: &["php8.3"],
-        mod_name: "php8.3",
-        apt_pkg: "php8.3",
-    },
-    PhpVersionMeta {
-        version: "8.4",
-        binaries: &["php8.4"],
-        mod_name: "php8.4",
-        apt_pkg: "php8.4",
-    },
-    PhpVersionMeta {
-        version: "8.5",
-        binaries: &["php8.5"],
-        mod_name: "php8.5",
-        apt_pkg: "php8.5",
-    },
-];
-
 pub async fn scan_php_versions(
     active_php: Option<String>,
 ) -> Vec<(String, PhpStatus, bool, bool, bool)> {
@@ -97,10 +15,10 @@ pub async fn scan_php_versions(
 
     let mut results = Vec::new();
 
-    for meta in PHP_VERSIONS {
+    for meta in crate::core::app_config::php_versions() {
         let installed = {
             let mut found = false;
-            for bin in meta.binaries {
+            for bin in &meta.binaries {
                 if tokio::fs::metadata(format!("{}/{}", paths::PHP_BIN_DIR, bin))
                     .await
                     .is_ok()
@@ -118,7 +36,7 @@ pub async fn scan_php_versions(
             PhpStatus::Unknown
         } else {
             let avail = Command::new("apt-cache")
-                .args(["show", meta.apt_pkg])
+                .args(["show", &meta.apt_package])
                 .output()
                 .await
                 .map(|o| o.status.success())
@@ -130,32 +48,26 @@ pub async fn scan_php_versions(
             }
         };
 
-        let is_active = active_short.as_deref() == Some(meta.version);
+        let is_active = active_short.as_deref() == Some(meta.version.as_str());
 
         let (mod_available, mod_enabled) = {
-            let primary_load = paths::apache_mod_available(meta.mod_name);
-            let primary_enable = paths::apache_mod_enabled(meta.mod_name);
+            let primary_load = paths::apache_mod_available(&meta.apache_module);
+            let primary_enable = paths::apache_mod_enabled(&meta.apache_module);
             if tokio::fs::metadata(&primary_load).await.is_ok() {
                 let enabled = tokio::fs::metadata(&primary_enable).await.is_ok();
                 (true, enabled)
-            } else if meta.version == "5.6" {
-                let legacy_load = paths::apache_mod_available("php5");
-                let legacy_enable = paths::apache_mod_enabled("php5");
-                let avail = tokio::fs::metadata(legacy_load).await.is_ok();
+            } else if let Some(legacy) = &meta.legacy_apache_module {
+                let legacy_load = paths::apache_mod_available(legacy);
+                let legacy_enable = paths::apache_mod_enabled(legacy);
+                let available = tokio::fs::metadata(legacy_load).await.is_ok();
                 let enabled = tokio::fs::metadata(legacy_enable).await.is_ok();
-                (avail, enabled)
+                (available, enabled)
             } else {
                 (false, false)
             }
         };
 
-        results.push((
-            meta.version.to_string(),
-            status,
-            is_active,
-            mod_available,
-            mod_enabled,
-        ));
+        results.push((meta.version, status, is_active, mod_available, mod_enabled));
     }
 
     results

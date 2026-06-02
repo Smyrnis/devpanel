@@ -10,11 +10,11 @@ pub(super) fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     let header = row![
         column![
             text(tr(keys::CONFIG_EDITOR))
-                .size(22)
+                .size(crate::core::app_config::text_metrics().title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
             Space::with_height(4),
             text(tab.devpanel_conf.as_str())
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)
@@ -50,7 +50,7 @@ pub(super) fn config_editor_view(tab: &VHostsTab) -> Element<'_, Message> {
     let dirty_badge: Element<Message> = if tab.config_dirty {
         container(
             text(tr(keys::UNSAVED_CHANGES))
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::YELLOW)),
         )
         .padding(Padding::from([3, 8]))

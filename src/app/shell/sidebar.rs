@@ -88,7 +88,9 @@ impl App {
                 Space::with_width(10),
                 icons::solid_box(icon, 14.0, text_color, 17.0),
                 Space::with_width(10),
-                text(label).size(13).color(text_color),
+                text(label)
+                    .size(crate::core::app_config::text_metrics().body)
+                    .color(text_color),
             ]
             .align_y(Alignment::Center)
             .into()
@@ -142,10 +144,10 @@ fn logo<'a>(compact: bool) -> Element<'a, Message> {
                     Space::with_width(10),
                     column![
                         text(tr(keys::LOGO_DEV))
-                            .size(19)
+                            .size(crate::core::app_config::icon_metrics().sidebar_logo)
                             .color(theme::color(theme_keys::TEAL)),
                         text(tr(keys::LOGO_PANEL))
-                            .size(19)
+                            .size(crate::core::app_config::icon_metrics().sidebar_logo)
                             .color(theme::color(theme_keys::TEXT_PRIMARY)),
                     ]
                     .spacing(0),
@@ -173,7 +175,7 @@ fn nav_items(app: &App, compact: bool) -> iced::widget::Column<'_, Message> {
     } else {
         column![
             text(tr(keys::NAVIGATION))
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(6),
             app.nav_item(Icon::Dashboard, tr(keys::NAV_DASHBOARD), Tab::Dashboard),
@@ -210,7 +212,7 @@ fn sidebar_bottom(app: &App, compact: bool) -> Element<'_, Message> {
         container(
             column![
                 text(tr(keys::SYSTEM))
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(6),
                 sidebar_status_row(tr(keys::APACHE), app.dashboard.apache_running),
@@ -220,7 +222,7 @@ fn sidebar_bottom(app: &App, compact: bool) -> Element<'_, Message> {
                 sudo_indicator(app),
                 Space::with_height(8),
                 text(format!("v{}", env!("CARGO_PKG_VERSION")))
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
@@ -254,7 +256,7 @@ fn sudo_indicator(app: &App) -> Element<'_, Message> {
                     dot(theme::color(theme_keys::GREEN)),
                     Space::with_width(7),
                     text(tr(keys::SUDO_ACTIVE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::GREEN)),
                 ]
                 .align_y(Alignment::Center),
@@ -271,7 +273,7 @@ fn sudo_indicator(app: &App) -> Element<'_, Message> {
             Space::with_height(5),
             button(
                 text(tr(keys::CLEAR_SUDO))
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             )
             .on_press(Message::Sudo(SudoMessage::ClearSaved))
@@ -286,7 +288,7 @@ fn sudo_indicator(app: &App) -> Element<'_, Message> {
                 dot(theme::color(theme_keys::YELLOW)),
                 Space::with_width(7),
                 text(tr(keys::SUDO_LOCKED))
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .align_y(Alignment::Center),
@@ -314,11 +316,11 @@ fn sidebar_status_row<'a>(label: &'a str, running: bool) -> Element<'a, Message>
         ui::status_dot(color),
         Space::with_width(7),
         text(label)
-            .size(11)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         Space::with_width(Length::Fill),
         text(if running { tr(keys::ON) } else { tr(keys::OFF) })
-            .size(10)
+            .size(crate::core::app_config::text_metrics().tiny)
             .color(color),
     ]
     .align_y(Alignment::Center)

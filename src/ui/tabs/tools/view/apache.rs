@@ -39,7 +39,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         text_input(tr(keys::FILTER_MODULES), &tab.mod_filter)
             .on_input(|v| Message::Tools(ToolsMessage::ModFilterChanged(v)))
             .padding(Padding::from([7, 12]))
-            .size(12)
+            .size(crate::core::app_config::text_metrics().caption)
             .style(styles::text_input_style)
             .width(Length::Fill),
     ];
@@ -59,7 +59,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         container(
             column![
                 text(tr(keys::NO_MODULES))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_height(6),
                 text(format!(
@@ -67,7 +67,7 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
                     tr(keys::CLICK_SCAN_TO_READ),
                     paths::APACHE_MODS_AVAILABLE
                 ))
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0),
@@ -76,7 +76,9 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
         .into()
     } else {
         let rows: Vec<Element<Message>> = filtered.iter().map(|m| apache_mod_row(m)).collect();
-        scrollable(column(rows).spacing(5)).height(420).into()
+        scrollable(column(rows).spacing(5))
+            .height(crate::core::app_config::panel_metrics().tools_list_height)
+            .into()
     };
 
     container(
@@ -88,17 +90,17 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
                     ui::status_dot(theme::color(theme_keys::GREEN)),
                     Space::with_width(6),
                     text(format!("{} {}", enabled, tr(keys::ENABLED_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
                     ui::status_dot(theme::color(theme_keys::BORDER_MED)),
                     Space::with_width(6),
                     text(format!("{} {}", total - enabled, tr(keys::DISABLED_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_width(18),
                     text(format!("{} {}", total, tr(keys::TOTAL_SUFFIX)))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)
@@ -114,10 +116,12 @@ pub(super) fn apache_mods_panel(tab: &ToolsTab) -> Element<'_, Message> {
             Space::with_height(16),
             container(
                 row![
-                    text("!").size(10).color(theme::color(theme_keys::YELLOW)),
+                    text("!")
+                        .size(crate::core::app_config::text_metrics().tiny)
+                        .color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(8),
                     text(tr(keys::MODULES_SUDO_NOTE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center)

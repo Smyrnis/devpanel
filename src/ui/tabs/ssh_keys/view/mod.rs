@@ -33,7 +33,7 @@ pub fn settings_panel(tab: &SshKeysTab, compact: bool) -> Element<'_, Message> {
     column![
         row![
             text(tr(keys::TITLE))
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .color(theme::color(theme_keys::TEXT_SECONDARY))
                 .width(Length::Fill),
             ui::secondary_icon_button(

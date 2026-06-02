@@ -17,7 +17,7 @@ pub(super) fn php_info_modal(tab: &DashboardTab) -> Element<'_, Message> {
         column![
             row![
                 text(tr(keys::PHP_INFO))
-                    .size(18)
+                    .size(crate::core::app_config::text_metrics().modal_title)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_width(Length::Fill),
                 ui::secondary_icon_button(
@@ -30,10 +30,12 @@ pub(super) fn php_info_modal(tab: &DashboardTab) -> Element<'_, Message> {
             Space::with_height(10),
             scrollable(
                 text(body)
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_SECONDARY))
             )
-            .height(Length::Fixed(240.0)),
+            .height(Length::Fixed(
+                crate::core::app_config::control_metrics().modal_log_height
+            )),
         ]
         .spacing(0),
     )

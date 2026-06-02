@@ -48,13 +48,17 @@ where
         label,
         hint,
         row![
-            checkbox("", value).on_toggle(on_toggle).size(18),
+            checkbox("", value)
+                .on_toggle(on_toggle)
+                .size(crate::core::app_config::control_metrics().large_checkbox_size),
             Space::with_width(10),
-            text(state_text).size(12).color(if value {
-                theme::color(theme_keys::GREEN)
-            } else {
-                theme::color(theme_keys::TEXT_MUTED)
-            }),
+            text(state_text)
+                .size(crate::core::app_config::text_metrics().caption)
+                .color(if value {
+                    theme::color(theme_keys::GREEN)
+                } else {
+                    theme::color(theme_keys::TEXT_MUTED)
+                }),
         ]
         .align_y(Alignment::Center)
         .into(),
@@ -64,11 +68,11 @@ where
 fn setting_text<'a>(label: &'a str, hint: &'a str) -> iced::widget::Column<'a, Message> {
     column![
         text(label)
-            .size(14)
+            .size(crate::core::app_config::text_metrics().section_title)
             .color(theme::color(theme_keys::TEXT_PRIMARY)),
         Space::with_height(4),
         text(hint)
-            .size(12)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED)),
     ]
     .spacing(0)

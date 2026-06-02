@@ -49,7 +49,9 @@ impl App {
                 Space::with_height(Length::Fill),
                 row![
                     Space::with_width(Length::Fill),
-                    column(cards).spacing(8).width(340),
+                    column(cards)
+                        .spacing(8)
+                        .width(crate::core::app_config::panel_metrics().notification_width),
                 ],
             ]
             .padding(Padding::from([20, 20])),
@@ -77,7 +79,7 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
         row![
             container(
                 text(if toast.ok { "+" } else { "x" })
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_ON_ACCENT))
             )
             .padding(Padding::from([3, 7]))
@@ -91,11 +93,11 @@ fn notification_card(toast: &Toast) -> Element<'_, Message> {
             }),
             Space::with_width(10),
             text(toast.message.as_str())
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .color(theme::color(theme_keys::TEXT_PRIMARY))
                 .width(Length::Fill),
             text(format!("{}s", seconds))
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .align_y(Alignment::Center),

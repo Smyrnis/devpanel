@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::core::app_config;
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::ui::icons::{self, Icon};
 use crate::ui::templates::badges::{BadgeTone, status_badge};
@@ -28,7 +29,7 @@ where
         icons::solid_box(icon, 15.0, theme::color(theme_keys::TEXT_SECONDARY), 22.0),
         Space::with_width(12),
         text(title)
-            .size(15)
+            .size(app_config::text_metrics().section_title)
             .color(theme::color(theme_keys::TEXT_PRIMARY))
             .width(Length::FillPortion(2)),
         status_badge(status, tone),
@@ -54,7 +55,9 @@ where
         ))
         .on_press(message)
         .padding(Padding::from([7, 8]))
-        .height(Length::Fixed(34.0))
+        .height(Length::Fixed(
+            app_config::control_metrics().summary_row_height,
+        ))
         .style(crate::ui::templates::buttons::ghost_button_style())
         .into()
     } else {
@@ -112,7 +115,7 @@ where
 {
     column![
         text(title)
-            .size(11)
+            .size(app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         column(children).spacing(8),
     ]
@@ -126,9 +129,11 @@ where
 {
     row![
         text(label)
-            .size(12)
+            .size(app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED))
-            .width(Length::Fixed(130.0)),
+            .width(Length::Fixed(
+                app_config::control_metrics().detail_label_width
+            )),
         value,
     ]
     .spacing(12)
@@ -141,7 +146,7 @@ where
     Message: 'a,
 {
     text(value)
-        .size(12)
+        .size(app_config::text_metrics().caption)
         .color(theme::color(theme_keys::TEXT_SECONDARY))
         .into()
 }
@@ -167,7 +172,7 @@ where
             status_dot(color),
             Space::with_width(8),
             text(message)
-                .size(12)
+                .size(app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
         ]
         .align_y(Alignment::Center),

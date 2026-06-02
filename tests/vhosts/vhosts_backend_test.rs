@@ -86,6 +86,27 @@ fn build_single_entry_with_php_produces_sethandler() {
     let out = build_conf_content(&entries);
     assert!(out.contains("SetHandler application/x-httpd-php8.2"));
 }
+
+#[test]
+fn build_vhost_pins_every_configured_php_version_with_sethandler() {
+    for version in devpanel::core::app_config::php_version_numbers() {
+        let entries = vec![entry(
+            "version.local",
+            "/var/www/version",
+            Some(&version),
+            0,
+        )];
+        let out = build_conf_content(&entries);
+
+        assert!(
+            out.contains(&format!("SetHandler application/x-httpd-php{version}")),
+            "missing SetHandler for PHP {version}"
+        );
+        let reparsed = parse_vhosts_from_content(&out);
+        assert_eq!(reparsed[0].php_version.as_deref(), Some(version.as_str()));
+    }
+}
+
 #[test]
 fn build_https_entry_produces_port_443_block() {
     let mut e = entry("secure.local", "/var/www/secure", Some("8.2"), 0);

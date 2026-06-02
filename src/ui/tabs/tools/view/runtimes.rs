@@ -26,7 +26,7 @@ pub(super) fn runtimes_panel(tab: &ToolsTab) -> Element<'_, Message> {
         cards.push(
             container(
                 text(tr(keys::NO_TOOLS_MATCH))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             )
             .padding(Padding::from([20, 16]))

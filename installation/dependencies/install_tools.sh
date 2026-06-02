@@ -41,6 +41,7 @@ write_devpanel_config() {
 
 devpanel_conf = "$DEVPANEL_CONF"
 hosts_file    = "$DEV_HOSTS_FILE"
+projects_dir  = "$PROJECTS_DIR"
 TOML
     safe_chown "$REAL_USER" "$CFG_FILE"
     log_ok "Config written: $CFG_FILE"

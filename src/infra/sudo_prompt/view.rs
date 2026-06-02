@@ -16,11 +16,11 @@ impl SudoModal {
             container(
                 row![
                     text(tr(keys::DEV_BADGE))
-                        .size(9)
+                        .size(crate::core::app_config::text_metrics().badge)
                         .color(theme::color(theme_keys::YELLOW)),
                     Space::with_width(6),
                     text(tr(keys::DRY_RUN_NOTE))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .align_y(Alignment::Center),
@@ -65,7 +65,7 @@ impl SudoModal {
                 .on_submit(Message::Sudo(SudoMessage::Submit))
                 .secure(!self.show_password)
                 .padding(11)
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .style(styles::text_input_style);
 
                 let show_btn = ui::ghost_text_button(
@@ -83,7 +83,7 @@ impl SudoModal {
 
                 let save_check = checkbox(tr(keys::SAVE_PASSWORD), self.save_password)
                     .on_toggle(|v| Message::Sudo(SudoMessage::ToggleSave(v)))
-                    .size(14)
+                    .size(crate::core::app_config::text_metrics().section_title)
                     .text_size(13);
 
                 let submit_btn =
@@ -96,7 +96,7 @@ impl SudoModal {
                     sudo_title(),
                     Space::with_height(6),
                     text(tr(keys::PROMPT))
-                        .size(13)
+                        .size(crate::core::app_config::text_metrics().body)
                         .color(theme::color(theme_keys::TEXT_SECONDARY)),
                     Space::with_height(12),
                     dev_banner,
@@ -110,7 +110,7 @@ impl SudoModal {
                         0
                     }),
                     text(tr(keys::PASSWORD_LABEL))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(6),
                     input_row,
@@ -124,18 +124,18 @@ impl SudoModal {
 
             ModalState::Validating => column![
                 text(tr(keys::TITLE))
-                    .size(16)
+                    .size(crate::core::app_config::text_metrics().dialog_title)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(16),
                 text(tr(keys::VERIFYING))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_SECONDARY)),
             ]
             .spacing(0),
         };
 
         let card = container(modal_content.padding(30))
-            .width(420)
+            .width(crate::core::app_config::panel_metrics().sudo_dialog_width)
             .style(|_: &iced::Theme| container::Style {
                 background: Some(theme::color(theme_keys::BG_ELEVATED).into()),
                 border: Border {
@@ -173,7 +173,7 @@ fn sudo_title() -> Element<'static, Message> {
         row![
             container(
                 text(tr(keys::BADGE))
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEAL))
             )
             .padding(Padding::from([3, 8]))
@@ -187,7 +187,7 @@ fn sudo_title() -> Element<'static, Message> {
             }),
             Space::with_width(10),
             text(tr(keys::TITLE))
-                .size(16)
+                .size(crate::core::app_config::text_metrics().dialog_title)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
         ]
         .align_y(Alignment::Center),
@@ -200,7 +200,7 @@ fn error_message() -> Element<'static, Message> {
         row![
             container(
                 text("x")
-                    .size(10)
+                    .size(crate::core::app_config::text_metrics().tiny)
                     .color(theme::color(theme_keys::TEXT_ON_ACCENT))
             )
             .padding(Padding::from([3, 6]))
@@ -214,7 +214,7 @@ fn error_message() -> Element<'static, Message> {
             }),
             Space::with_width(10),
             text(tr(keys::INCORRECT_PASSWORD))
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .color(theme::color(theme_keys::TEXT_PRIMARY)),
         ]
         .align_y(Alignment::Center),

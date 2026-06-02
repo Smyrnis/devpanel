@@ -1,6 +1,6 @@
 pub mod view;
 
-use crate::core::db::UserSettings;
+use crate::core::{app_config::UiConfigDraft, db::UserSettings};
 use crate::domain::settings::ConfigSection;
 use crate::messages::Message;
 use crate::ui::tabs::ssh_keys::SshKeysTab;
@@ -24,11 +24,15 @@ pub struct ConfigTab {
 
     pub available_languages: Vec<String>,
     pub available_themes: Vec<String>,
+    pub ui_config: UiConfigDraft,
+    pub saved_ui_config: UiConfigDraft,
 }
 
 impl ConfigTab {
     pub fn new(settings: UserSettings) -> Self {
         let saved_settings = settings.clone();
+        let ui_config = UiConfigDraft::current();
+        let saved_ui_config = ui_config.clone();
         Self {
             settings,
             saved_settings,
@@ -37,6 +41,8 @@ impl ConfigTab {
             active_section: Some(ConfigSection::Ui),
             available_languages: crate::lang::available_languages(),
             available_themes: crate::core::theme::available_themes(),
+            ui_config,
+            saved_ui_config,
         }
     }
 
@@ -44,12 +50,13 @@ impl ConfigTab {
         self.saving = false;
         if ok {
             self.saved_settings = self.settings.clone();
+            self.saved_ui_config = self.ui_config.clone();
         }
         self.status_msg = Some((ok, msg));
     }
 
     pub fn has_unsaved_changes(&self) -> bool {
-        self.settings != self.saved_settings
+        self.settings != self.saved_settings || self.ui_config != self.saved_ui_config
     }
 
     pub fn view<'a>(&'a self, ssh_keys: &'a SshKeysTab, compact: bool) -> Element<'a, Message> {

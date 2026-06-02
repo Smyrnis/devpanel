@@ -65,7 +65,7 @@ fn vhost_form_panel<'a>(
         column![
             row![
                 text(title)
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_SECONDARY)),
                 Space::with_width(Length::Fill),
                 ui::compact_action_button(
@@ -112,7 +112,7 @@ fn vhost_form_panel<'a>(
             row![
                 column![
                     text(tr(keys::PHP_VERSION_OPTIONAL))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(5),
                     php_picker,
@@ -122,16 +122,16 @@ fn vhost_form_panel<'a>(
                 Space::with_width(14),
                 column![
                     text(tr(keys::HTTPS))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                     Space::with_height(9),
                     row![
                         checkbox("", tab.form.https_enabled)
                             .on_toggle(|v| Message::VHosts(VHostsMessage::FormHttpsChanged(v)))
-                            .size(16),
+                            .size(crate::core::app_config::control_metrics().checkbox_size),
                         Space::with_width(8),
                         text(tr(keys::ENABLE_HTTPS_MKCERT))
-                            .size(12)
+                            .size(crate::core::app_config::text_metrics().caption)
                             .color(theme::color(theme_keys::TEXT_SECONDARY)),
                     ]
                     .align_y(Alignment::Center),
@@ -168,12 +168,12 @@ where
 {
     column![
         text(label)
-            .size(11)
+            .size(crate::core::app_config::text_metrics().caption)
             .color(theme::color(theme_keys::TEXT_MUTED)),
         Space::with_height(5),
         text_input(placeholder, value)
             .on_input(on_input)
-            .size(13)
+            .size(crate::core::app_config::text_metrics().body)
             .padding(Padding::from([8, 10]))
             .style(styles::text_input_style)
             .width(Length::Fill),
@@ -196,7 +196,7 @@ where
         options,
         Some(selected),
         move |s: String| on_select(s),
-        Length::Fixed(220.0),
+        Length::Fixed(crate::core::app_config::control_metrics().form_dropdown_width),
     );
 
     if available.is_empty() {
@@ -204,7 +204,7 @@ where
             el,
             Space::with_height(3),
             text(tr(keys::NO_MOD_PHP))
-                .size(10)
+                .size(crate::core::app_config::text_metrics().tiny)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         ]
         .spacing(0)

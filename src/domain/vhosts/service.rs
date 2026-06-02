@@ -74,7 +74,9 @@ pub async fn add_vhost(
         .await
         .unwrap_or_default();
     if !hosts.contains(&sn) {
-        let _ = vhost::append_host(&password, &sn).await;
+        vhost::append_host(&password, &sn)
+            .await
+            .map_err(|e| DevPanelError::Sudo(format!("Hosts update failed: {}", e)))?;
     }
     vhost::reload_apache(&password).await;
 
@@ -124,8 +126,11 @@ pub async fn edit_vhost(
             .await
             .unwrap_or_default();
         if !hosts.contains(&new_sn) {
-            let _ = vhost::append_host(&password, &new_sn).await;
+            vhost::append_host(&password, &new_sn)
+                .await
+                .map_err(|e| DevPanelError::Sudo(format!("Hosts update failed: {}", e)))?;
         }
+        remove_host_if_unused(&password, &old_sn, &entries).await?;
     }
     vhost::reload_apache(&password).await;
 
@@ -153,6 +158,7 @@ pub async fn delete_vhost(devpanel_conf: String, index: usize, password: String)
     vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
+    remove_host_if_unused(&password, &removed, &entries).await?;
     vhost::reload_apache(&password).await;
     Ok(format!("VirtualHost '{}' removed", removed))
 }
@@ -174,7 +180,9 @@ pub async fn bulk_delete_vhosts(
             "One or more selected VirtualHosts no longer exist".into(),
         ));
     }
+    let mut removed_names = Vec::new();
     for idx in sorted.iter().rev() {
+        removed_names.push(entries[*idx].server_name.clone());
         entries.remove(*idx);
     }
     for (i, e) in entries.iter_mut().enumerate() {
@@ -183,6 +191,9 @@ pub async fn bulk_delete_vhosts(
     vhost::write_config(&password, &devpanel_conf, &build_conf_content(&entries))
         .await
         .map_err(|e| DevPanelError::Sudo(format!("Write failed: {}", e)))?;
+    for removed in removed_names {
+        remove_host_if_unused(&password, &removed, &entries).await?;
+    }
     vhost::reload_apache(&password).await;
     Ok(format!("Removed {} VirtualHost(s)", sorted.len()))
 }
@@ -210,4 +221,22 @@ pub async fn toggle_https(devpanel_conf: String, index: usize, password: String)
         "disabled"
     };
     Ok(format!("HTTPS {} for {}", state, server_name))
+}
+
+async fn remove_host_if_unused(
+    password: &str,
+    hostname: &str,
+    remaining_entries: &[VHostEntry],
+) -> DevPanelResult<()> {
+    if remaining_entries
+        .iter()
+        .any(|entry| entry.server_name == hostname)
+    {
+        return Ok(());
+    }
+
+    vhost::remove_host(password, hostname)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Hosts cleanup failed: {}", e)))?;
+    Ok(())
 }

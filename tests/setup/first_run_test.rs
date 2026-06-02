@@ -49,9 +49,9 @@ fn selected_packages_default_skips_all_optional_packages() {
 #[test]
 fn php_version_options_include_legacy_and_latest_versions() {
     assert_eq!(
-        devpanel::domain::tools::model::PHP_VERSION_OPTIONS,
-        &[
-            "5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5",
+        devpanel::core::app_config::php_version_numbers(),
+        vec![
+            "5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"
         ]
     );
 }
@@ -65,10 +65,10 @@ fn selected_packages_can_include_apache_and_php() {
         install_php_extras: false,
     });
 
-    assert!(packages.contains(&"apache2"));
-    assert!(packages.contains(&"php8.5"));
-    assert!(packages.contains(&"php8.5-cli"));
-    assert!(packages.contains(&"libapache2-mod-php8.5"));
+    assert!(packages.contains(&"apache2".to_string()));
+    assert!(packages.contains(&"php8.5".to_string()));
+    assert!(packages.contains(&"php8.5-cli".to_string()));
+    assert!(packages.contains(&"libapache2-mod-php8.5".to_string()));
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn selected_packages_can_include_apache_only() {
         install_php_extras: false,
     });
 
-    assert_eq!(packages, vec!["apache2"]);
+    assert_eq!(packages, vec!["apache2".to_string()]);
 }
 
 #[test]
@@ -95,10 +95,10 @@ fn selected_packages_can_include_php_only() {
     assert_eq!(
         packages,
         vec![
-            "php8.5",
-            "php8.5-cli",
-            "php8.5-common",
-            "libapache2-mod-php8.5"
+            "php8.5".to_string(),
+            "php8.5-cli".to_string(),
+            "php8.5-common".to_string(),
+            "libapache2-mod-php8.5".to_string(),
         ]
     );
 }
@@ -115,15 +115,15 @@ fn selected_packages_can_include_every_optional_group() {
     assert_eq!(
         packages,
         vec![
-            "apache2",
-            "php8.5",
-            "php8.5-cli",
-            "php8.5-common",
-            "libapache2-mod-php8.5",
-            "php8.5-mysql",
-            "php8.5-xml",
-            "php8.5-mbstring",
-            "mysql-server",
+            "apache2".to_string(),
+            "php8.5".to_string(),
+            "php8.5-cli".to_string(),
+            "php8.5-common".to_string(),
+            "libapache2-mod-php8.5".to_string(),
+            "php8.5-mysql".to_string(),
+            "php8.5-xml".to_string(),
+            "php8.5-mbstring".to_string(),
+            "mysql-server".to_string(),
         ]
     );
 }
@@ -137,8 +137,8 @@ fn selected_packages_can_skip_mysql() {
         install_php_extras: true,
     });
 
-    assert!(!packages.contains(&"mysql-server"));
-    assert!(packages.contains(&"php8.5-mysql"));
+    assert!(!packages.contains(&"mysql-server".to_string()));
+    assert!(packages.contains(&"php8.5-mysql".to_string()));
 }
 
 #[test]
@@ -150,10 +150,10 @@ fn selected_packages_can_skip_php_extras() {
         install_php_extras: false,
     });
 
-    assert!(packages.contains(&"mysql-server"));
-    assert!(!packages.contains(&"php8.5-mysql"));
-    assert!(!packages.contains(&"php8.5-xml"));
-    assert!(!packages.contains(&"php8.5-mbstring"));
+    assert!(packages.contains(&"mysql-server".to_string()));
+    assert!(!packages.contains(&"php8.5-mysql".to_string()));
+    assert!(!packages.contains(&"php8.5-xml".to_string()));
+    assert!(!packages.contains(&"php8.5-mbstring".to_string()));
 }
 
 #[tokio::test]

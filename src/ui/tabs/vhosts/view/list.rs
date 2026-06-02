@@ -42,7 +42,7 @@ pub(super) fn list_view(tab: &VHostsTab, compact: bool) -> Element<'_, Message> 
             Icon::Info,
             row![
                 text(tr(keys::NO_PHP_MODULES))
-                    .size(11)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED))
                     .width(Length::Fill),
                 ui::secondary_icon_button(
@@ -71,7 +71,7 @@ pub(super) fn list_view(tab: &VHostsTab, compact: bool) -> Element<'_, Message> 
                     tab.selected.len(),
                     tr(keys::SELECTED_SUFFIX)
                 ))
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
                 Space::with_width(8),
                 ui::compact_action_button(
@@ -94,7 +94,7 @@ pub(super) fn list_view(tab: &VHostsTab, compact: bool) -> Element<'_, Message> 
                 Space::with_width(14),
                 text_input(tr(keys::TAG_SELECTED_PLACEHOLDER), &tab.bulk_tag)
                     .on_input(|v| Message::VHosts(VHostsMessage::BulkTagChanged(v)))
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .padding(Padding::from([6, 10]))
                     .style(styles::text_input_style)
                     .width(Length::FillPortion(1)),
@@ -140,7 +140,7 @@ pub(super) fn list_view(tab: &VHostsTab, compact: bool) -> Element<'_, Message> 
     } else if tab.scanning {
         container(
             text(tr(keys::SCANNING))
-                .size(14)
+                .size(crate::core::app_config::text_metrics().section_title)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
         )
         .width(Length::Fill)
@@ -202,14 +202,14 @@ fn vhost_control_row(tab: &VHostsTab) -> Element<'_, Message> {
         row![
             text_input(tr(keys::SEARCH_PLACEHOLDER), &tab.search_query)
                 .on_input(|v| Message::VHosts(VHostsMessage::SearchChanged(v)))
-                .size(12)
+                .size(crate::core::app_config::text_metrics().caption)
                 .padding(Padding::from([8, 10]))
                 .style(styles::text_input_style)
                 .width(Length::FillPortion(2)),
             Space::with_width(4),
             column![
                 text(vhost_count_label(tab))
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(3),
                 text(if tab.selected.is_empty() {
@@ -217,13 +217,13 @@ fn vhost_control_row(tab: &VHostsTab) -> Element<'_, Message> {
                 } else {
                     format!("{} {}", tab.selected.len(), tr(keys::SELECTED_SUFFIX))
                 })
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
             .width(Length::Fill),
             text(if tab.scanning { tr(keys::SCANNING) } else { "" })
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             ui::secondary_icon_button(
                 Icon::Refresh,
@@ -275,11 +275,11 @@ fn empty_vhosts_panel<'a>() -> Element<'a, Message> {
         row![
             column![
                 text(tr(keys::EMPTY_TITLE))
-                    .size(16)
+                    .size(crate::core::app_config::text_metrics().dialog_title)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                 Space::with_height(5),
                 text(tr(keys::EMPTY_BODY))
-                    .size(12)
+                    .size(crate::core::app_config::text_metrics().caption)
                     .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(0)
@@ -302,7 +302,7 @@ fn empty_vhosts_panel<'a>() -> Element<'a, Message> {
 fn empty_search_panel<'a>() -> Element<'a, Message> {
     container(
         text(tr(keys::NO_FILTER_MATCH))
-            .size(13)
+            .size(crate::core::app_config::text_metrics().body)
             .color(theme::color(theme_keys::TEXT_MUTED)),
     )
     .padding(Padding::from([22, 24]))

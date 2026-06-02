@@ -6,6 +6,8 @@ pub struct DevPanelConfig {
     pub devpanel_conf: String,
     #[allow(dead_code)]
     pub hosts_file: String,
+    #[allow(dead_code)]
+    pub projects_dir: String,
 }
 
 impl DevPanelConfig {
@@ -17,11 +19,14 @@ impl DevPanelConfig {
                     .unwrap_or_else(default_devpanel_conf),
                 hosts_file: parse_toml_str(&content, "hosts_file")
                     .unwrap_or_else(|| paths::HOSTS_FILE.to_string()),
+                projects_dir: parse_toml_str(&content, "projects_dir")
+                    .unwrap_or_else(default_projects_dir),
             }
         } else {
             DevPanelConfig {
                 devpanel_conf: default_devpanel_conf(),
                 hosts_file: paths::HOSTS_FILE.to_string(),
+                projects_dir: default_projects_dir(),
             }
         }
     }
@@ -33,8 +38,8 @@ impl DevPanelConfig {
         let _ = std::fs::write(
             dir.join("config.toml"),
             format!(
-                "devpanel_conf = \"{}\"\nhosts_file    = \"{}\"\n",
-                self.devpanel_conf, self.hosts_file,
+                "devpanel_conf = \"{}\"\nhosts_file    = \"{}\"\nprojects_dir  = \"{}\"\n",
+                self.devpanel_conf, self.hosts_file, self.projects_dir,
             ),
         );
     }
@@ -58,4 +63,8 @@ fn parse_toml_str(content: &str, key: &str) -> Option<String> {
 
 fn default_devpanel_conf() -> String {
     paths::DEVPANEL_CONF.to_string()
+}
+
+fn default_projects_dir() -> String {
+    get_home().join("projects").to_string_lossy().to_string()
 }

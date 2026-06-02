@@ -46,7 +46,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
         .on_input(|v| Message::SshKeys(SshKeysMessage::PassphraseChanged(v)))
         .secure(!tab.show_passphrase)
         .padding(10)
-        .size(13)
+        .size(crate::core::app_config::text_metrics().body)
         .style(styles::text_input_style)
         .width(Length::Fill),
         ui::ghost_text_button(
@@ -72,7 +72,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
     container(
         column![
             text(tr(keys::GENERATE_PANEL_TITLE))
-                .size(14)
+                .size(crate::core::app_config::text_metrics().section_title)
                 .color(theme::color(theme_keys::TEXT_SECONDARY)),
             Space::with_height(18),
             label(tr(keys::EMAIL_LABEL)),
@@ -80,7 +80,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             text_input(tr(keys::EMAIL_PLACEHOLDER), &tab.email)
                 .on_input(|v| Message::SshKeys(SshKeysMessage::EmailChanged(v)))
                 .padding(10)
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .style(styles::text_input_style),
             Space::with_height(14),
             label(tr(keys::KEY_FILENAME_LABEL)),
@@ -88,7 +88,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             text_input(tr(keys::KEY_FILENAME_PLACEHOLDER), &tab.key_name)
                 .on_input(|v| Message::SshKeys(SshKeysMessage::KeyNameChanged(v)))
                 .padding(10)
-                .size(13)
+                .size(crate::core::app_config::text_metrics().body)
                 .style(styles::text_input_style),
             Space::with_height(14),
             label(tr(keys::KEY_TYPE_LABEL)),
@@ -108,7 +108,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
             ),
             Space::with_height(16),
             text(tr(keys::QUICK_ACTIONS))
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             Space::with_height(8),
             row![
@@ -135,7 +135,7 @@ pub(super) fn generate_panel(tab: &SshKeysTab) -> Element<'_, Message> {
 
 fn label<'a>(s: &'a str) -> Element<'a, Message> {
     text(s)
-        .size(11)
+        .size(crate::core::app_config::text_metrics().caption)
         .color(theme::color(theme_keys::TEXT_MUTED))
         .into()
 }

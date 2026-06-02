@@ -42,6 +42,7 @@ pub struct App {
 impl App {
     pub fn new() -> (Self, Task<Message>) {
         let config = DevPanelConfig::load();
+        let window = crate::core::app_config::window_metrics();
         let db = DevPanelDb::open().ok();
         let user_settings = match &db {
             Some(d) => UserSettings::load(d),
@@ -65,7 +66,7 @@ impl App {
             first_run_installing: false,
             first_run_log_lines: Vec::new(),
             setup_issues_checked: false,
-            window_size: Size::new(1040.0, 660.0),
+            window_size: Size::new(window.width, window.height),
         };
         (
             app,

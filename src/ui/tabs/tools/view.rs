@@ -68,11 +68,11 @@ fn tools_control_row(tab: &ToolsTab) -> Element<'_, Message> {
                             .map(section_label)
                             .unwrap_or_else(|| tr(keys::TITLE))
                     )
-                    .size(13)
+                    .size(crate::core::app_config::text_metrics().body)
                     .color(theme::color(theme_keys::TEXT_PRIMARY)),
                     Space::with_height(3),
                     text(tools_summary(tab))
-                        .size(11)
+                        .size(crate::core::app_config::text_metrics().caption)
                         .color(theme::color(theme_keys::TEXT_MUTED)),
                 ]
                 .spacing(0)
@@ -82,7 +82,7 @@ fn tools_control_row(tab: &ToolsTab) -> Element<'_, Message> {
                 } else {
                     ""
                 })
-                .size(11)
+                .size(crate::core::app_config::text_metrics().caption)
                 .color(theme::color(theme_keys::TEXT_MUTED)),
             ]
             .spacing(8)

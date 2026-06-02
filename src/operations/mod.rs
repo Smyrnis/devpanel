@@ -23,6 +23,31 @@ pub async fn append_file(password: &str, path: &str, content: &str) -> Result<()
     crate::infra::sudo_prompt::sudo_tee_append_with_password(password, path, content).await
 }
 
+pub async fn rewrite_file_lines<F>(password: &str, path: &str, keep_line: F) -> Result<(), String>
+where
+    F: Fn(&str) -> bool,
+{
+    if crate::core::dry_run::active() {
+        crate::core::dry_run::log(&format!(
+            "operations::rewrite_file_lines: would rewrite filtered lines in {}",
+            path
+        ));
+        return Ok(());
+    }
+
+    let existing = tokio::fs::read_to_string(path)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut rewritten = String::new();
+    for line in existing.lines() {
+        if keep_line(line) {
+            rewritten.push_str(line);
+            rewritten.push('\n');
+        }
+    }
+    write_file(password, path, &rewritten).await
+}
+
 pub async fn write_file(password: &str, path: &str, content: &str) -> Result<(), String> {
     if crate::core::dry_run::active() {
         crate::core::dry_run::log(&format!(

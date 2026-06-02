@@ -10,8 +10,6 @@ use crate::messages::{Message, Tab};
 use iced::widget::{column, container, row, stack};
 use iced::{Element, Length};
 
-pub(super) const SIDEBAR_COLLAPSE_WIDTH: f32 = 786.0;
-
 impl App {
     pub fn view(&self) -> Element<'_, Message> {
         if self.first_run_state == FirstRunState::Visible {
@@ -63,6 +61,6 @@ impl App {
     }
 
     pub(crate) fn is_compact(&self) -> bool {
-        self.window_size.width < SIDEBAR_COLLAPSE_WIDTH
+        self.window_size.width < crate::core::app_config::sidebar_collapse_width()
     }
 }
