@@ -8,6 +8,8 @@ pub const HOSTS_FILE: &str = "/etc/hosts";
 pub const WEB_ROOT: &str = "/var/www/html";
 pub const APACHE_CONF_FILE: &str = "/etc/apache2/apache2.conf";
 pub const APACHE_SITES_AVAILABLE: &str = "/etc/apache2/sites-available";
+pub const APACHE_CONF_AVAILABLE: &str = "/etc/apache2/conf-available";
+pub const APACHE_CONF_ENABLED: &str = "/etc/apache2/conf-enabled";
 pub const APACHE_MODS_AVAILABLE: &str = "/etc/apache2/mods-available";
 pub const APACHE_MODS_ENABLED: &str = "/etc/apache2/mods-enabled";
 pub const DEVPANEL_CONF: &str = "/etc/apache2/sites-available/devpanel.conf";
@@ -26,14 +28,14 @@ pub fn php_cli_ini(version: &str) -> String {
     format!("{}/{}/cli/php.ini", PHP_ETC_DIR, version)
 }
 
-pub fn php_apache_ini(version: &str) -> String {
-    format!("{}/{}/apache2/php.ini", PHP_ETC_DIR, version)
+pub fn php_fpm_ini(version: &str) -> String {
+    format!("{}/{}/fpm/php.ini", PHP_ETC_DIR, version)
 }
 
-pub fn apache_mod_available(name: &str) -> String {
-    format!("{}/{}.load", APACHE_MODS_AVAILABLE, name)
+pub fn apache_conf_available(name: &str) -> String {
+    format!("{}/{}.conf", APACHE_CONF_AVAILABLE, name)
 }
 
-pub fn apache_mod_enabled(name: &str) -> String {
-    format!("{}/{}.load", APACHE_MODS_ENABLED, name)
+pub fn apache_conf_enabled(name: &str) -> String {
+    format!("{}/{}.conf", APACHE_CONF_ENABLED, name)
 }

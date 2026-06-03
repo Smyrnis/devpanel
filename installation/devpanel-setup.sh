@@ -49,6 +49,7 @@ check_mysql
 reload_or_start_apache
 write_devpanel_config
 ensure_www_data_group
+mark_first_run_done
 
 chown "$REAL_USER" "$LOG_FILE" 2>/dev/null || true
 log_ok "Setup complete"

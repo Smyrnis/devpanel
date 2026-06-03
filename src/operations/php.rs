@@ -31,7 +31,7 @@ pub fn php_packages_for_version(version: &str, install: bool) -> Vec<String> {
             format!("php{version}"),
             format!("php{version}-cli"),
             format!("php{version}-common"),
-            format!("libapache2-mod-php{version}"),
+            php_fpm_package(version),
             format!("php{version}-mysql"),
             format!("php{version}-xml"),
             format!("php{version}-mbstring"),
@@ -39,7 +39,7 @@ pub fn php_packages_for_version(version: &str, install: bool) -> Vec<String> {
     } else {
         vec![
             format!("php{version}"),
-            format!("libapache2-mod-php{version}"),
+            php_fpm_package(version),
             format!("php{version}-*"),
         ]
     }
@@ -56,14 +56,21 @@ pub async fn apt_php_op(password: &str, version: &str, install: bool) -> Result<
     let pkg = php_packages_for_version(version, install).join(" ");
 
     let full_cmd = format!("DEBIAN_FRONTEND=noninteractive apt-get -y {} {}", op, pkg);
-    super::run(password, &["sh", "-c", &full_cmd]).await
+    let output = super::run(password, &["sh", "-c", &full_cmd]).await?;
+
+    if install {
+        configure_php_fpm_for_apache(password, version).await?;
+        let _ = super::systemctl(password, "reload", "apache2").await;
+    }
+
+    Ok(output)
 }
 
 pub async fn switch_php(password: &str, version: &str) -> Result<String, String> {
-    let apache_module = apache_module_for_version(version);
-    if apache_module.is_none() && !crate::core::dry_run::active() {
+    let fpm_conf = php_fpm_conf(version);
+    if !php_fpm_conf_available(version) && !crate::core::dry_run::active() {
         return Err(format!(
-            "Apache PHP module for PHP {version} was not found. Install libapache2-mod-php{version} first."
+            "Apache PHP-FPM config for PHP {version} was not found. Install php{version}-fpm first."
         ));
     }
 
@@ -79,52 +86,82 @@ pub async fn switch_php(password: &str, version: &str) -> Result<String, String>
 
     super::run(password, &["update-alternatives", "--set", "php", &bin]).await?;
 
-    if let Some(selected) = apache_module {
-        for module in known_php_apache_modules() {
-            if module != selected && apache_module_available(&module) {
-                let _ = super::run(password, &["a2dismod", &module]).await;
-            }
+    configure_php_fpm_for_apache(password, version).await?;
+
+    for conf in known_php_fpm_confs() {
+        if conf != fpm_conf && php_fpm_conf_available_for_name(&conf) {
+            let _ = super::run(password, &["a2disconf", &conf]).await;
         }
-        super::run(password, &["a2enmod", &selected]).await?;
-        let _ = super::systemctl(password, "reload", "apache2").await;
     }
 
-    Ok(format!("PHP {version} selected for CLI and Apache"))
+    let _ = super::systemctl(password, "reload", "apache2").await;
+
+    Ok(format!("PHP {version} selected for CLI and PHP-FPM"))
 }
 
-fn apache_module_for_version(version: &str) -> Option<String> {
-    let spec = crate::core::app_config::php_versions()
-        .into_iter()
-        .find(|spec| spec.version == version)?;
-
-    if crate::core::dry_run::active() {
-        return (!spec.apache_module.is_empty()).then_some(spec.apache_module);
-    }
-
-    if apache_module_available(&spec.apache_module) {
-        return Some(spec.apache_module);
-    }
-
-    spec.legacy_apache_module
-        .filter(|module| apache_module_available(module))
+async fn configure_php_fpm_for_apache(password: &str, version: &str) -> Result<(), String> {
+    super::run(password, &["a2enmod", "proxy_fcgi", "setenvif"]).await?;
+    super::run(password, &["a2enconf", &php_fpm_conf(version)]).await?;
+    let _ = super::run(
+        password,
+        &["systemctl", "enable", "--now", &php_fpm_service(version)],
+    )
+    .await;
+    Ok(())
 }
 
-fn known_php_apache_modules() -> Vec<String> {
-    let mut modules = Vec::new();
+pub fn php_fpm_package(version: &str) -> String {
+    php_spec(version)
+        .map(|spec| spec.fpm_package)
+        .unwrap_or_else(|| format!("php{version}-fpm"))
+}
+
+pub fn php_fpm_service(version: &str) -> String {
+    php_spec(version)
+        .map(|spec| spec.fpm_service)
+        .unwrap_or_else(|| format!("php{version}-fpm"))
+}
+
+pub fn php_fpm_conf(version: &str) -> String {
+    php_spec(version)
+        .map(|spec| spec.fpm_conf)
+        .unwrap_or_else(|| format!("php{version}-fpm"))
+}
+
+pub fn php_fpm_socket(version: &str) -> String {
+    php_spec(version)
+        .map(|spec| spec.fpm_socket)
+        .unwrap_or_else(|| format!("/run/php/php{version}-fpm.sock"))
+}
+
+pub fn php_fpm_set_handler(version: &str) -> String {
+    format!(
+        "\"proxy:unix:{}|fcgi://localhost/\"",
+        php_fpm_socket(version)
+    )
+}
+
+pub fn php_fpm_conf_available(version: &str) -> bool {
+    crate::core::dry_run::active() || php_fpm_conf_available_for_name(&php_fpm_conf(version))
+}
+
+fn known_php_fpm_confs() -> Vec<String> {
+    let mut confs = Vec::new();
     for spec in crate::core::app_config::php_versions() {
-        if !spec.apache_module.is_empty() && !modules.contains(&spec.apache_module) {
-            modules.push(spec.apache_module);
-        }
-        if let Some(legacy) = spec.legacy_apache_module
-            && !modules.contains(&legacy)
-        {
-            modules.push(legacy);
+        let conf = php_fpm_conf(&spec.version);
+        if !confs.contains(&conf) {
+            confs.push(conf);
         }
     }
-    modules
+    confs
 }
 
-fn apache_module_available(module: &str) -> bool {
-    crate::core::dry_run::active()
-        || std::path::Path::new(&paths::apache_mod_available(module)).exists()
+fn php_fpm_conf_available_for_name(conf: &str) -> bool {
+    std::path::Path::new(&paths::apache_conf_available(conf)).exists()
+}
+
+fn php_spec(version: &str) -> Option<crate::core::app_config::PhpVersionSpec> {
+    crate::core::app_config::php_versions()
+        .into_iter()
+        .find(|spec| spec.version == version)
 }

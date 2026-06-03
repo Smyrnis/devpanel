@@ -68,7 +68,7 @@ fn selected_packages_can_include_apache_and_php() {
     assert!(packages.contains(&"apache2".to_string()));
     assert!(packages.contains(&"php8.5".to_string()));
     assert!(packages.contains(&"php8.5-cli".to_string()));
-    assert!(packages.contains(&"libapache2-mod-php8.5".to_string()));
+    assert!(packages.contains(&"php8.5-fpm".to_string()));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn selected_packages_can_include_php_only() {
             "php8.5".to_string(),
             "php8.5-cli".to_string(),
             "php8.5-common".to_string(),
-            "libapache2-mod-php8.5".to_string(),
+            "php8.5-fpm".to_string(),
         ]
     );
 }
@@ -119,7 +119,7 @@ fn selected_packages_can_include_every_optional_group() {
             "php8.5".to_string(),
             "php8.5-cli".to_string(),
             "php8.5-common".to_string(),
-            "libapache2-mod-php8.5".to_string(),
+            "php8.5-fpm".to_string(),
             "php8.5-mysql".to_string(),
             "php8.5-xml".to_string(),
             "php8.5-mbstring".to_string(),
@@ -210,4 +210,18 @@ fn first_run_sentinel_uses_home_directory() {
             .join("first_run_done")
             .exists()
     );
+}
+
+#[test]
+fn package_setup_marks_first_run_done_after_full_setup() {
+    let install_tools =
+        std::fs::read_to_string("installation/dependencies/install_tools.sh").unwrap();
+    let full_setup = std::fs::read_to_string("installation/devpanel-setup.sh").unwrap();
+    let projects_only =
+        std::fs::read_to_string("installation/devpanel-create-projects-dir.sh").unwrap();
+
+    assert!(install_tools.contains("mark_first_run_done()"));
+    assert!(install_tools.contains("first_run_done"));
+    assert!(full_setup.contains("mark_first_run_done"));
+    assert!(!projects_only.contains("mark_first_run_done"));
 }

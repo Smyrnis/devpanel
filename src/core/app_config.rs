@@ -12,9 +12,11 @@ static PHP_CONFIG: OnceLock<Value> = OnceLock::new();
 pub struct PhpVersionSpec {
     pub version: String,
     pub binaries: Vec<String>,
-    pub apache_module: String,
-    pub legacy_apache_module: Option<String>,
     pub apt_package: String,
+    pub fpm_package: String,
+    pub fpm_service: String,
+    pub fpm_conf: String,
+    pub fpm_socket: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -406,11 +408,6 @@ pub fn php_versions() -> Vec<PhpVersionSpec> {
         .iter()
         .filter_map(|item| {
             let version = item.get("version")?.as_str()?.to_string();
-            let apache_module = item
-                .get("apache_module")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
             let apt_package = item
                 .get("apt_package")
                 .and_then(Value::as_str)
@@ -430,14 +427,29 @@ pub fn php_versions() -> Vec<PhpVersionSpec> {
                 .unwrap_or_else(|| vec![format!("php{version}")]);
 
             Some(PhpVersionSpec {
-                version,
+                version: version.clone(),
                 binaries,
-                apache_module,
-                legacy_apache_module: item
-                    .get("legacy_apache_module")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned),
                 apt_package,
+                fpm_package: item
+                    .get("fpm_package")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("php{version}-fpm")),
+                fpm_service: item
+                    .get("fpm_service")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("php{version}-fpm")),
+                fpm_conf: item
+                    .get("fpm_conf")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("php{version}-fpm")),
+                fpm_socket: item
+                    .get("fpm_socket")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("/run/php/php{version}-fpm.sock")),
             })
         })
         .collect();
@@ -692,9 +704,11 @@ fn fallback_php_versions() -> Vec<PhpVersionSpec> {
         } else {
             vec![format!("php{version}")]
         },
-        apache_module: format!("php{version}"),
-        legacy_apache_module: (version == "5.6").then(|| "php5".to_string()),
         apt_package: format!("php{version}"),
+        fpm_package: format!("php{version}-fpm"),
+        fpm_service: format!("php{version}-fpm"),
+        fpm_conf: format!("php{version}-fpm"),
+        fpm_socket: format!("/run/php/php{version}-fpm.sock"),
     })
     .collect()
 }

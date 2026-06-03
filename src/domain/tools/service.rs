@@ -50,22 +50,13 @@ pub async fn scan_php_versions(
 
         let is_active = active_short.as_deref() == Some(meta.version.as_str());
 
-        let (mod_available, mod_enabled) = {
-            let primary_load = paths::apache_mod_available(&meta.apache_module);
-            let primary_enable = paths::apache_mod_enabled(&meta.apache_module);
-            if tokio::fs::metadata(&primary_load).await.is_ok() {
-                let enabled = tokio::fs::metadata(&primary_enable).await.is_ok();
-                (true, enabled)
-            } else if let Some(legacy) = &meta.legacy_apache_module {
-                let legacy_load = paths::apache_mod_available(legacy);
-                let legacy_enable = paths::apache_mod_enabled(legacy);
-                let available = tokio::fs::metadata(legacy_load).await.is_ok();
-                let enabled = tokio::fs::metadata(legacy_enable).await.is_ok();
-                (available, enabled)
-            } else {
-                (false, false)
-            }
-        };
+        let fpm_conf = php::php_fpm_conf(&meta.version);
+        let mod_available = tokio::fs::metadata(paths::apache_conf_available(&fpm_conf))
+            .await
+            .is_ok();
+        let mod_enabled = tokio::fs::metadata(paths::apache_conf_enabled(&fpm_conf))
+            .await
+            .is_ok();
 
         results.push((meta.version, status, is_active, mod_available, mod_enabled));
     }
@@ -128,6 +119,22 @@ pub async fn scan_php_extensions(active_ver: Option<String>) -> Vec<(String, boo
 }
 
 pub async fn toggle_apache_module(name: String, enable: bool, password: String) -> DevPanelResult {
+    if name.ends_with("-fpm") {
+        apache::set_conf_and_reload(&password, &name, enable)
+            .await
+            .map_err(DevPanelError::Sudo)?;
+        if enable {
+            let _ =
+                crate::operations::run(&password, &["systemctl", "enable", "--now", name.as_str()])
+                    .await;
+        }
+        return Ok(format!(
+            "{} {} - Apache reloaded",
+            name,
+            if enable { "enabled" } else { "disabled" }
+        ));
+    }
+
     apache::set_module_and_reload(&password, &name, enable)
         .await
         .map_err(DevPanelError::Sudo)?;

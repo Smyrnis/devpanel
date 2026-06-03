@@ -101,7 +101,7 @@ fn php_row<'a>(r: &'a PhpRelease) -> Element<'a, Message> {
         ),
     };
 
-    let mod_name = format!("php{}", r.version);
+    let mod_name = format!("php{}-fpm", r.version);
     let mod_status_lbl = if r.apache_mod_available {
         if r.apache_mod_enabled {
             tr(keys::STATUS_ENABLED)
