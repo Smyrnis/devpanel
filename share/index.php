@@ -1,31 +1,36 @@
 <?php
 
-$DEVPANEL_CONF = '/etc/apache2/sites-available/devpanel.conf';
-$SITES_ENABLED = '/etc/apache2/sites-enabled';
+$DEVPANEL_CONF = "/etc/apache2/sites-available/devpanel.conf";
+$SITES_ENABLED = "/etc/apache2/sites-enabled";
 
-function e($value) {
-    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+function e($value)
+{
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");
 }
 
-function startsWithText($value, $prefix) {
+function startsWithText($value, $prefix)
+{
     return substr($value, 0, strlen($prefix)) === $prefix;
 }
 
-function containsText($value, $needle) {
-    return $needle === '' || strpos($value, $needle) !== false;
+function containsText($value, $needle)
+{
+    return $needle === "" || strpos($value, $needle) !== false;
 }
 
-function divideInt($left, $right) {
+function divideInt($left, $right)
+{
     return $right === 0 ? 0 : (int) floor($left / $right);
 }
 
-function tomlValue($content, $key) {
+function tomlValue($content, $key)
+{
     foreach (explode("\n", $content) as $line) {
         $line = trim($line);
-        if ($line === '' || startsWithText($line, '#')) {
+        if ($line === "" || startsWithText($line, "#")) {
             continue;
         }
-        $eq = strpos($line, '=');
+        $eq = strpos($line, "=");
         if ($eq === false) {
             continue;
         }
@@ -34,40 +39,46 @@ function tomlValue($content, $key) {
             continue;
         }
         $value = trim(substr($line, $eq + 1));
-        if (strlen($value) >= 2 && $value[0] === '"' && substr($value, -1) === '"') {
+        if (
+            strlen($value) >= 2 &&
+            $value[0] === '"' &&
+            substr($value, -1) === '"'
+        ) {
             return substr($value, 1, -1);
         }
     }
-    return '';
+    return "";
 }
 
-function configuredProjectsRoot() {
-    $paths = glob('/home/*/.config/devpanel/config.toml');
+function configuredProjectsRoot()
+{
+    $paths = glob("/home/*/.config/devpanel/config.toml");
     if ($paths === false) {
-        return '';
+        return "";
     }
 
     foreach ($paths as $path) {
         if (!is_readable($path)) {
             continue;
         }
-        $root = tomlValue((string) file_get_contents($path), 'projects_dir');
-        if ($root !== '' && is_dir($root)) {
+        $root = tomlValue((string) file_get_contents($path), "projects_dir");
+        if ($root !== "" && is_dir($root)) {
             return $root;
         }
     }
-    return '';
+    return "";
 }
 
-function findProjectsRoot() {
+function findProjectsRoot()
+{
     $configured = configuredProjectsRoot();
-    if ($configured !== '') {
+    if ($configured !== "") {
         return $configured;
     }
 
-    $passwdLines = file('/etc/passwd') ?: [];
+    $passwdLines = file("/etc/passwd") ?: [];
     foreach ($passwdLines as $line) {
-        $parts = explode(':', trim($line));
+        $parts = explode(":", trim($line));
         if (count($parts) < 7) {
             continue;
         }
@@ -80,10 +91,11 @@ function findProjectsRoot() {
             return "$home/projects";
         }
     }
-    return '/var/www/html';
+    return "/var/www/html";
 }
 
-function parseDevpanelConf($path) {
+function parseDevpanelConf($path)
+{
     $hosts = [];
     if (!is_readable($path)) {
         return $hosts;
@@ -96,26 +108,30 @@ function parseDevpanelConf($path) {
 
     foreach (explode("\n", $content) as $raw) {
         $line = trim($raw);
-        if (stripos($line, '<VirtualHost') === 0) {
+        if (stripos($line, "<VirtualHost") === 0) {
             $inBlock = true;
-            $isHttps = containsText($line, ':443');
+            $isHttps = containsText($line, ":443");
             $current = [
-                'server_name' => '',
-                'document_root' => '',
-                'aliases' => [],
-                'php_version' => '',
-                'https' => $isHttps,
+                "server_name" => "",
+                "document_root" => "",
+                "aliases" => [],
+                "php_version" => "",
+                "https" => $isHttps,
             ];
             continue;
         }
 
-        if (stripos($line, '</VirtualHost>') === 0 && $inBlock) {
-            if ($current['server_name'] !== '') {
-                $key = $current['server_name'];
+        if (stripos($line, "</VirtualHost>") === 0 && $inBlock) {
+            if ($current["server_name"] !== "") {
+                $key = $current["server_name"];
                 if (isset($hosts[$key])) {
-                    $hosts[$key]['https'] = $hosts[$key]['https'] || $current['https'];
-                    if ($hosts[$key]['php_version'] === '' && $current['php_version'] !== '') {
-                        $hosts[$key]['php_version'] = $current['php_version'];
+                    $hosts[$key]["https"] =
+                        $hosts[$key]["https"] || $current["https"];
+                    if (
+                        $hosts[$key]["php_version"] === "" &&
+                        $current["php_version"] !== ""
+                    ) {
+                        $hosts[$key]["php_version"] = $current["php_version"];
                     }
                 } else {
                     $hosts[$key] = $current;
@@ -129,27 +145,34 @@ function parseDevpanelConf($path) {
             continue;
         }
 
-        if (preg_match('/^ServerName\s+(\S+)/i', $line, $m)) {
-            $current['server_name'] = $m[1];
+        if (preg_match("/^ServerName\s+(\S+)/i", $line, $m)) {
+            $current["server_name"] = $m[1];
         }
-        if (preg_match('/^DocumentRoot\s+(\S+)/i', $line, $m)) {
-            $current['document_root'] = trim($m[1], '"\'');
+        if (preg_match("/^DocumentRoot\s+(\S+)/i", $line, $m)) {
+            $current["document_root"] = trim($m[1], '"\'');
         }
-        if (preg_match('/^ServerAlias\s+(.+)/i', $line, $m)) {
-            $current['aliases'] = preg_split('/\s+/', trim($m[1])) ?: [];
+        if (preg_match("/^ServerAlias\s+(.+)/i", $line, $m)) {
+            $current["aliases"] = preg_split("/\s+/", trim($m[1])) ?: [];
         }
-        if (preg_match('/SetHandler\s+application\/x-httpd-php([0-9.]+)/i', $line, $m)) {
-            $current['php_version'] = $m[1];
+        if (
+            preg_match(
+                "/SetHandler\s+application\/x-httpd-php([0-9.]+)/i",
+                $line,
+                $m,
+            )
+        ) {
+            $current["php_version"] = $m[1];
         }
-        if (preg_match('/\/run\/php\/php([0-9.]+)-fpm\.sock/i', $line, $m)) {
-            $current['php_version'] = $m[1];
+        if (preg_match("/\/run\/php\/php([0-9.]+)-fpm\.sock/i", $line, $m)) {
+            $current["php_version"] = $m[1];
         }
     }
 
     return array_values($hosts);
 }
 
-function checkPort($host, $port) {
+function checkPort($host, $port)
+{
     $conn = @fsockopen($host, $port, $errstr, $errstr, 0.35);
     if ($conn !== false) {
         fclose($conn);
@@ -158,29 +181,34 @@ function checkPort($host, $port) {
     return false;
 }
 
-function projectLabelFromDocumentRoot($root, $projectsRoot) {
-    $root = rtrim($root, '/');
-    $projectsRoot = rtrim($projectsRoot, '/');
-    if ($root === '') {
-        return '';
+function projectLabelFromDocumentRoot($root, $projectsRoot)
+{
+    $root = rtrim($root, "/");
+    $projectsRoot = rtrim($projectsRoot, "/");
+    if ($root === "") {
+        return "";
     }
 
-    if ($projectsRoot !== '' && startsWithText($root . '/', $projectsRoot . '/')) {
+    if (
+        $projectsRoot !== "" &&
+        startsWithText($root . "/", $projectsRoot . "/")
+    ) {
         $relative = substr($root, strlen($projectsRoot) + 1);
-        $parts = explode('/', $relative);
-        return $parts[0] !== '' ? $parts[0] : basename($root);
+        $parts = explode("/", $relative);
+        return $parts[0] !== "" ? $parts[0] : basename($root);
     }
 
     return basename($root);
 }
 
-function projectsFromVhosts($vhosts, $projectsRoot) {
+function projectsFromVhosts($vhosts, $projectsRoot)
+{
     $projects = [];
     $seen = [];
 
     foreach ($vhosts as $host) {
-        $root = isset($host['document_root']) ? $host['document_root'] : '';
-        if ($root === '' || !is_dir($root)) {
+        $root = isset($host["document_root"]) ? $host["document_root"] : "";
+        if ($root === "" || !is_dir($root)) {
             continue;
         }
 
@@ -192,28 +220,31 @@ function projectsFromVhosts($vhosts, $projectsRoot) {
 
         $seen[$key] = true;
         $projects[] = [
-            'name' => $label,
-            'path' => $root,
-            'server_name' => isset($host['server_name']) ? $host['server_name'] : '',
+            "name" => $label,
+            "path" => $root,
+            "server_name" => isset($host["server_name"])
+                ? $host["server_name"]
+                : "",
         ];
     }
 
     usort($projects, function ($a, $b) {
-        return strcasecmp($a['name'], $b['name']);
+        return strcasecmp($a["name"], $b["name"]);
     });
     return $projects;
 }
 
-function memoryStats() {
+function memoryStats()
+{
     $total = 0;
     $available = 0;
-    if (is_readable('/proc/meminfo')) {
-        foreach (file('/proc/meminfo') ?: [] as $line) {
-            if (startsWithText($line, 'MemTotal:')) {
-                sscanf($line, 'MemTotal: %d kB', $total);
+    if (is_readable("/proc/meminfo")) {
+        foreach (file("/proc/meminfo") ?: [] as $line) {
+            if (startsWithText($line, "MemTotal:")) {
+                sscanf($line, "MemTotal: %d kB", $total);
             }
-            if (startsWithText($line, 'MemAvailable:')) {
-                sscanf($line, 'MemAvailable: %d kB', $available);
+            if (startsWithText($line, "MemAvailable:")) {
+                sscanf($line, "MemAvailable: %d kB", $available);
             }
         }
     }
@@ -225,62 +256,66 @@ function memoryStats() {
     return [$usedMb, $totalMb, $percent];
 }
 
-function uptimeLabel() {
-    if (!is_readable('/proc/uptime')) {
-        return 'unknown';
+function uptimeLabel()
+{
+    if (!is_readable("/proc/uptime")) {
+        return "unknown";
     }
-    $seconds = (int) file_get_contents('/proc/uptime');
+    $seconds = (int) file_get_contents("/proc/uptime");
     return sprintf(
-        '%dd %dh %dm',
+        "%dd %dh %dm",
         divideInt($seconds, 86400),
         divideInt($seconds % 86400, 3600),
-        divideInt($seconds % 3600, 60)
+        divideInt($seconds % 3600, 60),
     );
 }
 
 $projectsRoot = findProjectsRoot();
 $vhosts = parseDevpanelConf($DEVPANEL_CONF);
 $projects = projectsFromVhosts($vhosts, $projectsRoot);
-$hostsContent = @file_get_contents('/etc/hosts') ?: '';
+$hostsContent = @file_get_contents("/etc/hosts") ?: "";
 
-$apacheOk = checkPort('127.0.0.1', 80);
-$mysqlOk = checkPort('127.0.0.1', 3306);
-$confEnabled = file_exists($SITES_ENABLED . '/devpanel.conf');
-$phpVersion = phpversion() ?: 'unknown';
+$apacheOk = checkPort("127.0.0.1", 80);
+$mysqlOk = checkPort("127.0.0.1", 3306);
+$confEnabled = file_exists($SITES_ENABLED . "/devpanel.conf");
+$phpVersion = phpversion() ?: "unknown";
 $phpModules = get_loaded_extensions();
 sort($phpModules);
-$hostname = gethostname() ?: 'localhost';
-list($memUsedMb, $memTotalMb, $memPct) = memoryStats();
+$hostname = gethostname() ?: "localhost";
+[$memUsedMb, $memTotalMb, $memPct] = memoryStats();
 $uptime = uptimeLabel();
 
 $issues = [];
 if (!$confEnabled) {
-    $issues[] = ['warning', 'devpanel.conf is not enabled in Apache sites-enabled.'];
+    $issues[] = [
+        "warning",
+        "devpanel.conf is not enabled in Apache sites-enabled.",
+    ];
 }
 if (!$apacheOk) {
-    $issues[] = ['error', 'Apache is not responding on port 80.'];
+    $issues[] = ["error", "Apache is not responding on port 80."];
 }
 
 $seenNames = [];
 foreach ($vhosts as $host) {
-    $name = $host['server_name'];
-    $root = $host['document_root'];
+    $name = $host["server_name"];
+    $root = $host["document_root"];
     if (isset($seenNames[$name])) {
-        $issues[] = ['error', "Duplicate ServerName: $name"];
+        $issues[] = ["error", "Duplicate ServerName: $name"];
     }
     $seenNames[$name] = true;
-    if ($root !== '' && !is_dir($root)) {
-        $issues[] = ['warning', "DocumentRoot does not exist for $name: $root"];
+    if ($root !== "" && !is_dir($root)) {
+        $issues[] = ["warning", "DocumentRoot does not exist for $name: $root"];
     }
     if (!containsText($hostsContent, $name)) {
-        $issues[] = ['info', "$name is not listed in /etc/hosts."];
+        $issues[] = ["info", "$name is not listed in /etc/hosts."];
     }
 }
 
 $services = [
-    ['Apache', $apacheOk, '127.0.0.1:80'],
-    ['MySQL', $mysqlOk, '127.0.0.1:3306'],
-    ['DevPanel site', $confEnabled, 'devpanel.conf'],
+    ["Apache", $apacheOk, "127.0.0.1:80"],
+    ["MySQL", $mysqlOk, "127.0.0.1:3306"],
+    ["DevPanel site", $confEnabled, "devpanel.conf"],
 ];
 ?>
 <!doctype html>
@@ -292,31 +327,30 @@ $services = [
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 :root {
-    --bg: #f7f9fc;
+    --bg: #ffffff;
     --panel: #ffffff;
-    --panel-soft: #f8fafc;
-    --border: #e1e7ef;
-    --border-strong: #c9d3df;
-    --text: #172033;
-    --muted: #637083;
-    --faint: #8b97a8;
-    --green: #137b4c;
-    --green-bg: #e9f7ef;
-    --red: #bb3636;
-    --red-bg: #fdeeee;
-    --amber: #936012;
-    --amber-bg: #fff6df;
-    --blue: #1f5fbf;
-    --blue-bg: #edf4ff;
-    --shadow: 0 12px 28px rgba(15, 23, 42, .06);
+    --panel-soft: #f3f2f1;
+    --border: #edebe9;
+    --border-strong: #c8c6c4;
+    --text: #201f1e;
+    --muted: #605e5c;
+    --faint: #8a8886;
+    --green: #107c10;
+    --green-bg: #dff6dd;
+    --red: #a4262c;
+    --red-bg: #fde7e9;
+    --amber: #ca5010;
+    --amber-bg: #fff4ce;
+    --blue: #0078d4;
+    --blue-bg: #deecf9;
+    --shadow: 0 8px 20px rgba(32, 31, 30, .10);
     --radius: 8px;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 body {
     margin: 0;
-    background:
-        linear-gradient(180deg, #ffffff 0, var(--bg) 260px);
+    background: #ffffff;
     color: var(--text);
     font-family: var(--font);
     font-size: 14px;
@@ -326,8 +360,8 @@ a { color: inherit; text-decoration: none; }
 code {
     font-family: var(--mono);
     font-size: 12px;
-    color: #2e3b4f;
-    background: #f3f6fa;
+    color: #323130;
+    background: #faf9f8;
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 2px 7px;
@@ -382,18 +416,18 @@ code {
     transition: border-color .15s ease, background .15s ease, transform .15s ease;
 }
 .button:hover {
-    background: #f8fafc;
+    background: #f3f2f1;
     border-color: var(--border-strong);
     transform: translateY(-1px);
 }
 .button.primary {
-    background: #152033;
-    border-color: #152033;
+    background: var(--blue);
+    border-color: var(--blue);
     color: #fff;
 }
 .button.primary:hover {
-    background: #0f1828;
-    border-color: #0f1828;
+    background: #106ebe;
+    border-color: #106ebe;
 }
 .hero {
     display: grid;
@@ -634,14 +668,14 @@ code {
 .bar {
     height: 8px;
     border-radius: 999px;
-    background: #e8edf4;
+    background: #edebe9;
     overflow: hidden;
     margin-top: 8px;
 }
 .bar span {
     display: block;
     height: 100%;
-    background: #1f5fbf;
+    background: var(--blue);
     width: <?= max(0, min(100, $memPct)) ?>%;
 }
 @media (max-width: 860px) {
@@ -675,17 +709,24 @@ code {
 
     <section class="hero">
         <div class="card hero-main">
-            <div class="eyebrow">Workspace overview</div>
-            <h2 class="hero-title">Local sites, services, and PHP status in one place.</h2>
+            <div class="eyebrow">Workspace</div>
+            <h2 class="hero-title"></h2>
             <p class="hero-copy">
-                This page reads DevPanel's Apache virtual hosts, linked project roots,
-                PHP runtime, and service ports so you can open sites and spot routing issues quickly.
+               
             </p>
             <div class="metric-grid">
-                <div class="metric"><span>Virtual hosts</span><strong><?= count($vhosts) ?></strong></div>
-                <div class="metric"><span>Projects</span><strong><?= count($projects) ?></strong></div>
-                <div class="metric"><span>PHP</span><strong><?= e($phpVersion) ?></strong></div>
-                <div class="metric"><span>Uptime</span><strong><?= e($uptime) ?></strong></div>
+                <div class="metric"><span>Virtual hosts</span><strong><?= count(
+                    $vhosts,
+                ) ?></strong></div>
+                <div class="metric"><span>Projects</span><strong><?= count(
+                    $projects,
+                ) ?></strong></div>
+                <div class="metric"><span>PHP</span><strong><?= e(
+                    $phpVersion,
+                ) ?></strong></div>
+                <div class="metric"><span>Uptime</span><strong><?= e(
+                    $uptime,
+                ) ?></strong></div>
             </div>
         </div>
         <aside class="card status-card">
@@ -697,13 +738,19 @@ code {
             </div>
             <div class="status-list">
                 <?php foreach ($services as $service): ?>
-                    <?php $name = $service[0]; $ok = $service[1]; $detail = $service[2]; ?>
+                    <?php
+                    $name = $service[0];
+                    $ok = $service[1];
+                    $detail = $service[2];
+                    ?>
                     <div class="status-row">
                         <div>
                             <strong><?= e($name) ?></strong><br>
                             <small><?= e($detail) ?></small>
                         </div>
-                        <span class="pill <?= $ok ? 'ok' : 'err' ?>"><?= $ok ? 'OK' : 'Check' ?></span>
+                        <span class="pill <?= $ok ? "ok" : "err" ?>"><?= $ok
+    ? "OK"
+    : "Check" ?></span>
                     </div>
                 <?php endforeach; ?>
                 <div class="status-row">
@@ -722,9 +769,15 @@ code {
         <div class="section-head">
             <div>
                 <h2 class="section-title">Virtual Hosts</h2>
-                <p class="section-note"><code><?= e($DEVPANEL_CONF) ?></code></p>
+                <p class="section-note"><code><?= e(
+                    $DEVPANEL_CONF,
+                ) ?></code></p>
             </div>
-            <span class="pill <?= $confEnabled ? 'ok' : 'warn' ?>"><?= $confEnabled ? 'enabled' : 'not enabled' ?></span>
+            <span class="pill <?= $confEnabled
+                ? "ok"
+                : "warn" ?>"><?= $confEnabled
+    ? "enabled"
+    : "not enabled" ?></span>
         </div>
         <?php if (empty($vhosts)): ?>
             <div class="card empty">No DevPanel virtual hosts were found.</div>
@@ -733,18 +786,37 @@ code {
                 <?php foreach ($vhosts as $host): ?>
                     <article class="card site-card">
                         <div class="site-name">
-                            <span><?= e($host['server_name']) ?></span>
-                            <span class="pill <?= $host['https'] ? 'ok' : 'info' ?>"><?= $host['https'] ? 'HTTPS' : 'HTTP' ?></span>
+                            <span><?= e($host["server_name"]) ?></span>
+                            <span class="pill <?= $host["https"]
+                                ? "ok"
+                                : "info" ?>"><?= $host["https"]
+    ? "HTTPS"
+    : "HTTP" ?></span>
                         </div>
-                        <code class="path"><?= e($host['document_root'] ?: 'No DocumentRoot') ?></code>
+                        <code class="path"><?= e(
+                            $host["document_root"] ?: "No DocumentRoot",
+                        ) ?></code>
                         <div class="chips">
-                            <span class="chip">PHP <?= e($host['php_version'] ?: $phpVersion) ?></span>
-                            <?php if (!empty($host['aliases'])): ?>
-                                <span class="chip"><?= count($host['aliases']) ?> alias<?= count($host['aliases']) === 1 ? '' : 'es' ?></span>
+                            <span class="chip">PHP <?= e(
+                                $host["php_version"] ?: $phpVersion,
+                            ) ?></span>
+                            <?php if (!empty($host["aliases"])): ?>
+                                <span class="chip"><?= count(
+                                    $host["aliases"],
+                                ) ?> alias<?= count($host["aliases"]) === 1
+     ? ""
+     : "es" ?></span>
                             <?php endif; ?>
-                            <span class="chip"><?= containsText($hostsContent, $host['server_name']) ? 'hosts OK' : 'hosts missing' ?></span>
+                            <span class="chip"><?= containsText(
+                                $hostsContent,
+                                $host["server_name"],
+                            )
+                                ? "hosts OK"
+                                : "hosts missing" ?></span>
                         </div>
-                        <a class="open" href="http://<?= e($host['server_name']) ?>">Open site</a>
+                        <a class="open" href="http://<?= e(
+                            $host["server_name"],
+                        ) ?>">Open site</a>
                     </article>
                 <?php endforeach; ?>
             </div>
@@ -756,22 +828,28 @@ code {
             <div class="list">
                 <div>
                     <h2 class="section-title">Projects</h2>
-                    <p class="section-note">Existing DocumentRoot entries from <code><?= e($DEVPANEL_CONF) ?></code></p>
+                    <p class="section-note">Existing DocumentRoot entries from <code><?= e(
+                        $DEVPANEL_CONF,
+                    ) ?></code></p>
                 </div>
                 <?php if (empty($projects)): ?>
                     <div class="empty">No existing project DocumentRoot entries were found.</div>
                 <?php else: ?>
-                    <?php foreach (array_slice($projects, 0, 12) as $project): ?>
+                    <?php foreach (
+                        array_slice($projects, 0, 12)
+                        as $project
+                    ): ?>
                         <div class="project-row">
-                            <strong><?= e($project['name']) ?></strong>
-                            <code><?= e($project['path']) ?></code>
-                            <?php if ($project['server_name'] !== ''): ?>
-                                <span><?= e($project['server_name']) ?></span>
+                            <strong><?= e($project["name"]) ?></strong>
+                            <code><?= e($project["path"]) ?></code>
+                            <?php if ($project["server_name"] !== ""): ?>
+                                <span><?= e($project["server_name"]) ?></span>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                     <?php if (count($projects) > 12): ?>
-                        <div class="project-row"><strong><?= count($projects) - 12 ?> more</strong><span>Hidden for scanability</span></div>
+                        <div class="project-row"><strong><?= count($projects) -
+                            12 ?> more</strong><span>Hidden for scanability</span></div>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
@@ -787,9 +865,16 @@ code {
                     <div class="issue-row"><span class="pill ok">OK</span><span>No routing or setup issues detected.</span></div>
                 <?php else: ?>
                     <?php foreach ($issues as $issue): ?>
-                        <?php $level = $issue[0]; $message = $issue[1]; ?>
+                        <?php
+                        $level = $issue[0];
+                        $message = $issue[1];
+                        ?>
                         <div class="issue-row">
-                            <strong class="<?= $level === 'error' ? 'err' : ($level === 'warning' ? 'warn' : 'info') ?>"><?= e($level) ?></strong>
+                            <strong class="<?= $level === "error"
+                                ? "err"
+                                : ($level === "warning"
+                                    ? "warn"
+                                    : "info") ?>"><?= e($level) ?></strong>
                             <span><?= e($message) ?></span>
                         </div>
                     <?php endforeach; ?>
@@ -816,11 +901,11 @@ code {
     <footer class="footer">
         <span>DevPanel localhost page</span>
         <span>/</span>
-        <span>Apache <?= $apacheOk ? 'online' : 'offline' ?></span>
+        <span>Apache <?= $apacheOk ? "online" : "offline" ?></span>
         <span>/</span>
         <span>PHP <?= e($phpVersion) ?></span>
         <span>/</span>
-        <span><?= e(date('Y-m-d H:i:s')) ?></span>
+        <span><?= e(date("Y-m-d H:i:s")) ?></span>
     </footer>
 </div>
 </body>
