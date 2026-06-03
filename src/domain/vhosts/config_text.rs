@@ -44,7 +44,9 @@ pub fn parse_vhosts_from_content(content: &str) -> Vec<VHostEntry> {
             if lower.starts_with("documentroot") {
                 dr = extract_directive_value(orig);
             }
-            if lower.contains("sethandler") && lower.contains("x-httpd-php") {
+            if lower.contains("sethandler")
+                && (lower.contains("x-httpd-php") || lower.contains("-fpm.sock"))
+            {
                 php_ver = extract_php_version_from_sethandler(orig);
             }
         }
@@ -61,7 +63,10 @@ pub fn build_conf_content(entries: &[VHostEntry]) -> String {
         let slug = server_slug(sn);
         let (cert_file, key_file) = cert_paths_for_server(sn);
         let set_handler = match &e.php_version {
-            Some(ver) => format!("\n        SetHandler application/x-httpd-php{}", ver),
+            Some(ver) => format!(
+                "\n\t\t<FilesMatch \\.php$>\n\t\t\tSetHandler {}\n\t\t</FilesMatch>",
+                crate::operations::php::php_fpm_set_handler(ver)
+            ),
             None => String::new(),
         };
 
@@ -118,6 +123,13 @@ fn extract_directive_value(line: &str) -> String {
 
 fn extract_php_version_from_sethandler(line: &str) -> Option<String> {
     let lower = line.to_lowercase();
+    if let Some(start) = lower.find("/run/php/php") {
+        let rest = &line[start + "/run/php/php".len()..];
+        let end = rest.find("-fpm.sock")?;
+        let ver = rest[..end].trim().to_string();
+        return if ver.is_empty() { None } else { Some(ver) };
+    }
+
     let prefix = "x-httpd-php";
     let pos = lower.find(prefix)?;
     let ver = line[pos + prefix.len()..].trim().to_string();

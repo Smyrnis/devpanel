@@ -66,14 +66,14 @@ Tests the two pure functions that do all the real work in the VHosts tab:
 | `parse_empty_string_returns_empty` | Empty input → empty result |
 | `parse_comment_only_returns_empty` | Comment-only file → empty result |
 | `parse_single_vhost_no_php` | Basic ServerName + DocumentRoot round-trip |
-| `parse_single_vhost_with_php_pinned` | `SetHandler x-httpd-php8.2` is extracted |
+| `parse_single_vhost_with_php_pinned` | PHP-FPM socket `SetHandler` is extracted |
 | `parse_https_entry_sets_flag_once` | HTTPS VHost blocks mark the entry as HTTPS |
 | `parse_multiple_vhosts_assigns_sequential_indexes` | Three VHosts → indexes 0, 1, 2 |
 | `parse_vhost_missing_servername_is_skipped` | VHost without `ServerName` is silently dropped |
 | `parse_vhost_case_insensitive_directives` | `<virtualhost>` / `servername` lowercase is accepted |
 | `build_empty_entries_produces_header_only` | Empty list → header comment only |
 | `build_single_entry_no_php` | No `SetHandler` when php_version is None |
-| `build_single_entry_with_php_produces_sethandler` | `SetHandler application/x-httpd-php8.2` present |
+| `build_single_entry_with_php_produces_sethandler` | PHP-FPM socket `SetHandler` present |
 | `build_https_entry_produces_port_443_block` | HTTPS entries render a port 443 block |
 | `build_uses_dot_to_underscore_slug_for_log_paths` | `my.project.local` → `my_project_local_error.log` |
 | `round_trip_parse_build_parse_is_stable` | build → parse → same data; server_name, docroot, php all match |
@@ -82,7 +82,7 @@ Tests the two pure functions that do all the real work in the VHosts tab:
 
 **Critical paths covered:**
 - The parse/build cycle must be a stable identity transformation.
-- PHP version injection via `SetHandler` must survive round-trips.
+- PHP-FPM version injection via `SetHandler` must survive round-trips.
 - Malformed entries (missing ServerName) must not corrupt the list.
 
 ---

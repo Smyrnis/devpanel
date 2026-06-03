@@ -47,6 +47,25 @@ TOML
     log_ok "Config written: $CFG_FILE"
 }
 
+mark_first_run_done() {
+    local sentinel="$CFG_DIR/first_run_done"
+
+    log_info "Marking DevPanel first-run setup complete"
+    if ! run_cmd "mkdir config dir" mkdir -p "$CFG_DIR"; then
+        log_err "Failed to create config directory: $CFG_DIR"
+        return 1
+    fi
+
+    if printf '1\n' > "$sentinel"; then
+        safe_chown "$REAL_USER" "$sentinel"
+        safe_chmod 644 "$sentinel"
+        log_ok "First-run sentinel written: $sentinel"
+    else
+        log_err "Failed to write first-run sentinel: $sentinel"
+        return 1
+    fi
+}
+
 ensure_www_data_group() {
     if groups "$REAL_USER" | grep -q www-data; then
         log_info "$REAL_USER is already in www-data group"

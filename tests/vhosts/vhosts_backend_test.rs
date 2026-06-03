@@ -36,6 +36,13 @@ fn parse_single_vhost_no_php() {
 }
 #[test]
 fn parse_single_vhost_with_php_pinned() {
+    let content = "<VirtualHost *:80>\n    ServerName shop.local\n    DocumentRoot /var/www/shop\n    <Directory /var/www/shop>\n        <FilesMatch \\.php$>\n            SetHandler \"proxy:unix:/run/php/php8.2-fpm.sock|fcgi://localhost/\"\n        </FilesMatch>\n    </Directory>\n</VirtualHost>\n";
+    let entries = parse_vhosts_from_content(content);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].php_version.as_deref(), Some("8.2"));
+}
+#[test]
+fn parse_legacy_mod_php_vhost_with_php_pinned() {
     let content = "<VirtualHost *:80>\n    ServerName shop.local\n    DocumentRoot /var/www/shop\n    <Directory /var/www/shop>\n        SetHandler application/x-httpd-php8.2\n    </Directory>\n</VirtualHost>\n";
     let entries = parse_vhosts_from_content(content);
     assert_eq!(entries.len(), 1);
@@ -84,7 +91,7 @@ fn build_single_entry_no_php() {
 fn build_single_entry_with_php_produces_sethandler() {
     let entries = vec![entry("shop.local", "/var/www/shop", Some("8.2"), 0)];
     let out = build_conf_content(&entries);
-    assert!(out.contains("SetHandler application/x-httpd-php8.2"));
+    assert!(out.contains("SetHandler \"proxy:unix:/run/php/php8.2-fpm.sock|fcgi://localhost/\""));
 }
 
 #[test]
@@ -99,7 +106,9 @@ fn build_vhost_pins_every_configured_php_version_with_sethandler() {
         let out = build_conf_content(&entries);
 
         assert!(
-            out.contains(&format!("SetHandler application/x-httpd-php{version}")),
+            out.contains(&format!(
+                "SetHandler \"proxy:unix:/run/php/php{version}-fpm.sock|fcgi://localhost/\""
+            )),
             "missing SetHandler for PHP {version}"
         );
         let reparsed = parse_vhosts_from_content(&out);

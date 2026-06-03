@@ -141,6 +141,9 @@ function parseDevpanelConf($path) {
         if (preg_match('/SetHandler\s+application\/x-httpd-php([0-9.]+)/i', $line, $m)) {
             $current['php_version'] = $m[1];
         }
+        if (preg_match('/\/run\/php\/php([0-9.]+)-fpm\.sock/i', $line, $m)) {
+            $current['php_version'] = $m[1];
+        }
     }
 
     return array_values($hosts);
@@ -155,22 +158,50 @@ function checkPort($host, $port) {
     return false;
 }
 
-function readProjects($root) {
-    if (!is_dir($root) || !is_readable($root)) {
-        return [];
+function projectLabelFromDocumentRoot($root, $projectsRoot) {
+    $root = rtrim($root, '/');
+    $projectsRoot = rtrim($projectsRoot, '/');
+    if ($root === '') {
+        return '';
     }
 
+    if ($projectsRoot !== '' && startsWithText($root . '/', $projectsRoot . '/')) {
+        $relative = substr($root, strlen($projectsRoot) + 1);
+        $parts = explode('/', $relative);
+        return $parts[0] !== '' ? $parts[0] : basename($root);
+    }
+
+    return basename($root);
+}
+
+function projectsFromVhosts($vhosts, $projectsRoot) {
     $projects = [];
-    foreach (scandir($root) ?: [] as $entry) {
-        if ($entry === '.' || $entry === '..' || startsWithText($entry, '.')) {
+    $seen = [];
+
+    foreach ($vhosts as $host) {
+        $root = isset($host['document_root']) ? $host['document_root'] : '';
+        if ($root === '' || !is_dir($root)) {
             continue;
         }
-        if (is_dir($root . '/' . $entry)) {
-            $projects[] = $entry;
+
+        $label = projectLabelFromDocumentRoot($root, $projectsRoot);
+        $key = $label . "\n" . $root;
+        if (isset($seen[$key])) {
+            continue;
         }
+
+        $seen[$key] = true;
+        $projects[] = [
+            'name' => $label,
+            'path' => $root,
+            'server_name' => isset($host['server_name']) ? $host['server_name'] : '',
+        ];
     }
-    natcasesort($projects);
-    return array_values($projects);
+
+    usort($projects, function ($a, $b) {
+        return strcasecmp($a['name'], $b['name']);
+    });
+    return $projects;
 }
 
 function memoryStats() {
@@ -208,8 +239,8 @@ function uptimeLabel() {
 }
 
 $projectsRoot = findProjectsRoot();
-$projects = readProjects($projectsRoot);
 $vhosts = parseDevpanelConf($DEVPANEL_CONF);
+$projects = projectsFromVhosts($vhosts, $projectsRoot);
 $hostsContent = @file_get_contents('/etc/hosts') ?: '';
 
 $apacheOk = checkPort('127.0.0.1', 80);
@@ -647,7 +678,7 @@ code {
             <div class="eyebrow">Workspace overview</div>
             <h2 class="hero-title">Local sites, services, and PHP status in one place.</h2>
             <p class="hero-copy">
-                This page reads DevPanel's Apache virtual hosts, projects directory,
+                This page reads DevPanel's Apache virtual hosts, linked project roots,
                 PHP runtime, and service ports so you can open sites and spot routing issues quickly.
             </p>
             <div class="metric-grid">
@@ -725,15 +756,18 @@ code {
             <div class="list">
                 <div>
                     <h2 class="section-title">Projects</h2>
-                    <p class="section-note"><code><?= e($projectsRoot) ?></code></p>
+                    <p class="section-note">Existing DocumentRoot entries from <code><?= e($DEVPANEL_CONF) ?></code></p>
                 </div>
                 <?php if (empty($projects)): ?>
-                    <div class="empty">No project folders were found.</div>
+                    <div class="empty">No existing project DocumentRoot entries were found.</div>
                 <?php else: ?>
                     <?php foreach (array_slice($projects, 0, 12) as $project): ?>
                         <div class="project-row">
-                            <strong><?= e($project) ?></strong>
-                            <code><?= e($projectsRoot . '/' . $project) ?></code>
+                            <strong><?= e($project['name']) ?></strong>
+                            <code><?= e($project['path']) ?></code>
+                            <?php if ($project['server_name'] !== ''): ?>
+                                <span><?= e($project['server_name']) ?></span>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                     <?php if (count($projects) > 12): ?>

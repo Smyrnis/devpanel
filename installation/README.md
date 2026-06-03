@@ -18,7 +18,7 @@ Scripts under `installation/dependencies/` own one setup area each:
 
 - `common.sh` - shared package helpers.
 - `install_apache.sh` - Apache packages and service setup.
-- `install_php.sh` - PHP packages and Apache PHP module setup.
+- `install_php.sh` - PHP-FPM and Apache proxy setup.
 - `install_mysql.sh` - MySQL packages and service setup.
 - `setup_vhost.sh` - default DevPanel virtual host setup.
 - `install_tools.sh` - shared project directory and support-tool setup helpers.

@@ -1,6 +1,5 @@
 use crate::core::dry_run;
 use crate::core::error::{DevPanelError, DevPanelResult};
-use crate::core::paths;
 use crate::core::setup_log::{self, LogLevel};
 use crate::installer::{FirstRunInstallOptions, FirstRunPackageStatus, FirstRunSetupStatus};
 use crate::operations::{self, apache, php, tools};
@@ -130,34 +129,59 @@ pub async fn run_first_run_install(
     }
 
     if options.install_apache || options.install_php {
-        let mut enabled_mods: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for mod_name in php_apache_module_names() {
-            if enabled_mods.contains(&mod_name) {
-                continue;
-            }
-            let mod_load = paths::apache_mod_available(&mod_name);
-            if std::path::Path::new(&mod_load).exists() {
-                setup_log::append_setup_log(LogLevel::Cmd, &format!("a2enmod {mod_name}"));
-                match apache::enable_module(&password, &mod_name).await {
-                    Ok(_) => setup_log::append_setup_log(
-                        LogLevel::Ok,
-                        &format!("Enabled Apache module {mod_name}"),
-                    ),
-                    Err(e) => setup_log::append_setup_log(
-                        LogLevel::Warn,
-                        &format!("Could not enable Apache module {mod_name}: {e}"),
-                    ),
-                }
-                enabled_mods.insert(mod_name);
-            }
-        }
-
         setup_log::append_setup_log(LogLevel::Cmd, "a2enmod rewrite");
         if let Err(e) = apache::enable_module(&password, "rewrite").await {
             setup_log::append_setup_log(
                 LogLevel::Warn,
                 &format!("Could not enable Apache rewrite module: {e}"),
             );
+        }
+
+        setup_log::append_setup_log(LogLevel::Cmd, "a2enmod proxy_fcgi setenvif");
+        if let Err(e) = apache::enable_module(&password, "proxy_fcgi").await {
+            setup_log::append_setup_log(
+                LogLevel::Warn,
+                &format!("Could not enable Apache proxy_fcgi module: {e}"),
+            );
+        }
+        if let Err(e) = apache::enable_module(&password, "setenvif").await {
+            setup_log::append_setup_log(
+                LogLevel::Warn,
+                &format!("Could not enable Apache setenvif module: {e}"),
+            );
+        }
+
+        if options.install_php {
+            let version = crate::core::app_config::latest_php_version();
+            let fpm_conf = php::php_fpm_conf(&version);
+            setup_log::append_setup_log(LogLevel::Cmd, &format!("a2enconf {fpm_conf}"));
+            match apache::enable_conf(&password, &fpm_conf).await {
+                Ok(_) => setup_log::append_setup_log(
+                    LogLevel::Ok,
+                    &format!("Enabled Apache PHP-FPM config {fpm_conf}"),
+                ),
+                Err(e) => setup_log::append_setup_log(
+                    LogLevel::Warn,
+                    &format!("Could not enable Apache PHP-FPM config {fpm_conf}: {e}"),
+                ),
+            }
+
+            let fpm_service = php::php_fpm_service(&version);
+            setup_log::append_setup_log(
+                LogLevel::Cmd,
+                &format!("systemctl enable --now {fpm_service}"),
+            );
+            if let Err(e) = operations::run(
+                &password,
+                &["systemctl", "enable", "--now", fpm_service.as_str()],
+            )
+            .await
+            {
+                setup_log::append_setup_log(
+                    LogLevel::Warn,
+                    &format!("Could not start PHP-FPM service {fpm_service}: {e}"),
+                );
+            }
         }
 
         setup_log::append_setup_log(LogLevel::Cmd, "systemctl reload apache2");
@@ -254,7 +278,7 @@ pub fn latest_php_packages() -> Vec<String> {
         format!("php{version}"),
         format!("php{version}-cli"),
         format!("php{version}-common"),
-        format!("libapache2-mod-php{version}"),
+        php::php_fpm_package(&version),
     ]
 }
 
@@ -265,19 +289,4 @@ pub fn latest_php_extra_packages() -> Vec<String> {
         format!("php{version}-xml"),
         format!("php{version}-mbstring"),
     ]
-}
-
-fn php_apache_module_names() -> Vec<String> {
-    let mut modules = Vec::new();
-    for spec in crate::core::app_config::php_versions() {
-        if !spec.apache_module.is_empty() && !modules.contains(&spec.apache_module) {
-            modules.push(spec.apache_module);
-        }
-        if let Some(legacy) = spec.legacy_apache_module
-            && !modules.contains(&legacy)
-        {
-            modules.push(legacy);
-        }
-    }
-    modules
 }
