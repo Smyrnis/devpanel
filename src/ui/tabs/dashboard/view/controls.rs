@@ -1,6 +1,7 @@
 use crate::core::theme::{self, theme_map as theme_keys};
 use crate::lang::{lang_map::dashboard as keys, text as tr};
 use crate::messages::Message;
+use crate::ui::icons::Icon;
 use crate::ui::templates::prelude as ui;
 use iced::widget::row;
 use iced::{Alignment, Element};
@@ -15,7 +16,8 @@ pub(super) fn service_power_button<'a>(
     stop: Message,
 ) -> Element<'a, Message> {
     if running {
-        ui::action_button(
+        ui::action_icon_button(
+            Icon::Stop,
             tr(keys::STOP),
             theme::color(theme_keys::RED),
             theme::color(theme_keys::RED_BG),
@@ -24,7 +26,8 @@ pub(super) fn service_power_button<'a>(
             Some(stop),
         )
     } else {
-        ui::action_button(
+        ui::action_icon_button(
+            Icon::Play,
             tr(keys::START),
             theme::color(theme_keys::GREEN),
             theme::color(theme_keys::GREEN_BG),
@@ -36,11 +39,12 @@ pub(super) fn service_power_button<'a>(
 }
 
 pub(super) fn restart_button<'a>(message: Message) -> Element<'a, Message> {
-    ui::action_button(
+    ui::action_icon_button(
+        Icon::Refresh,
         tr(keys::RESTART),
         theme::color(theme_keys::ORANGE),
         theme::color(theme_keys::YELLOW_BG),
-        theme::color(theme_keys::YELLOW_BG),
+        theme::color(theme_keys::BG_HOVER),
         theme::color(theme_keys::YELLOW_BORDER),
         Some(message),
     )

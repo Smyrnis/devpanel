@@ -116,10 +116,11 @@ pub(super) fn php_panel(tab: &DashboardTab) -> Element<'_, Message> {
         .style(ui::surface_style())
         .into()
     } else {
-        ui::dropdown(
+        ui::dropdown_width(
             &tab.php_versions[..],
             tab.active_php_version.as_ref(),
             |v| Message::Dashboard(DashboardMessage::SwitchPhpVersion(v)),
+            Length::Fixed(260.0),
         )
     };
 
@@ -199,33 +200,46 @@ pub(super) fn composer_panel(tab: &DashboardTab) -> Element<'_, Message> {
 
     let controls: Element<'_, Message> = if installed {
         column![
-            ui::dropdown(
+            ui::dropdown_width(
                 crate::core::app_config::composer_versions(),
                 Some(&tab.selected_composer_version),
                 |version| Message::Dashboard(DashboardMessage::ComposerVersionSelected(version)),
+                Length::Fixed(240.0),
             ),
             action_row(vec![
-                ui::secondary_icon_button(
+                ui::action_icon_button(
                     Icon::Code,
                     tr(keys::APPLY_VERSION),
-                    Message::Dashboard(DashboardMessage::SwitchComposerVersion(
+                    theme::color(theme_keys::PURPLE),
+                    theme::color(theme_keys::PURPLE_BG),
+                    theme::color(theme_keys::PURPLE_HOVER),
+                    theme::color(theme_keys::PURPLE_BORDER),
+                    Some(Message::Dashboard(DashboardMessage::SwitchComposerVersion(
                         tab.selected_composer_version.clone(),
-                    )),
+                    ))),
                 ),
-                ui::secondary_icon_button(
+                ui::action_icon_button(
                     Icon::Refresh,
                     tr(keys::UPDATE),
-                    Message::Dashboard(DashboardMessage::UpdateComposer),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
+                    Some(Message::Dashboard(DashboardMessage::UpdateComposer)),
                 ),
             ]),
         ]
         .spacing(8)
         .into()
     } else {
-        action_row(vec![ui::secondary_icon_button(
+        action_row(vec![ui::action_icon_button(
             Icon::Code,
             tr(keys::INSTALL),
-            Message::Dashboard(DashboardMessage::InstallComposer),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
+            theme::color(theme_keys::GREEN_DIM),
+            Some(Message::Dashboard(DashboardMessage::InstallComposer)),
         )])
     };
 
@@ -260,36 +274,59 @@ pub(super) fn node_panel(tab: &DashboardTab) -> Element<'_, Message> {
     let controls: Element<'_, Message> = if tools.nvm_available {
         let version = tab.selected_node_version.clone();
         column![
-            ui::dropdown(
+            ui::dropdown_width(
                 crate::core::app_config::node_versions(),
                 Some(&tab.selected_node_version),
                 |selected| Message::Dashboard(DashboardMessage::NodeVersionSelected(selected)),
+                Length::Fixed(240.0),
             ),
             action_row(vec![
-                ui::secondary_icon_button(
+                ui::action_icon_button(
                     Icon::Plus,
                     tr(keys::INSTALL_VERSION),
-                    Message::Dashboard(DashboardMessage::InstallNodeVersion(version.clone())),
+                    theme::color(theme_keys::BLUE),
+                    theme::color(theme_keys::BLUE_BG),
+                    theme::color(theme_keys::BLUE_HOVER),
+                    theme::color(theme_keys::BLUE_BORDER),
+                    Some(Message::Dashboard(DashboardMessage::InstallNodeVersion(
+                        version.clone(),
+                    ))),
                 ),
-                ui::secondary_icon_button(
+                ui::action_icon_button(
                     Icon::Refresh,
                     tr(keys::USE_VERSION),
-                    Message::Dashboard(DashboardMessage::SwitchNodeVersion(version.clone())),
+                    theme::color(theme_keys::GREEN),
+                    theme::color(theme_keys::GREEN_BG),
+                    theme::color(theme_keys::GREEN_HOVER),
+                    theme::color(theme_keys::GREEN_DIM),
+                    Some(Message::Dashboard(DashboardMessage::SwitchNodeVersion(
+                        version.clone(),
+                    ))),
                 ),
-                ui::secondary_icon_button(
+                ui::action_icon_button(
                     Icon::Check,
                     tr(keys::SET_DEFAULT),
-                    Message::Dashboard(DashboardMessage::SetDefaultNodeVersion(version)),
+                    theme::color(theme_keys::PURPLE),
+                    theme::color(theme_keys::PURPLE_BG),
+                    theme::color(theme_keys::PURPLE_HOVER),
+                    theme::color(theme_keys::PURPLE_BORDER),
+                    Some(Message::Dashboard(DashboardMessage::SetDefaultNodeVersion(
+                        version,
+                    ))),
                 ),
             ]),
         ]
         .spacing(8)
         .into()
     } else {
-        action_row(vec![ui::secondary_icon_button(
+        action_row(vec![ui::action_icon_button(
             Icon::Plus,
             tr(keys::INSTALL_NVM),
-            Message::Dashboard(DashboardMessage::InstallNvm),
+            theme::color(theme_keys::GREEN),
+            theme::color(theme_keys::GREEN_BG),
+            theme::color(theme_keys::GREEN_HOVER),
+            theme::color(theme_keys::GREEN_DIM),
+            Some(Message::Dashboard(DashboardMessage::InstallNvm)),
         )])
     };
 

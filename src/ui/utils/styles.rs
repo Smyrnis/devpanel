@@ -57,21 +57,19 @@ pub fn pick_list_style(
         } else {
             theme::color(theme_keys::TEXT_SECONDARY)
         },
-        background: Background::Color(if is_open {
+        background: Background::Color(if is_open || is_hovered {
             theme::color(theme_keys::BG_HOVER)
-        } else if is_hovered {
-            theme::color(theme_keys::BG_CARD)
         } else {
-            theme::color(theme_keys::BG_SURFACE)
+            theme::color(theme_keys::BG_CARD)
         }),
         border: Border {
             color: if is_open || is_hovered {
                 theme::color(theme_keys::TEAL_BORDER)
             } else {
-                theme::color(theme_keys::BORDER_SUBTLE)
+                theme::color(theme_keys::BORDER_MED)
             },
             width: if is_open { 1.5 } else { 1.0 },
-            radius: 8.0.into(),
+            radius: 7.0.into(),
         },
     }
 }
@@ -82,7 +80,7 @@ pub fn pick_list_menu_style(_: &iced::Theme) -> iced::overlay::menu::Style {
         border: Border {
             color: theme::color(theme_keys::TEAL_BORDER),
             width: 1.0,
-            radius: 8.0.into(),
+            radius: 7.0.into(),
         },
         text_color: theme::color(theme_keys::TEXT_SECONDARY),
         selected_text_color: theme::color(theme_keys::TEXT_ON_ACCENT),

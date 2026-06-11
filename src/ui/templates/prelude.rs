@@ -2,9 +2,9 @@
 
 pub use super::badges::{BadgeTone, path_chip, small_badge, status_badge};
 pub use super::buttons::{
-    action_button, compact_action_button, ghost_button_style, ghost_text_button,
-    ghost_text_button_maybe, primary_icon_button, primary_text_button, primary_text_button_maybe,
-    secondary_icon_button,
+    action_button, action_icon_button, compact_action_button, ghost_button_style,
+    ghost_text_button, ghost_text_button_maybe, primary_icon_button, primary_text_button,
+    primary_text_button_maybe, secondary_icon_button,
 };
 pub use super::cards::{card_style, card_style_with_border, surface_style};
 pub use super::dropdowns::{dropdown, dropdown_width};

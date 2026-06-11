@@ -1,5 +1,6 @@
 use super::controls::{restart_button, service_power_button, service_status, service_tone};
 use super::panels;
+use crate::core::theme::{self, theme_map as theme_keys};
 use crate::domain::dashboard::DashboardService;
 use crate::lang::{lang_map::dashboard as keys, text as tr};
 use crate::messages::{DashboardMessage, Message};
@@ -135,16 +136,26 @@ fn php_row(tab: &DashboardTab, expanded: bool) -> Element<'_, Message> {
         format!("{} {}", version, tr(keys::ACTIVE_VERSION)),
         ui::BadgeTone::Info,
         vec![if expanded {
-            ui::secondary_icon_button(
+            ui::action_icon_button(
                 Icon::Info,
                 tr(keys::PHP_INFO),
-                Message::Dashboard(DashboardMessage::ShowPhpInfo),
+                theme::color(theme_keys::BLUE),
+                theme::color(theme_keys::BLUE_BG),
+                theme::color(theme_keys::BLUE_HOVER),
+                theme::color(theme_keys::BLUE_BORDER),
+                Some(Message::Dashboard(DashboardMessage::ShowPhpInfo)),
             )
         } else {
-            ui::secondary_icon_button(
+            ui::action_icon_button(
                 Icon::Php,
                 tr(keys::CHANGE_VERSION),
-                Message::Dashboard(DashboardMessage::ToggleService(DashboardService::Php)),
+                theme::color(theme_keys::PURPLE),
+                theme::color(theme_keys::PURPLE_BG),
+                theme::color(theme_keys::PURPLE_HOVER),
+                theme::color(theme_keys::PURPLE_BORDER),
+                Some(Message::Dashboard(DashboardMessage::ToggleService(
+                    DashboardService::Php,
+                ))),
             )
         }],
         expanded,
