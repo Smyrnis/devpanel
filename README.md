@@ -1,7 +1,7 @@
 # DevPanel 
 A lightweight desktop GUI for managing your local PHP development environment on Ubuntu and Debian. Built with Rust and [Iced](https://github.com/iced-rs/iced).
 
-<p> Current version: <strong> 0.26.24 </strong> </p>
+<p> Current version: <strong> 0.26.25 </strong> </p>
 
 ---
 
