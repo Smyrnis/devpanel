@@ -248,13 +248,7 @@ fn section_tone(tab: &ToolsTab, section: &ToolSection) -> ui::BadgeTone {
         }
         ToolSection::ApacheMods if enabled_mod_count(tab) > 0 => ui::BadgeTone::Success,
         ToolSection::Database => ui::BadgeTone::Info,
-        ToolSection::Runtimes
-            if tab.installed_tools.composer_version.is_some()
-                || tab.installed_tools.node_version.is_some()
-                || tab.installed_tools.redis_installed =>
-        {
-            ui::BadgeTone::Success
-        }
+        ToolSection::Runtimes if tab.installed_tools.redis_installed => ui::BadgeTone::Success,
         _ => ui::BadgeTone::Neutral,
     }
 }
@@ -310,14 +304,6 @@ fn runtimes_summary(tab: &ToolsTab) -> String {
         } else {
             tr(keys::REDIS_STOPPED).to_string()
         };
-    }
-
-    if let Some(version) = tab.installed_tools.node_version.as_deref() {
-        return format!("Node {}", version);
-    }
-
-    if let Some(version) = tab.installed_tools.composer_version.as_deref() {
-        return format!("Composer {}", version);
     }
 
     tr(keys::SCAN_NEEDED).to_string()

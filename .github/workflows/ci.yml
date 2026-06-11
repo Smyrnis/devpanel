@@ -46,12 +46,28 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build Debian package
+        run: cargo deb
+
+      - name: Verify Debian package
+        run: scripts/verify-deb.sh target/debian/devpanel_*.deb
+
       - name: Check installer shell syntax
         run: |
           bash -n scripts/postinst
           bash -n scripts/devpanel-setup.sh
+          bash -n tests/shell/project_permissions_test.sh
+          bash -n tests/shell/runtime_installers_test.sh
           bash -n installation/devpanel-setup.sh
           bash -n installation/devpanel-create-projects-dir.sh
           for file in installation/lib/*.sh installation/dependencies/*.sh; do
             bash -n "$file"
           done
+
+      - name: Test runtime installer scripts
+        run: |
+          tests/shell/project_permissions_test.sh
+          tests/shell/runtime_installers_test.sh

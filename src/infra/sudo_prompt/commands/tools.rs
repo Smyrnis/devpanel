@@ -1,6 +1,6 @@
 use super::SudoCommand;
 use crate::core::error::result_status;
-use crate::messages::{Message, ToolsMessage};
+use crate::messages::{DashboardMessage, Message, ToolsMessage};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -66,9 +66,62 @@ impl SudoCommand for ComposerCommand {
     fn execute(self: Box<Self>, password: &str) -> Pin<Box<dyn Future<Output = Message> + Send>> {
         let password = password.to_string();
         Box::pin(async move {
-            let (ok, msg) =
-                result_status(crate::ui::tabs::tools::composer_op(self.update, password).await);
-            Message::Tools(ToolsMessage::ComposerDone(ok, msg))
+            let (ok, msg) = result_status(
+                crate::domain::tools::service::composer_op(self.update, password).await,
+            );
+            Message::Dashboard(DashboardMessage::ComposerDone(ok, msg))
+        })
+    }
+}
+
+pub struct ComposerVersionCommand {
+    pub version: String,
+}
+
+impl SudoCommand for ComposerVersionCommand {
+    fn execute(self: Box<Self>, password: &str) -> Pin<Box<dyn Future<Output = Message> + Send>> {
+        let password = password.to_string();
+        Box::pin(async move {
+            let (ok, msg) = result_status(
+                crate::domain::tools::service::switch_composer_version(self.version, password)
+                    .await,
+            );
+            Message::Dashboard(DashboardMessage::ComposerDone(ok, msg))
+        })
+    }
+}
+
+pub enum NodeNvmAction {
+    InstallNvm,
+    InstallNode(String),
+    SwitchNode(String),
+    SetDefaultNode(String),
+}
+
+pub struct NodeNvmCommand {
+    pub action: NodeNvmAction,
+}
+
+impl SudoCommand for NodeNvmCommand {
+    fn execute(self: Box<Self>, password: &str) -> Pin<Box<dyn Future<Output = Message> + Send>> {
+        let password = password.to_string();
+        Box::pin(async move {
+            let result = match self.action {
+                NodeNvmAction::InstallNvm => {
+                    crate::domain::tools::service::install_nvm(password).await
+                }
+                NodeNvmAction::InstallNode(version) => {
+                    crate::domain::tools::service::install_node_version(version, password).await
+                }
+                NodeNvmAction::SwitchNode(version) => {
+                    crate::domain::tools::service::switch_node_version(version, password).await
+                }
+                NodeNvmAction::SetDefaultNode(version) => {
+                    crate::domain::tools::service::set_default_node_version(version, password).await
+                }
+            };
+            let (ok, msg) = result_status(result);
+            Message::Dashboard(DashboardMessage::NodeNvmDone(ok, msg))
         })
     }
 }

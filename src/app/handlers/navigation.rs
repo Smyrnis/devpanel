@@ -7,12 +7,27 @@ impl App {
     pub(crate) fn handle_select_tab(&mut self, tab: Tab) -> Task<Message> {
         self.active_tab = tab.clone();
         match tab {
-            Tab::Dashboard => Task::perform(
-                crate::domain::dashboard::service::probe_services(),
-                |snapshot| {
-                    Message::Dashboard(crate::messages::DashboardMessage::StatusRefreshed(snapshot))
-                },
-            ),
+            Tab::Dashboard => {
+                self.dashboard.runtimes_scanning = true;
+                Task::batch([
+                    Task::perform(
+                        crate::domain::dashboard::service::probe_services(),
+                        |snapshot| {
+                            Message::Dashboard(crate::messages::DashboardMessage::StatusRefreshed(
+                                snapshot,
+                            ))
+                        },
+                    ),
+                    Task::perform(
+                        crate::domain::tools::service::scan_installed_tools(),
+                        |tools| {
+                            Message::Dashboard(
+                                crate::messages::DashboardMessage::RuntimesRefreshed(tools),
+                            )
+                        },
+                    ),
+                ])
+            }
             Tab::Tools => {
                 self.tools.scanning = true;
                 self.tools.tools_scanning = true;

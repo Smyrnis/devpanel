@@ -48,6 +48,9 @@ jobs:
       - name: Build package
         run: cargo deb
 
+      - name: Verify package
+        run: scripts/verify-deb.sh target/debian/devpanel_*.deb
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:

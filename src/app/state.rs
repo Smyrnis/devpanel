@@ -79,6 +79,14 @@ impl App {
                         ))
                     },
                 ),
+                Task::perform(
+                    crate::domain::tools::service::scan_installed_tools(),
+                    |tools| {
+                        Message::Dashboard(crate::messages::DashboardMessage::RuntimesRefreshed(
+                            tools,
+                        ))
+                    },
+                ),
                 Task::done(Message::FirstRun(
                     crate::messages::FirstRunMessage::ScanStatus,
                 )),

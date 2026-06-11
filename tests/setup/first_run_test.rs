@@ -57,12 +57,66 @@ fn php_version_options_include_legacy_and_latest_versions() {
 }
 
 #[test]
+fn runtime_version_options_include_composer_and_node_defaults() {
+    assert_eq!(
+        devpanel::core::app_config::default_composer_version(),
+        "latest"
+    );
+    assert_eq!(
+        devpanel::core::app_config::composer_versions(),
+        vec![
+            "latest".to_string(),
+            "2".to_string(),
+            "rollback".to_string()
+        ]
+    );
+    assert_eq!(devpanel::core::app_config::default_node_version(), "22");
+    assert_eq!(
+        devpanel::core::app_config::node_versions(),
+        vec![
+            "20".to_string(),
+            "22".to_string(),
+            "24".to_string(),
+            "node".to_string()
+        ]
+    );
+
+    let dashboard = devpanel::ui::tabs::dashboard::DashboardTab::new();
+    assert_eq!(dashboard.selected_composer_version, "latest");
+    assert_eq!(dashboard.selected_node_version, "22");
+}
+
+#[test]
+fn dashboard_applies_runtime_scan_results() {
+    let mut dashboard = devpanel::ui::tabs::dashboard::DashboardTab::new();
+    dashboard.runtimes_scanning = true;
+    dashboard.apply_runtime_scan(devpanel::domain::tools::InstalledTools {
+        composer_version: Some("Composer version 2.8.9".to_string()),
+        node_version: Some("v22.0.0".to_string()),
+        npm_version: Some("10.0.0".to_string()),
+        nvm_available: true,
+        redis_installed: false,
+        redis_running: false,
+        redis_memory: None,
+    });
+
+    assert_eq!(
+        dashboard.installed_tools.node_version.as_deref(),
+        Some("v22.0.0")
+    );
+    assert!(dashboard.installed_tools.nvm_available);
+    assert!(!dashboard.runtimes_scanning);
+}
+
+#[test]
 fn selected_packages_can_include_apache_and_php() {
     let packages = service::selected_packages(FirstRunInstallOptions {
         install_apache: true,
         install_php: true,
         install_mysql: false,
         install_php_extras: false,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert!(packages.contains(&"apache2".to_string()));
@@ -78,6 +132,8 @@ fn selected_packages_can_include_apache_only() {
         install_php: false,
         install_mysql: false,
         install_php_extras: false,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert_eq!(packages, vec!["apache2".to_string()]);
@@ -90,6 +146,8 @@ fn selected_packages_can_include_php_only() {
         install_php: true,
         install_mysql: false,
         install_php_extras: false,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert_eq!(
@@ -110,6 +168,8 @@ fn selected_packages_can_include_every_optional_group() {
         install_php: true,
         install_mysql: true,
         install_php_extras: true,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert_eq!(
@@ -135,6 +195,8 @@ fn selected_packages_can_skip_mysql() {
         install_php: false,
         install_mysql: false,
         install_php_extras: true,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert!(!packages.contains(&"mysql-server".to_string()));
@@ -148,6 +210,8 @@ fn selected_packages_can_skip_php_extras() {
         install_php: false,
         install_mysql: true,
         install_php_extras: false,
+        install_composer: false,
+        install_node_nvm: false,
     });
 
     assert!(packages.contains(&"mysql-server".to_string()));
@@ -167,6 +231,8 @@ async fn dry_run_status_scan_returns_synthetic_not_installed_status() {
     assert_eq!(status.php, FirstRunPackageStatus::NotInstalled);
     assert_eq!(status.mysql, FirstRunPackageStatus::NotInstalled);
     assert_eq!(status.php_extras, FirstRunPackageStatus::NotInstalled);
+    assert_eq!(status.composer, FirstRunPackageStatus::NotInstalled);
+    assert_eq!(status.node_nvm, FirstRunPackageStatus::NotInstalled);
 }
 
 #[tokio::test]
@@ -180,6 +246,8 @@ async fn dry_run_install_returns_preview_without_real_operations() {
             install_php: false,
             install_mysql: false,
             install_php_extras: false,
+            install_composer: false,
+            install_node_nvm: false,
         },
     )
     .await
@@ -191,6 +259,73 @@ async fn dry_run_install_returns_preview_without_real_operations() {
     assert!(!result.contains("php8.5"));
     assert!(!result.contains("mysql-server"));
     assert!(!result.contains("php8.5-mysql"));
+}
+
+#[test]
+fn composer_and_node_nvm_are_not_selected_as_apt_packages() {
+    let options = FirstRunInstallOptions {
+        install_apache: false,
+        install_php: false,
+        install_mysql: false,
+        install_php_extras: false,
+        install_composer: true,
+        install_node_nvm: true,
+    };
+
+    let packages = service::selected_packages(options);
+    let prerequisites = service::selected_runtime_prerequisite_packages(options);
+
+    assert!(packages.is_empty());
+    assert_eq!(
+        prerequisites,
+        vec![
+            "curl".to_string(),
+            "ca-certificates".to_string(),
+            "php-cli".to_string()
+        ]
+    );
+}
+
+#[test]
+fn composer_does_not_duplicate_php_cli_when_php_is_selected() {
+    let options = FirstRunInstallOptions {
+        install_apache: false,
+        install_php: true,
+        install_mysql: false,
+        install_php_extras: false,
+        install_composer: true,
+        install_node_nvm: false,
+    };
+
+    let prerequisites = service::selected_runtime_prerequisite_packages(options);
+
+    assert_eq!(
+        prerequisites,
+        vec!["curl".to_string(), "ca-certificates".to_string()]
+    );
+}
+
+#[tokio::test]
+async fn dry_run_install_preview_includes_runtime_tool_selections() {
+    assert!(devpanel::core::dry_run::active());
+
+    let result = service::run_first_run_install(
+        "local-dev-password".to_string(),
+        FirstRunInstallOptions {
+            install_apache: false,
+            install_php: false,
+            install_mysql: false,
+            install_php_extras: false,
+            install_composer: true,
+            install_node_nvm: true,
+        },
+    )
+    .await
+    .expect("dry-run install should return preview");
+
+    assert!(result.contains("Runtime tools: Composer latest, Node 22 via NVM"));
+    assert!(!result.contains("composer installer"));
+    assert!(!result.contains("nvm"));
 }
 
 #[test]
@@ -222,6 +357,11 @@ fn package_setup_marks_first_run_done_after_full_setup() {
 
     assert!(install_tools.contains("mark_first_run_done()"));
     assert!(install_tools.contains("first_run_done"));
+    assert!(install_tools.contains("setfacl -m \"u:www-data:--x\""));
+    assert!(install_tools.contains("setfacl -R -m \"u:www-data:rX\""));
+    assert!(install_tools.contains("d:u:www-data:rX"));
     assert!(full_setup.contains("mark_first_run_done"));
+    assert!(full_setup.contains("install_composer_if_requested"));
+    assert!(full_setup.contains("install_node_nvm_if_requested"));
     assert!(!projects_only.contains("mark_first_run_done"));
 }

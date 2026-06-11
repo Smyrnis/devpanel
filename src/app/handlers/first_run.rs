@@ -52,6 +52,14 @@ impl App {
                 self.first_run_options.install_php_extras = v;
                 Task::none()
             }
+            FirstRunMessage::ToggleComposer(v) => {
+                self.first_run_options.install_composer = v;
+                Task::none()
+            }
+            FirstRunMessage::ToggleNodeNvm(v) => {
+                self.first_run_options.install_node_nvm = v;
+                Task::none()
+            }
             FirstRunMessage::ScanStatus => Task::perform(
                 crate::installer::service::scan_first_run_status(),
                 |status| Message::FirstRun(FirstRunMessage::StatusScanned(status)),
@@ -79,6 +87,7 @@ impl App {
                     first_run::mark_done();
                     self.first_run_state = first_run::FirstRunState::Hidden;
                     self.tools.scanning = true;
+                    self.dashboard.runtimes_scanning = true;
                     return Task::batch([
                         self.show_toast(msg, ok),
                         Task::perform(
@@ -99,6 +108,11 @@ impl App {
                             ),
                             |r| Message::Tools(ToolsMessage::ScanDone(r)),
                         ),
+                        Task::perform(crate::domain::tools::service::scan_installed_tools(), |r| {
+                            Message::Dashboard(
+                                crate::messages::DashboardMessage::RuntimesRefreshed(r),
+                            )
+                        }),
                     ]);
                 }
                 Task::batch([

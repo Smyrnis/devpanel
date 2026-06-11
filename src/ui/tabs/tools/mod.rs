@@ -1,8 +1,8 @@
 pub mod view;
 
 pub use crate::domain::tools::service::{
-    apt_package_op, apt_php_op, composer_op, redis_service_op, scan_apache_modules,
-    scan_installed_tools, scan_php_extensions, scan_php_versions, switch_php, toggle_apache_module,
+    apt_package_op, apt_php_op, redis_service_op, scan_apache_modules, scan_installed_tools,
+    scan_php_extensions, scan_php_versions, switch_php, toggle_apache_module,
 };
 pub use crate::domain::tools::{
     ApacheModule, InstalledTools, PhpExtension, PhpRelease, PhpStatus, ToolSection,

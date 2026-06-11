@@ -1,7 +1,7 @@
 # DevPanel 
 A lightweight desktop GUI for managing your local PHP development environment on Ubuntu and Debian. Built with Rust and [Iced](https://github.com/iced-rs/iced).
 
-<p> Current version: <strong> 0.12.23 </strong> </p>
+<p> Current version: <strong> 0.26.24 </strong> </p>
 
 ---
 
@@ -27,10 +27,10 @@ The view that devpanel has.
 
 | Tab | What you get |
 |---|---|
-| **Dashboard** | Start, stop and restart Apache and MySQL. Switch PHP versions. Jump to common files and folders with one click. |
+| **Dashboard** | Manage Apache, MySQL, PHP, Composer, and Node/NVM. Jump to common files and folders with one click. |
 | **VirtualHosts** | Add, edit and delete Apache virtual hosts stored in a single `devpanel.conf` file. Edit the raw config directly in the built-in editor. |
 | **SSH Keys** | Generate Ed25519, RSA and ECDSA keys. View all keys in `~/.ssh`. |
-| **Tools** | Install and remove PHP versions, toggle Apache modules, manage PHP extensions, and launch a MySQL terminal. |
+| **Tools** | Manage PHP versions and extensions, Apache modules, Redis, and database terminals. |
 
 ---
 
@@ -46,9 +46,23 @@ The view that devpanel has.
 
 ## Installation
 
-The installation come only as a .deb package for now. 
+Installation is currently provided as a `.deb` package.
 
 Download it [here](https://github.com/Smyrnis/devpanel/packages)
+
+The first-run installer offers Composer and Node through NVM as optional
+components. Composer is installed globally. NVM and Node are installed for the
+desktop user, not root.
+
+Apache and PHP-FPM receive inherited read/traverse ACL access to `~/projects`.
+Writable application directories such as framework caches, uploads, or storage
+remain project-specific and are not made globally writable.
+
+After installation, use the Composer and Node sections on the **Dashboard** to:
+
+- Install or update Composer and select a Composer release channel.
+- Install NVM and install, select, or set the default Node version.
+- View the detected Composer, Node, npm, and NVM status.
 
 ---
 
@@ -60,6 +74,11 @@ Settings are stored in `~/.config/devpanel/config.toml` and created automaticall
 devpanel_conf = "/etc/apache2/sites-available/devpanel.conf"
 hosts_file    = "/etc/hosts"
 ```
+
+Runtime version choices are read from:
+
+- `/usr/share/devpanel/versions/composer.json`
+- `/usr/share/devpanel/versions/node.json`
 
 ---
 

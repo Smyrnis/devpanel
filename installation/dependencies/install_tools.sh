@@ -10,7 +10,31 @@ create_projects_dir() {
         log_info "Already exists: $PROJECTS_DIR"
     fi
     safe_chown "$REAL_USER:www-data" "$PROJECTS_DIR"
-    safe_chmod 755 "$PROJECTS_DIR"
+    safe_chmod 2755 "$PROJECTS_DIR"
+    configure_projects_runtime_access
+}
+
+configure_projects_runtime_access() {
+    if ! command_exists setfacl; then
+        log_err "setfacl is required to grant Apache and PHP-FPM project access"
+        log_err "Install the acl package and run setup again"
+        return 1
+    fi
+
+    log_info "Granting www-data traversal access to $USER_HOME"
+    run_cmd "set home traversal ACL" setfacl -m "u:www-data:--x" "$USER_HOME" \
+        || return 1
+
+    log_info "Granting www-data read and traversal access to existing projects"
+    run_cmd "set project runtime ACL" setfacl -R -m "u:www-data:rX" "$PROJECTS_DIR" \
+        || return 1
+
+    log_info "Setting inherited www-data access on project directories"
+    run_cmd "set default project runtime ACL" \
+        find "$PROJECTS_DIR" -type d -exec setfacl -m "d:u:www-data:rX" {} + \
+        || return 1
+
+    log_ok "Apache and PHP-FPM can read project files"
 }
 
 install_welcome_page() {

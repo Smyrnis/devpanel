@@ -3,6 +3,7 @@ pub mod view;
 pub use crate::domain::dashboard::DashboardService;
 
 use crate::core::paths;
+use crate::domain::tools::InstalledTools;
 use crate::messages::Message;
 use iced::Element;
 
@@ -18,6 +19,10 @@ pub struct DashboardTab {
     pub php_info: Option<String>,
     pub php_info_loading: bool,
     pub expanded_service: Option<DashboardService>,
+    pub installed_tools: InstalledTools,
+    pub runtimes_scanning: bool,
+    pub selected_composer_version: String,
+    pub selected_node_version: String,
 }
 
 impl DashboardTab {
@@ -34,6 +39,10 @@ impl DashboardTab {
             php_info: None,
             php_info_loading: false,
             expanded_service: Some(DashboardService::Apache),
+            installed_tools: InstalledTools::default(),
+            runtimes_scanning: false,
+            selected_composer_version: crate::core::app_config::default_composer_version(),
+            selected_node_version: crate::core::app_config::default_node_version(),
         }
     }
 
@@ -56,6 +65,11 @@ impl DashboardTab {
 
     pub fn set_php_versions(&mut self, versions: Vec<String>) {
         self.php_versions = versions;
+    }
+
+    pub fn apply_runtime_scan(&mut self, tools: InstalledTools) {
+        self.installed_tools = tools;
+        self.runtimes_scanning = false;
     }
 
     pub fn view(&self, compact: bool) -> Element<'_, Message> {
