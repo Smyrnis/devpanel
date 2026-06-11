@@ -4,9 +4,13 @@ use std::sync::{OnceLock, RwLock};
 
 const UI_FALLBACK: &str = include_str!("../../share/ui/config.json");
 const PHP_FALLBACK: &str = include_str!("../../share/versions/php.json");
+const COMPOSER_FALLBACK: &str = include_str!("../../share/versions/composer.json");
+const NODE_FALLBACK: &str = include_str!("../../share/versions/node.json");
 
 static UI_CONFIG: OnceLock<RwLock<Value>> = OnceLock::new();
 static PHP_CONFIG: OnceLock<Value> = OnceLock::new();
+static COMPOSER_CONFIG: OnceLock<Value> = OnceLock::new();
+static NODE_CONFIG: OnceLock<Value> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct PhpVersionSpec {
@@ -468,6 +472,26 @@ pub fn php_version_numbers() -> Vec<String> {
         .collect()
 }
 
+pub fn default_composer_version() -> String {
+    string(composer_config(), &["default"], "latest")
+}
+
+pub fn composer_versions() -> Vec<String> {
+    string_array(
+        composer_config(),
+        &["available"],
+        &["latest", "2", "rollback"],
+    )
+}
+
+pub fn default_node_version() -> String {
+    string(node_config(), &["default"], "22")
+}
+
+pub fn node_versions() -> Vec<String> {
+    string_array(node_config(), &["available"], &["20", "22", "24", "node"])
+}
+
 struct UiConfigValues {
     window_width: f32,
     window_height: f32,
@@ -583,6 +607,28 @@ fn php_config() -> &'static Value {
     })
 }
 
+fn composer_config() -> &'static Value {
+    COMPOSER_CONFIG.get_or_init(|| {
+        load_config(
+            "DEVPANEL_COMPOSER_VERSIONS",
+            &["share", "versions", "composer.json"],
+            "/usr/share/devpanel/versions/composer.json",
+            COMPOSER_FALLBACK,
+        )
+    })
+}
+
+fn node_config() -> &'static Value {
+    NODE_CONFIG.get_or_init(|| {
+        load_config(
+            "DEVPANEL_NODE_VERSIONS",
+            &["share", "versions", "node.json"],
+            "/usr/share/devpanel/versions/node.json",
+            NODE_FALLBACK,
+        )
+    })
+}
+
 fn load_config(env_key: &str, local_parts: &[&str], installed_path: &str, fallback: &str) -> Value {
     load_config_from_paths(config_paths(env_key, local_parts, installed_path), fallback)
 }
@@ -660,6 +706,21 @@ fn string(root: &Value, path: &[&str], fallback: &str) -> String {
         .and_then(Value::as_str)
         .unwrap_or(fallback)
         .to_string()
+}
+
+fn string_array(root: &Value, path: &[&str], fallback: &[&str]) -> Vec<String> {
+    let values = value(root, path)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty());
+
+    values.unwrap_or_else(|| fallback.iter().map(|item| item.to_string()).collect())
 }
 
 fn parse_f32(label: &str, input: &str, min: f32) -> Result<f32, String> {

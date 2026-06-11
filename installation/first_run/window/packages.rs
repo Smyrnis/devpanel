@@ -131,6 +131,61 @@ pub(super) fn install_rows<'a>(
                     .into(),
             ],
         ),
+        install_row(
+            InstallGroup {
+                package_group: FirstRunPackage::Composer,
+                icon: Icon::Tools,
+                title: "Composer",
+                requirement: "optional",
+                packages: vec![
+                    "curl".to_string(),
+                    "ca-certificates".to_string(),
+                    "composer installer".to_string(),
+                ],
+            },
+            status.status_for(FirstRunPackage::Composer),
+            options.install_composer,
+            expanded == Some(FirstRunPackage::Composer),
+            vec![
+                checkbox("", options.install_composer)
+                    .on_toggle_maybe(if installing {
+                        None
+                    } else {
+                        Some(|v| Message::FirstRun(FirstRunMessage::ToggleComposer(v)))
+                    })
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
+                    .style(styles::checkbox_style)
+                    .into(),
+            ],
+        ),
+        install_row(
+            InstallGroup {
+                package_group: FirstRunPackage::NodeNvm,
+                icon: Icon::Code,
+                title: "Node via NVM",
+                requirement: "optional",
+                packages: vec![
+                    "curl".to_string(),
+                    "ca-certificates".to_string(),
+                    "nvm".to_string(),
+                    format!("node {}", crate::core::app_config::default_node_version()),
+                ],
+            },
+            status.status_for(FirstRunPackage::NodeNvm),
+            options.install_node_nvm,
+            expanded == Some(FirstRunPackage::NodeNvm),
+            vec![
+                checkbox("", options.install_node_nvm)
+                    .on_toggle_maybe(if installing {
+                        None
+                    } else {
+                        Some(|v| Message::FirstRun(FirstRunMessage::ToggleNodeNvm(v)))
+                    })
+                    .size(crate::core::app_config::control_metrics().checkbox_size)
+                    .style(styles::checkbox_style)
+                    .into(),
+            ],
+        ),
     ])
 }
 
@@ -252,6 +307,8 @@ fn install_reason(title: &str) -> &'static str {
         "Latest PHP" => "Optional latest PHP runtime and Apache module.",
         "MySQL" => "Optional database server for local LAMP projects.",
         "Latest PHP Extras" => "Optional latest PHP extensions commonly needed by web apps.",
+        "Composer" => "Optional PHP dependency manager installed globally.",
+        "Node via NVM" => "Optional JavaScript runtime managed per user through NVM.",
         _ => "Package group used by the local development stack.",
     }
 }

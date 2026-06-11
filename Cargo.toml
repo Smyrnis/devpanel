@@ -1,6 +1,6 @@
 [package]
 name = "devpanel"
-version = "0.25.32"
+version = "0.26.25"
 edition = "2024"
 description = "Local development environment manager for Debian/Ubuntu"
 authors = ["Giannis Smyrnis <smyrnisgiannis@gmail.com>"]
@@ -47,7 +47,7 @@ DevPanel is a desktop GUI for managing your local development environment.
 Control Apache, MySQL and PHP services, create Apache VirtualHosts,
 and manage SSH keys — all from a single polished interface.
 """
-depends = "$auto"
+depends = "$auto, acl"
 section = "devel"
 priority = "optional"
 assets = [
@@ -57,6 +57,8 @@ assets = [
   ["share/index.php",                  "usr/share/devpanel/",             "644"],
   ["share/ui/config.json",             "usr/share/devpanel/ui/",          "644"],
   ["share/versions/php.json",          "usr/share/devpanel/versions/",    "644"],
+  ["share/versions/composer.json",     "usr/share/devpanel/versions/",    "644"],
+  ["share/versions/node.json",         "usr/share/devpanel/versions/",    "644"],
   ["share/languages/en.json",          "usr/share/devpanel/languages/",   "644"],
   ["share/themes/default.json",           "usr/share/devpanel/themes/",      "644"],
   ["scripts/devpanel-setup.sh",        "usr/share/devpanel/",             "755"],
@@ -69,6 +71,8 @@ assets = [
   ["installation/dependencies/common.sh",         "usr/share/devpanel/installation/dependencies/","755"],
   ["installation/dependencies/install_apache.sh", "usr/share/devpanel/installation/dependencies/","755"],
   ["installation/dependencies/install_php.sh",    "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_composer.sh", "usr/share/devpanel/installation/dependencies/","755"],
+  ["installation/dependencies/install_node.sh",   "usr/share/devpanel/installation/dependencies/","755"],
   ["installation/dependencies/install_mysql.sh",  "usr/share/devpanel/installation/dependencies/","755"],
   ["installation/dependencies/setup_vhost.sh",    "usr/share/devpanel/installation/dependencies/","755"],
   ["installation/dependencies/install_tools.sh",  "usr/share/devpanel/installation/dependencies/","755"],

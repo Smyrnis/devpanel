@@ -5,6 +5,8 @@ pub enum FirstRunPackage {
     Php,
     Mysql,
     PhpExtras,
+    Composer,
+    NodeNvm,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -13,6 +15,8 @@ pub struct FirstRunInstallOptions {
     pub install_php: bool,
     pub install_mysql: bool,
     pub install_php_extras: bool,
+    pub install_composer: bool,
+    pub install_node_nvm: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +32,8 @@ pub struct FirstRunSetupStatus {
     pub php: FirstRunPackageStatus,
     pub mysql: FirstRunPackageStatus,
     pub php_extras: FirstRunPackageStatus,
+    pub composer: FirstRunPackageStatus,
+    pub node_nvm: FirstRunPackageStatus,
 }
 
 impl Default for FirstRunSetupStatus {
@@ -38,6 +44,8 @@ impl Default for FirstRunSetupStatus {
             php: FirstRunPackageStatus::NotInstalled,
             mysql: FirstRunPackageStatus::NotInstalled,
             php_extras: FirstRunPackageStatus::NotInstalled,
+            composer: FirstRunPackageStatus::NotInstalled,
+            node_nvm: FirstRunPackageStatus::NotInstalled,
         }
     }
 }
@@ -50,6 +58,8 @@ impl FirstRunSetupStatus {
             FirstRunPackage::Php => self.php,
             FirstRunPackage::Mysql => self.mysql,
             FirstRunPackage::PhpExtras => self.php_extras,
+            FirstRunPackage::Composer => self.composer,
+            FirstRunPackage::NodeNvm => self.node_nvm,
         }
     }
 }

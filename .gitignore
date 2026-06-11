@@ -1,5 +1,4 @@
 # Remove unnecessary files.
-# Remove lock file
 # Cargo.lock
 
 # The cargo.lock file auto made through carogo build command.
@@ -22,4 +21,3 @@ CHANGES.md
 
 # Ignore images
 images
-

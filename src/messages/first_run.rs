@@ -9,6 +9,8 @@ pub enum FirstRunMessage {
     TogglePhp(bool),
     ToggleMysql(bool),
     TogglePhpExtras(bool),
+    ToggleComposer(bool),
+    ToggleNodeNvm(bool),
     ScanStatus,
     StatusScanned(FirstRunSetupStatus),
     ProgressTick,

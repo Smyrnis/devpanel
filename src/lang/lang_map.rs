@@ -108,6 +108,22 @@ pub mod dashboard {
     pub const NOT_AVAILABLE_SHORT: &str = "dashboard.not_available_short";
     pub const PHP_NOT_DETECTED: &str = "dashboard.php_not_detected";
     pub const ACTIVE_VERSION: &str = "dashboard.active_version";
+    pub const COMPOSER: &str = "dashboard.composer";
+    pub const COMPOSER_VERSION: &str = "dashboard.composer_version";
+    pub const NODE_JS: &str = "dashboard.node_js";
+    pub const NODE_VERSION: &str = "dashboard.node_version";
+    pub const NPM_VERSION: &str = "dashboard.npm_version";
+    pub const NVM: &str = "dashboard.nvm";
+    pub const AVAILABLE: &str = "dashboard.available";
+    pub const NOT_INSTALLED: &str = "dashboard.not_installed";
+    pub const VERSION_MANAGEMENT: &str = "dashboard.version_management";
+    pub const INSTALL: &str = "dashboard.install";
+    pub const UPDATE: &str = "dashboard.update";
+    pub const APPLY_VERSION: &str = "dashboard.apply_version";
+    pub const INSTALL_NVM: &str = "dashboard.install_nvm";
+    pub const INSTALL_VERSION: &str = "dashboard.install_version";
+    pub const USE_VERSION: &str = "dashboard.use_version";
+    pub const SET_DEFAULT: &str = "dashboard.set_default";
 }
 
 pub mod install {
@@ -235,18 +251,9 @@ pub mod tools {
     pub const MYSQL_SOCKET_HELP: &str = "tools.mysql_socket_help";
     pub const OPEN: &str = "tools.open";
     pub const AVAILABLE: &str = "tools.available";
-    pub const COMPOSER_NODE_REDIS: &str = "tools.composer_node_redis";
+    pub const REDIS_RUNTIME: &str = "tools.redis_runtime";
     pub const RUNTIMES_HELP: &str = "tools.runtimes_help";
     pub const NO_TOOLS_MATCH: &str = "tools.no_tools_match";
-    pub const UPDATE: &str = "tools.update";
-    pub const COMPOSER: &str = "tools.composer";
-    pub const NOT_INSTALLED: &str = "tools.not_installed";
-    pub const NODE_NOT_INSTALLED: &str = "tools.node_not_installed";
-    pub const NPM_NOT_INSTALLED: &str = "tools.npm_not_installed";
-    pub const NVM_AVAILABLE: &str = "tools.nvm_available";
-    pub const NVM_NOT_FOUND: &str = "tools.nvm_not_found";
-    pub const NVM_COMMAND: &str = "tools.nvm_command";
-    pub const NODE_JS: &str = "tools.node_js";
     pub const REDIS_NOT_INSTALLED: &str = "tools.redis_not_installed";
     pub const REDIS_RUNNING: &str = "tools.redis_running";
     pub const REDIS_STOPPED: &str = "tools.redis_stopped";

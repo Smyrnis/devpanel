@@ -205,6 +205,43 @@ where
             padding: [7, 14],
             radius: 8.0,
             height: 36.0,
+            width: 0.0,
+        },
+    )
+}
+
+pub fn action_icon_button<'a, Message>(
+    icon: Icon,
+    label: &'a str,
+    color: Color,
+    bg: Color,
+    bg_hover: Color,
+    border: Color,
+    on_press: Option<Message>,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    action_button_with_content(
+        row![
+            icon_box(icon, 12.0, color, 14.0),
+            Space::with_width(7),
+            text(label)
+                .size(app_config::text_metrics().caption)
+                .color(color),
+        ]
+        .align_y(Alignment::Center)
+        .into(),
+        on_press,
+        ActionButtonStyle {
+            color,
+            bg,
+            bg_hover,
+            border,
+            padding: [7, 13],
+            radius: 7.0,
+            height: 36.0,
+            width: 90.0,
         },
     )
 }
@@ -231,6 +268,7 @@ where
             padding: [6, 12],
             radius: 8.0,
             height: 34.0,
+            width: 0.0,
         },
     )
 }
@@ -243,6 +281,7 @@ struct ActionButtonStyle {
     padding: [u16; 2],
     radius: f32,
     height: f32,
+    width: f32,
 }
 
 fn action_button_with_style<'a, Message>(
@@ -274,6 +313,11 @@ where
     let btn = button(content)
         .padding(Padding::from(style.padding))
         .height(Length::Fixed(style.height))
+        .width(if style.width > 0.0 {
+            Length::Fixed(style.width)
+        } else {
+            Length::Shrink
+        })
         .style(move |_, status| match status {
             iced::widget::button::Status::Disabled => iced::widget::button::Style {
                 background: Some(theme::color(theme_keys::BG_SURFACE).into()),

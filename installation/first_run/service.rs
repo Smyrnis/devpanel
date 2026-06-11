@@ -21,6 +21,18 @@ pub fn selected_packages(options: FirstRunInstallOptions) -> Vec<String> {
     packages
 }
 
+pub fn selected_runtime_prerequisite_packages(options: FirstRunInstallOptions) -> Vec<String> {
+    let mut packages = Vec::new();
+    if options.install_composer || options.install_node_nvm {
+        packages.push("curl".to_string());
+        packages.push("ca-certificates".to_string());
+    }
+    if options.install_composer && !options.install_php {
+        packages.push("php-cli".to_string());
+    }
+    packages
+}
+
 pub async fn scan_first_run_status() -> FirstRunSetupStatus {
     if dry_run::active() {
         return FirstRunSetupStatus::default();
@@ -32,6 +44,8 @@ pub async fn scan_first_run_status() -> FirstRunSetupStatus {
         php: package_group_status(&latest_php_packages()),
         mysql: package_group_status(&["mysql-server".to_string()]),
         php_extras: package_group_status(&latest_php_extra_packages()),
+        composer: composer_status(),
+        node_nvm: node_nvm_status(),
     }
 }
 
@@ -55,11 +69,62 @@ fn package_group_status(packages: &[String]) -> FirstRunPackageStatus {
     }
 }
 
+fn command_status(command: &str, args: &[&str]) -> FirstRunPackageStatus {
+    if std::process::Command::new(command)
+        .args(args)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+    {
+        FirstRunPackageStatus::Installed
+    } else {
+        FirstRunPackageStatus::NotInstalled
+    }
+}
+
+fn composer_status() -> FirstRunPackageStatus {
+    command_status("composer", &["--version"])
+}
+
+fn node_nvm_status() -> FirstRunPackageStatus {
+    let home = match std::env::var("HOME") {
+        Ok(home) => home,
+        Err(_) => return FirstRunPackageStatus::NotInstalled,
+    };
+    let nvm = std::path::Path::new(&home).join(".nvm/nvm.sh");
+    if nvm.exists() && nvm_command_status(&home, "node --version") {
+        FirstRunPackageStatus::Installed
+    } else {
+        FirstRunPackageStatus::NotInstalled
+    }
+}
+
+fn nvm_command_status(home: &str, command: &str) -> bool {
+    let script = tools::nvm_runtime_probe_script(command);
+    std::process::Command::new("bash")
+        .args(["-lc", &script])
+        .env("HOME", home)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 pub async fn run_first_run_install(
     password: String,
     options: FirstRunInstallOptions,
 ) -> DevPanelResult {
     let packages = selected_packages(options);
+    let runtime_prerequisites = selected_runtime_prerequisite_packages(options);
+    let mut apt_packages = packages.clone();
+    for package in runtime_prerequisites {
+        if !apt_packages.contains(&package) {
+            apt_packages.push(package);
+        }
+    }
 
     if dry_run::active() {
         setup_log::append_setup_log(LogLevel::Info, "First-run dry-run preview requested");
@@ -68,9 +133,10 @@ pub async fn run_first_run_install(
         } else {
             packages.join(", ")
         };
+        let runtime_list = selected_runtime_tools_label(options);
         return Ok(format!(
-            "[dry-run] Would create the projects directory.\n[dry-run] Optional packages: {}",
-            pkg_list
+            "[dry-run] Would create the projects directory.\n[dry-run] Optional packages: {}\n[dry-run] Runtime tools: {}",
+            pkg_list, runtime_list
         ));
     }
 
@@ -86,10 +152,17 @@ pub async fn run_first_run_install(
             }
         ),
     );
+    setup_log::append_setup_log(
+        LogLevel::Info,
+        &format!(
+            "Selected runtime tools: {}",
+            selected_runtime_tools_label(options)
+        ),
+    );
 
     run_projects_dir_setup_script(&password).await?;
 
-    if !packages.is_empty() {
+    if !apt_packages.is_empty() {
         if options.install_php || options.install_php_extras {
             setup_log::append_setup_log(LogLevel::Cmd, "ensure ppa:ondrej/php");
             php::ensure_ondrej_php_ppa(&password).await.map_err(|e| {
@@ -111,9 +184,9 @@ pub async fn run_first_run_install(
 
         setup_log::append_setup_log(
             LogLevel::Cmd,
-            &format!("apt-get install -y {}", packages.join(" ")),
+            &format!("apt-get install -y {}", apt_packages.join(" ")),
         );
-        let package_refs: Vec<&str> = packages.iter().map(String::as_str).collect();
+        let package_refs: Vec<&str> = apt_packages.iter().map(String::as_str).collect();
         tools::apt_install_packages(&password, &package_refs)
             .await
             .map_err(|e| {
@@ -126,6 +199,39 @@ pub async fn run_first_run_install(
         setup_log::append_setup_log(LogLevel::Ok, "Package install completed");
     } else {
         setup_log::append_setup_log(LogLevel::Info, "No optional packages selected");
+    }
+
+    if options.install_composer {
+        let version = crate::core::app_config::default_composer_version();
+        setup_log::append_setup_log(
+            LogLevel::Cmd,
+            &format!("Install Composer {}", version_label(&version)),
+        );
+        tools::install_composer(&password, Some(&version))
+            .await
+            .map_err(|e| {
+                setup_log::append_setup_log(
+                    LogLevel::Error,
+                    &format!("Composer install failed: {e}"),
+                );
+                DevPanelError::Sudo(format!("Composer install failed: {}", e))
+            })?;
+        setup_log::append_setup_log(LogLevel::Ok, "Composer install completed");
+    }
+
+    if options.install_node_nvm {
+        let version = crate::core::app_config::default_node_version();
+        setup_log::append_setup_log(LogLevel::Cmd, &format!("Install NVM and Node {version}"));
+        tools::install_nvm_and_node(&password, &version)
+            .await
+            .map_err(|e| {
+                setup_log::append_setup_log(
+                    LogLevel::Error,
+                    &format!("Node/NVM install failed: {e}"),
+                );
+                DevPanelError::Sudo(format!("Node/NVM install failed: {}", e))
+            })?;
+        setup_log::append_setup_log(LogLevel::Ok, "Node/NVM install completed");
     }
 
     if options.install_apache || options.install_php {
@@ -203,6 +309,35 @@ pub async fn run_first_run_install(
 
     setup_log::append_setup_log(LogLevel::Ok, "In-app first-run setup complete");
     Ok("Setup complete".into())
+}
+
+fn selected_runtime_tools_label(options: FirstRunInstallOptions) -> String {
+    let mut tools = Vec::new();
+    if options.install_composer {
+        tools.push(format!(
+            "Composer {}",
+            version_label(&crate::core::app_config::default_composer_version())
+        ));
+    }
+    if options.install_node_nvm {
+        tools.push(format!(
+            "Node {} via NVM",
+            crate::core::app_config::default_node_version()
+        ));
+    }
+    if tools.is_empty() {
+        "none".to_string()
+    } else {
+        tools.join(", ")
+    }
+}
+
+fn version_label(version: &str) -> &str {
+    if version == "latest" {
+        "latest"
+    } else {
+        version
+    }
 }
 
 async fn run_projects_dir_setup_script(password: &str) -> DevPanelResult {

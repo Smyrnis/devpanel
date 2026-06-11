@@ -41,10 +41,6 @@ impl App {
                 self.handle_tools_installed_tools_scanned(tools)
             }
 
-            ToolsMessage::InstallComposer => self.handle_tools_composer(false),
-            ToolsMessage::UpdateComposer => self.handle_tools_composer(true),
-            ToolsMessage::ComposerDone(ok, msg) => self.handle_tools_composer_done(ok, msg),
-            ToolsMessage::CopyNvmInstallCommand => self.handle_tools_copy_nvm_install_command(),
             ToolsMessage::RedisStart => self.handle_tools_redis("start"),
             ToolsMessage::RedisStop => self.handle_tools_redis("stop"),
             ToolsMessage::RedisDone(ok, msg) => self.handle_tools_redis_done(ok, msg),

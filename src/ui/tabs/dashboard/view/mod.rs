@@ -24,12 +24,18 @@ pub fn render(tab: &DashboardTab, compact: bool) -> Element<'_, Message> {
         rows::service_block(tab, DashboardService::MySql),
         rows::service_block(tab, DashboardService::Php),
     ]);
+    let runtime_rows = ui::row_group(vec![
+        rows::service_block(tab, DashboardService::Composer),
+        rows::service_block(tab, DashboardService::Node),
+    ]);
 
     let content = scrollable(
         column![
             header,
             Space::with_height(18),
             service_rows,
+            Space::with_height(10),
+            runtime_rows,
             Space::with_height(24)
         ]
         .spacing(0)

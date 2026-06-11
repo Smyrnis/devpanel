@@ -20,8 +20,23 @@ Scripts under `installation/dependencies/` own one setup area each:
 - `install_apache.sh` - Apache packages and service setup.
 - `install_php.sh` - PHP-FPM and Apache proxy setup.
 - `install_mysql.sh` - MySQL packages and service setup.
+- `install_composer.sh` - optional Composer installer and version selector.
+- `install_node.sh` - optional per-user NVM and Node installer.
 - `setup_vhost.sh` - default DevPanel virtual host setup.
 - `install_tools.sh` - shared project directory and support-tool setup helpers.
+
+Composer and Node/NVM package-time setup is opt-in. Set
+`DEVPANEL_INSTALL_COMPOSER=1` and optionally `DEVPANEL_COMPOSER_VERSION` to
+install Composer during `devpanel-setup.sh`. Set `DEVPANEL_INSTALL_NODE_NVM=1`
+and optionally `DEVPANEL_NODE_VERSION` to install NVM and Node for the detected
+target user. Composer setup installs `php-cli` when needed and verifies the
+official installer SHA-384 signature before execution.
+
+The package depends on `acl`. Project setup grants `www-data` traversal access
+to the target user's home, recursive read/traverse access under `~/projects`,
+and default ACLs for newly created project files and directories. It does not
+grant blanket write access; framework cache, upload, and storage directories
+must be made writable explicitly when required.
 
 ## Library Scripts
 

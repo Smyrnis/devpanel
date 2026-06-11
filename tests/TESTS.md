@@ -47,8 +47,8 @@ tests/
   config.rs      -> tests/config/config_test.rs
   core.rs        -> tests/core/dry_run_test.rs
   db.rs          -> tests/db/db_test.rs
-  setup.rs       -> tests/setup/setup_log_test.rs
-  system.rs      -> tests/system/system_test.rs
+  setup.rs       -> setup log and first-run tests
+  system.rs      -> system, PHP operation, and runtime operation tests
   vhosts.rs      -> tests/vhosts/vhosts_backend_test.rs
 ```
 
@@ -202,26 +202,36 @@ that is itself verified by `dry_run_test.rs`.
 
 ## CI integration
 
-Minimal GitHub Actions workflow:
+CI runs formatting, compilation, Clippy, tests, shell syntax checks, and a full
+Debian package build. The resulting archive is validated with:
 
-```yaml
-# .github/workflows/test.yml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get install -y libgtk-3-dev
-      - run: cargo test
+```bash
+scripts/verify-deb.sh target/debian/devpanel_*.deb
 ```
 
-The `libgtk-3-dev` package is required because `rfd` (the file dialog crate)
-links against GTK even on headless systems.
+This verifies required runtime metadata, installer scripts, application icon,
+binary permissions, and the Debian post-install hook.
+
+Composer and Node/NVM package-time installers are tested without root or network
+access by replacing `run_cmd` with a recorder:
+
+```bash
+tests/shell/runtime_installers_test.sh
+```
+
+The shell tests cover skip behavior, prerequisites, Composer checksum
+verification, target-user NVM execution, version propagation, failure
+short-circuiting, and shell-safe Node version quoting.
+
+Project permission setup is tested separately:
+
+```bash
+tests/shell/project_permissions_test.sh
+```
+
+This verifies traversal ACLs on the target user's home, recursive read/traverse
+ACLs for existing projects, inherited ACLs for future project files, and clear
+failure when the required `setfacl` command is unavailable.
 
 ---
 

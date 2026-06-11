@@ -1,0 +1,8 @@
+{
+  "default": "latest",
+  "available": [
+    "latest",
+    "2",
+    "rollback"
+  ]
+}

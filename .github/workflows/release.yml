@@ -51,6 +51,9 @@ jobs:
       - name: Build package
         run: cargo deb
 
+      - name: Verify package
+        run: scripts/verify-deb.sh target/debian/devpanel_*.deb
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

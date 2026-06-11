@@ -10,8 +10,8 @@ mod vhosts;
 pub use dashboard::{PhpSwitchCommand, ServiceControlCommand};
 pub use first_run::FirstRunInstallCommand;
 pub use tools::{
-    ApacheModToggleCommand, AptPackageCommand, ComposerCommand, PhpInstallCommand,
-    RedisServiceCommand,
+    ApacheModToggleCommand, AptPackageCommand, ComposerCommand, ComposerVersionCommand,
+    NodeNvmAction, NodeNvmCommand, PhpInstallCommand, RedisServiceCommand,
 };
 pub use vhosts::{
     SaveConfigCommand, VHostAddCommand, VHostBulkDeleteCommand, VHostDeleteCommand,

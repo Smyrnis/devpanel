@@ -6,7 +6,10 @@ use crate::core::setup_log;
 
 use crate::core::paths;
 
-use crate::infra::sudo_prompt::{PhpSwitchCommand, ServiceControlCommand, boxed};
+use crate::infra::sudo_prompt::{
+    ComposerCommand, ComposerVersionCommand, NodeNvmAction, NodeNvmCommand, PhpSwitchCommand,
+    ServiceControlCommand, boxed,
+};
 
 use crate::infra::system::{open_db_terminal, open_php_ini, open_url, xdg_open};
 
@@ -17,6 +20,13 @@ fn probe_dashboard_task() -> Task<Message> {
     Task::perform(
         crate::domain::dashboard::service::probe_services(),
         |snapshot| Message::Dashboard(DashboardMessage::StatusRefreshed(snapshot)),
+    )
+}
+
+fn probe_runtimes_task() -> Task<Message> {
+    Task::perform(
+        crate::domain::tools::service::scan_installed_tools(),
+        |tools| Message::Dashboard(DashboardMessage::RuntimesRefreshed(tools)),
     )
 }
 
@@ -113,6 +123,54 @@ impl App {
 
             DashboardMessage::PhpSwitchResult(ok, msg) => {
                 Task::batch([self.show_toast(msg, ok), probe_dashboard_task()])
+            }
+
+            DashboardMessage::RuntimesRefreshed(tools) => {
+                self.dashboard.apply_runtime_scan(tools);
+                Task::none()
+            }
+            DashboardMessage::ComposerVersionSelected(version) => {
+                self.dashboard.selected_composer_version = version;
+                Task::none()
+            }
+            DashboardMessage::InstallComposer => {
+                self.trigger_sudo(boxed(ComposerCommand { update: false }))
+            }
+            DashboardMessage::UpdateComposer => {
+                self.trigger_sudo(boxed(ComposerCommand { update: true }))
+            }
+            DashboardMessage::SwitchComposerVersion(version) => {
+                self.trigger_sudo(boxed(ComposerVersionCommand { version }))
+            }
+            DashboardMessage::ComposerDone(ok, msg) => {
+                self.dashboard.runtimes_scanning = true;
+                Task::batch([self.show_toast(msg, ok), probe_runtimes_task()])
+            }
+            DashboardMessage::NodeVersionSelected(version) => {
+                self.dashboard.selected_node_version = version;
+                Task::none()
+            }
+            DashboardMessage::InstallNvm => self.trigger_sudo(boxed(NodeNvmCommand {
+                action: NodeNvmAction::InstallNvm,
+            })),
+            DashboardMessage::InstallNodeVersion(version) => {
+                self.trigger_sudo(boxed(NodeNvmCommand {
+                    action: NodeNvmAction::InstallNode(version),
+                }))
+            }
+            DashboardMessage::SwitchNodeVersion(version) => {
+                self.trigger_sudo(boxed(NodeNvmCommand {
+                    action: NodeNvmAction::SwitchNode(version),
+                }))
+            }
+            DashboardMessage::SetDefaultNodeVersion(version) => {
+                self.trigger_sudo(boxed(NodeNvmCommand {
+                    action: NodeNvmAction::SetDefaultNode(version),
+                }))
+            }
+            DashboardMessage::NodeNvmDone(ok, msg) => {
+                self.dashboard.runtimes_scanning = true;
+                Task::batch([self.show_toast(msg, ok), probe_runtimes_task()])
             }
 
             DashboardMessage::ShowPhpInfo => {

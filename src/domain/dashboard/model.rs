@@ -3,6 +3,8 @@ pub enum DashboardService {
     Apache,
     MySql,
     Php,
+    Composer,
+    Node,
 }
 
 #[derive(Debug, Clone)]

@@ -186,9 +186,19 @@ pub async fn switch_php(version: String, password: String) -> DevPanelResult {
 
 pub async fn scan_installed_tools() -> InstalledTools {
     let composer_version = command_first_line("composer", &["--version"]).await;
-    let node_version = command_first_line("node", &["--version"]).await;
-    let npm_version = command_first_line("npm", &["--version"]).await;
-    let nvm_available = get_home().join(".nvm/nvm.sh").exists();
+    let home = get_home();
+    let nvm_available = home.join(".nvm/nvm.sh").exists();
+    let (node_version, npm_version) = if nvm_available {
+        (
+            nvm_command_first_line(&home, "node --version").await,
+            nvm_command_first_line(&home, "npm --version").await,
+        )
+    } else {
+        (
+            command_first_line("node", &["--version"]).await,
+            command_first_line("npm", &["--version"]).await,
+        )
+    };
     let redis_installed = command_first_line("redis-server", &["--version"])
         .await
         .is_some();
@@ -210,6 +220,29 @@ pub async fn scan_installed_tools() -> InstalledTools {
     }
 }
 
+async fn nvm_command_first_line(home: &std::path::Path, command: &str) -> Option<String> {
+    if crate::core::dry_run::active() {
+        return None;
+    }
+
+    let output = Command::new("bash")
+        .args(["-lc", &tools::nvm_runtime_probe_script(command)])
+        .env("HOME", home)
+        .output()
+        .await
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+}
+
 pub async fn composer_op(update: bool, password: String) -> DevPanelResult {
     tools::composer_op(&password, update).await.map_err(|e| {
         if update {
@@ -223,6 +256,41 @@ pub async fn composer_op(update: bool, password: String) -> DevPanelResult {
     } else {
         "Composer installed globally".into()
     })
+}
+
+pub async fn switch_composer_version(version: String, password: String) -> DevPanelResult {
+    tools::switch_composer_version(&password, &version)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Composer version switch failed: {}", e)))?;
+    Ok(format!("Composer {} selected", version))
+}
+
+pub async fn install_nvm(password: String) -> DevPanelResult {
+    tools::install_nvm(&password)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("NVM install failed: {}", e)))?;
+    Ok("NVM installed".into())
+}
+
+pub async fn install_node_version(version: String, password: String) -> DevPanelResult {
+    tools::install_node_version(&password, &version)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Node install failed: {}", e)))?;
+    Ok(format!("Node {} installed", version))
+}
+
+pub async fn switch_node_version(version: String, password: String) -> DevPanelResult {
+    tools::switch_node_version(&password, &version)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Node switch failed: {}", e)))?;
+    Ok(format!("Node {} selected", version))
+}
+
+pub async fn set_default_node_version(version: String, password: String) -> DevPanelResult {
+    tools::set_default_node_version(&password, &version)
+        .await
+        .map_err(|e| DevPanelError::Sudo(format!("Node default switch failed: {}", e)))?;
+    Ok(format!("Node {} set as default", version))
 }
 
 pub async fn redis_service_op(action: String, password: String) -> DevPanelResult {

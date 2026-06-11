@@ -26,6 +26,10 @@ LOG_FILE="${LOG_FILE:-$DEV_LOG_FILE}"
 # shellcheck source=/dev/null
 . "$DEPS_DIR/install_mysql.sh"
 # shellcheck source=/dev/null
+. "$DEPS_DIR/install_composer.sh"
+# shellcheck source=/dev/null
+. "$DEPS_DIR/install_node.sh"
+# shellcheck source=/dev/null
 . "$DEPS_DIR/setup_vhost.sh"
 # shellcheck source=/dev/null
 . "$DEPS_DIR/install_tools.sh"
@@ -46,6 +50,8 @@ enable_devpanel_site
 enable_rewrite
 enable_php_modules
 check_mysql
+install_composer_if_requested
+install_node_nvm_if_requested
 reload_or_start_apache
 write_devpanel_config
 ensure_www_data_group
